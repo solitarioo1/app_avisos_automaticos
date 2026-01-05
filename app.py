@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 import os
 import logging
+import base64
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -133,11 +134,26 @@ def procesar_aviso_endpoint():
         
         logger.info(f"Aviso {numero_aviso} procesado exitosamente. Mapas: {len(mapas)}")
         
+        # Convertir mapas a base64 si se solicita
+        include_base64 = data.get('include_base64', False)
+        mapas_base64 = {}
+        
+        if include_base64:
+            for mapa in mapas:
+                mapa_path = output_dir / mapa
+                if mapa_path.exists():
+                    try:
+                        with open(mapa_path, 'rb') as f:
+                            mapas_base64[mapa] = base64.b64encode(f.read()).decode('utf-8')
+                    except Exception as e:
+                        logger.warning(f"Error codificando mapa {mapa}: {str(e)}")
+        
         return jsonify({
             'status': 'success',
             'numero_aviso': numero_aviso,
             'output_dir': str(output_dir),
             'mapas': sorted(mapas),
+            'mapas_base64': mapas_base64 if include_base64 else None,
             'archivos_adicionales': sorted(archivos_adicionales),
             'timestamp': datetime.now().isoformat()
         }), 200
