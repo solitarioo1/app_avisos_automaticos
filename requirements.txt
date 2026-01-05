@@ -1,0 +1,16 @@
+psycopg2-binary==2.9.9
+geopandas
+matplotlib
+contextily
+pillow
+matplotlib-scalebar
+cartopy
+rasterio
+mapclassify
+pyproj
+flask
+gunicorn
+python-dotenv
+requests
+shapely
+pandas

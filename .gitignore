@@ -1,0 +1,80 @@
+
+
+# ========================================
+# Python
+# ========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ========================================
+# Entornos virtuales
+# ========================================
+venv/
+.venv/
+env/
+ENV/
+.venv
+
+# ========================================
+# IDE
+# ========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ========================================
+# Configuración sensible
+# ========================================
+.env
+.env.local
+.env.*.local
+
+# ========================================
+# Archivos temporales y de caché
+# ========================================
+TEMP/
+*.log
+*.tmp
+.cache/
+.pytest_cache/
+
+# ========================================
+# Datos temporales (no subir al repo)
+# ========================================
+JSON/*.json
+OUTPUT/*/
+TEMP/*/
+
+# ========================================
+# MCP - Codacy
+# ========================================
+.github/instructions/codacy.instructions.md
+
+# ========================================
+# Sistema
+# ========================================
+.gitkeep
+Thumbs.db
+.DS_Store
+

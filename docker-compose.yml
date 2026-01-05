@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  # ========================================================================
+  # SERVICIO PRINCIPAL: APP MAPAS AVISOS
+  # ========================================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    
+    container_name: app-mapas-avisos-senamhi
+    
+    # Puerto expuesto
+    ports:
+      - "5000:5000"
+    
+    # Variables de entorno (desde .env o hardcodeadas)
+    environment:
+      # Base de datos
+      DB_HOST: ${DB_HOST:-155.320.342.247}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-database_procesar_aviso}
+      DB_USER: ${DB_USER:-software_user}
+      DB_PASSWORD: ${DB_PASSWORD:-YourPasswordHere}
+      
+      # Aplicación
+      FLASK_ENV: ${FLASK_ENV:-production}
+      FLASK_DEBUG: ${FLASK_DEBUG:-False}
+      
+      # Rutas
+      TEMP_DIR: ${TEMP_DIR:-TEMP}
+      OUTPUT_DIR: ${OUTPUT_DIR:-OUTPUT}
+      JSON_DIR: ${JSON_DIR:-JSON}
+      LAYOUT_DIR: ${LAYOUT_DIR:-LAYOUT}
+      SHP_BASE_DIR: ${SHP_BASE_DIR:-DELIMITACIONES}
+    
+    # Volúmenes para persistencia de datos
+    volumes:
+      # JSON: avisos descargados
+      - ./JSON:/app/JSON
+      
+      # TEMP: archivos temporales (ZIPs, SHPs)
+      - ./TEMP:/app/TEMP
+      
+      # OUTPUT: mapas generados (persistente)
+      - ./OUTPUT:/app/OUTPUT
+      
+      # DELIMITACIONES: shapefiles base (solo lectura)
+      - ./DELIMITACIONES:/app/DELIMITACIONES:ro
+      
+      # LOGO: logo de la aplicación (solo lectura)
+      - ./LOGO:/app/LOGO:ro
+    
+    # Recursos
+    restart: unless-stopped
+    
+    # Logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Healthcheck
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Red (opcional, para comunicación entre servicios)
+    networks:
+      - app-network
+
+# ========================================================================
+# VOLÚMENES NOMBRADOS (persistencia de datos)
+# ========================================================================
+volumes:
+  json_data:
+  temp_data:
+  output_data:
+
+# ========================================================================
+# RED DOCKER
+# ========================================================================
+networks:
+  app-network:
+    driver: bridge
+
+# ========================================================================
+# INSTRUCCIONES DE USO:
+# ========================================================================
+# 1. Construir imagen:
+#    docker-compose build
+#
+# 2. Iniciar contenedor:
+#    docker-compose up -d
+#
+# 3. Ver logs:
+#    docker-compose logs -f app
+#
+# 4. Ejecutar comando en el contenedor:
+#    docker-compose exec app python procesar_aviso.py 447
+#    docker-compose exec app python descargar_aviso.py 447 --procesar
+#
+# 5. Detener contenedor:
+#    docker-compose down
+#
+# 6. Detener y eliminar volúmenes:
+#    docker-compose down -v
+#
+# ========================================================================
+# ENDPOINTS DISPONIBLES (cuando Docker está corriendo):
+# ========================================================================
+# - http://localhost:5000/health
+# - http://localhost:5000/status
+# - POST http://localhost:5000/procesar-aviso
+# - GET http://localhost:5000/avisos/<numero>
