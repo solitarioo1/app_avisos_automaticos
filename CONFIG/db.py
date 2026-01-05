@@ -70,7 +70,12 @@ def obtener_aviso_por_numero(numero_aviso: int) -> Optional[Dict[str, Any]]:
         
         if aviso:
             logger.info(f"Aviso {numero_aviso} obtenido de BD")
-            return dict(aviso)
+            # Convertir objetos date/datetime a strings para JSON serialization
+            aviso_dict = dict(aviso)
+            for key, value in aviso_dict.items():
+                if hasattr(value, 'isoformat'):  # date, datetime, time objects
+                    aviso_dict[key] = value.isoformat()
+            return aviso_dict
         else:
             logger.warning(f"Aviso {numero_aviso} no encontrado en BD")
             return None
