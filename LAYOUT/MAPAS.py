@@ -178,13 +178,13 @@ def cargar_logo(ax, ruta_logo, x1, y1, ancho, altura):
         except Exception as e:
             # Si falla, mostrar texto "LOGO"
             ax.text(x1 + ancho/2, y1 + altura/2, 'LOGO', 
-                   fontsize=16, ha='center', va='center', 
-                   fontweight='bold', color='gray')
+                fontsize=16, ha='center', va='center', 
+                fontweight='bold', color='gray')
     else:
         # Si no existe el archivo, mostrar texto "LOGO"
         ax.text(x1 + ancho/2, y1 + altura/2, 'LOGO', 
-               fontsize=16, ha='center', va='center', 
-               fontweight='bold', color='gray')
+            fontsize=16, ha='center', va='center', 
+            fontweight='bold', color='gray')
 
 
 def dibujar_leyenda(ax, x1, y1, ancho, altura):
@@ -198,8 +198,8 @@ def dibujar_leyenda(ax, x1, y1, ancho, altura):
     """
     # Borde de leyenda con zorder alto para quedar encima
     leyenda_rect = Rectangle((x1, y1), ancho, altura,
-                             fill=True, facecolor='white', alpha=0.95,
-                             edgecolor='black', linewidth=1.5, zorder=100)
+                        fill=True, facecolor='white', alpha=0.95,
+                        edgecolor='black', linewidth=1.5, zorder=100)
     ax.add_patch(leyenda_rect)
     
     # Items de la leyenda
@@ -224,11 +224,11 @@ def dibujar_leyenda(ax, x1, y1, ancho, altura):
         
         # Texto con zorder alto
         ax.text(x_texto, y_pos, texto, 
-               fontsize=Estilos.FONT_LEYENDA, 
-               va='center', ha='left',
-               fontweight='bold',
-               color=Estilos.COLOR_TEXTO_PRINCIPAL,
-               zorder=101)
+            fontsize=Estilos.FONT_LEYENDA, 
+            va='center', ha='left',
+            fontweight='bold',
+            color=Estilos.COLOR_TEXTO_PRINCIPAL,
+            zorder=101)
 
 
 # ============================================================================
@@ -482,10 +482,10 @@ try:
     extent = [x_min_final, x_max_final, y_min_final, y_max_final]
     
     ctx.add_basemap(ax_mapa, 
-                   source=ctx.providers.OpenStreetMap.Mapnik, 
-                   zoom=zoom, 
-                   crs='EPSG:3857', 
-                   reset_extent=False)
+                source=ctx.providers.OpenStreetMap.Mapnik, 
+                zoom=zoom, 
+                crs='EPSG:3857', 
+                eset_extent=False)
     
     # Restablecer límites después del basemap para asegurar
     ax_mapa.set_xlim(x_min_final, x_max_final)
@@ -495,9 +495,9 @@ except Exception as e:
 
 # Plotear departamento y provincias (sin leyenda automática)
 gdf_depto.plot(ax=ax_mapa, facecolor='none', edgecolor='black', 
-              linewidth=2, zorder=2)
+            linewidth=2, zorder=2)
 gdf_provincias.plot(ax=ax_mapa, facecolor='none', edgecolor='gray', 
-                   linewidth=1, zorder=2)
+                linewidth=1, zorder=2)
 
 # Plotear zonas de riesgo (sin leyenda automática)
 colores = {'Nivel 2': 'yellow', 'Nivel 3': 'orange', 'Nivel 4': 'red'}
@@ -524,9 +524,9 @@ leyenda_altura_mapa = LEYENDA_ALTURA * (y_max_final - y_min_final) / BLOQUE_MAPA
 # Dibujar leyenda en ax_mapa
 from matplotlib.patches import Rectangle, Circle
 leyenda_rect = Rectangle((leyenda_x1_mapa, leyenda_y1_mapa), 
-                         leyenda_ancho_mapa, leyenda_altura_mapa,
-                         fill=True, facecolor='white', alpha=0.95,
-                         edgecolor='black', linewidth=1.5, zorder=200)
+                        leyenda_ancho_mapa, leyenda_altura_mapa,
+                        fill=True, facecolor='white', alpha=0.95,
+                        edgecolor='black', linewidth=1.5, zorder=200)
 ax_mapa.add_patch(leyenda_rect)
 
 # Items de la leyenda
@@ -551,11 +551,11 @@ for i, (texto, color) in enumerate(niveles):
     
     # Texto
     ax_mapa.text(x_texto_mapa, y_pos_mapa, texto, 
-           fontsize=Estilos.FONT_LEYENDA, 
-           va='center', ha='left',
-           fontweight='bold',
-           color=Estilos.COLOR_TEXTO_PRINCIPAL,
-           zorder=201)
+        fontsize=Estilos.FONT_LEYENDA, 
+        va='center', ha='left',
+        fontweight='bold',
+        color=Estilos.COLOR_TEXTO_PRINCIPAL,
+        zorder=201)
 
 # ============================================================================
 # 11. CONTENIDO - FOOTER
@@ -563,7 +563,7 @@ for i, (texto, color) in enumerate(niveles):
 
 # LOGO
 cargar_logo(ax, Estilos.RUTA_LOGO, 
-           MARCO_X1, FILA1_Y1, LOGO_ANCHO, FILA1_ALTURA)
+        MARCO_X1, FILA1_Y1, LOGO_ANCHO, FILA1_ALTURA)
 
 
 # Fechas (INFO, más grande y elegante)

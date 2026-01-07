@@ -3,12 +3,11 @@ API Flask para procesamiento automático de avisos SENAMHI
 Interfaz HTTP para integración con n8n
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from pathlib import Path
 import sys
 import os
 import logging
-import base64
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -35,6 +34,7 @@ app.config['JSON_AS_ASCII'] = False
 # Rutas base (desde .env)
 BASE_DIR = Path(__file__).parent
 OUTPUT_DIR = BASE_DIR / os.getenv('OUTPUT_DIR', 'OUTPUT')
+DOMAIN = os.getenv('DOMAIN', 'https://mapas.miagentepersonal.me')
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -44,6 +44,16 @@ def health():
         'timestamp': datetime.now().isoformat(),
         'version': '1.0.0'
     }), 200
+
+
+@app.route('/OUTPUT/<path:filepath>', methods=['GET'])
+def serve_output(filepath):
+    """Servir archivos estáticos desde OUTPUT"""
+    try:
+        return send_from_directory(str(OUTPUT_DIR), filepath, as_attachment=True)
+    except Exception as e:
+        logger.error(f"Error sirviendo archivo {filepath}: {str(e)}")
+        return jsonify({'status': 'error', 'message': 'Archivo no encontrado'}), 404
 
 
 @app.route('/procesar-aviso', methods=['POST'])
@@ -134,26 +144,18 @@ def procesar_aviso_endpoint():
         
         logger.info(f"Aviso {numero_aviso} procesado exitosamente. Mapas: {len(mapas)}")
         
-        # Convertir mapas a base64 si se solicita
-        include_base64 = data.get('include_base64', False)
-        mapas_base64 = {}
-        
-        if include_base64:
-            for mapa in mapas:
-                mapa_path = output_dir / mapa
-                if mapa_path.exists():
-                    try:
-                        with open(mapa_path, 'rb') as f:
-                            mapas_base64[mapa] = base64.b64encode(f.read()).decode('utf-8')
-                    except Exception as e:
-                        logger.warning(f"Error codificando mapa {mapa}: {str(e)}")
+        # Generar URLs para los mapas
+        mapas_urls = {}
+        for mapa in mapas:
+            mapa_relative = f"aviso_{numero_aviso}/{mapa}"
+            mapas_urls[mapa] = f"{DOMAIN}/OUTPUT/{mapa_relative}"
         
         return jsonify({
             'status': 'success',
             'numero_aviso': numero_aviso,
             'output_dir': str(output_dir),
             'mapas': sorted(mapas),
-            'mapas_base64': mapas_base64 if include_base64 else None,
+            'mapas_urls': mapas_urls,
             'archivos_adicionales': sorted(archivos_adicionales),
             'timestamp': datetime.now().isoformat()
         }), 200
