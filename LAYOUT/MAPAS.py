@@ -7,6 +7,17 @@ import geopandas as gpd
 import contextily as ctx
 from matplotlib_scalebar.scalebar import ScaleBar
 from dotenv import load_dotenv
+import shutil
+from pathlib import Path
+
+# Limpiar caché corrupto de contextily al iniciar
+cache_dir = Path.home() / '.cache' / 'contextily'
+if cache_dir.exists():
+    try:
+        shutil.rmtree(cache_dir)
+        print("🧹 Caché de contextily limpiado")
+    except:
+        pass
 
 # Cargar variables de entorno
 load_dotenv()
@@ -481,23 +492,42 @@ try:
     # Calcular extent explícito para el basemap
     extent = [x_min_final, x_max_final, y_min_final, y_max_final]
     
+    print(f"📍 Agregando basemap OpenStreetMap.Mapnik con zoom={zoom}")
     ctx.add_basemap(ax_mapa, 
                 source=ctx.providers.OpenStreetMap.Mapnik, 
                 zoom=zoom, 
                 crs='EPSG:3857', 
-                eset_extent=False)
+                attribution_size=8)
     
     # Restablecer límites después del basemap para asegurar
     ax_mapa.set_xlim(x_min_final, x_max_final)
     ax_mapa.set_ylim(y_min_final, y_max_final)
+    print("✅ Basemap cargado exitosamente")
 except Exception as e:
-    print(f"Advertencia: No se pudo cargar mapa base: {e}")
+    print(f"⚠️ Error con OpenStreetMap: {type(e).__name__}: {e}")
+    print(f"Intentando con CartoDB...")
+    try:
+        ctx.add_basemap(ax_mapa, 
+                    source=ctx.providers.CartoDB.Positron, 
+                    zoom=zoom, 
+                    crs='EPSG:3857',
+                    attribution_size=8)
+        ax_mapa.set_xlim(x_min_final, x_max_final)
+        ax_mapa.set_ylim(y_min_final, y_max_final)
+        print("✅ CartoDB cargado como fallback")
+    except Exception as e2:
+        print(f"❌ Ambos providers fallaron: {e2}")
+        print("⚠️ Mapa sin capa base, continuando...")
 
-# Plotear departamento y provincias (sin leyenda automática)
+# Plotear departamento y provincias (sin leyenda automática) - MEJORADO PARA VISIBILIDAD
+# Departamentos con borde blanco grueso + borde negro para definición
 gdf_depto.plot(ax=ax_mapa, facecolor='none', edgecolor='black', 
-            linewidth=2, zorder=2)
-gdf_provincias.plot(ax=ax_mapa, facecolor='none', edgecolor='gray', 
-                linewidth=1, zorder=2)
+            linewidth=4, zorder=3)
+gdf_depto.boundary.plot(ax=ax_mapa, edgecolor='black', linewidth=2, zorder=2.5)
+
+# Provincias con línea gris oscura más gruesa
+gdf_provincias.plot(ax=ax_mapa, facecolor='none', edgecolor='#444444', 
+                linewidth=2.5, zorder=2.5)
 
 # Plotear zonas de riesgo (sin leyenda automática)
 colores = {'Nivel 2': 'yellow', 'Nivel 3': 'orange', 'Nivel 4': 'red'}
