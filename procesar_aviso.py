@@ -139,13 +139,14 @@ def procesar_aviso(numero_aviso, desde_db=False):
     datos_aviso = obtener_json_aviso(numero_aviso, desde_db)
     duracion_horas = datos_aviso.get('duracion_horas', 72)
     nivel = datos_aviso.get('nivel', 'NARANJA')
+    color = datos_aviso.get('color', 'naranja').lower()
     
-    # Validar que solo se generen mapas para ROJO y NARANJA
-    if nivel not in ['ROJO', 'NARANJA']:
-        print(f"\n⚠️  Este aviso es de nivel {nivel.upper()}", flush=True)
+    # Validar que solo se generen mapas para ROJO y NARANJA (usando color como indicador)
+    if color not in ['rojo', 'naranja']:
+        print(f"\n⚠️  Este aviso es de color {color.upper()}", flush=True)
         print(f"📌 Los mapas solo se generan para avisos ROJO y NARANJA", flush=True)
         print(f"\n✅ Procesamiento finalizado\n", flush=True)
-        logger.warning(f"⚠ Aviso {numero_aviso} es de nivel {nivel} - Mapas solo se generan para ROJO y NARANJA")
+        logger.warning(f"⚠ Aviso {numero_aviso} es de color {color} - Mapas solo se generan para ROJO y NARANJA")
         # Crear output_dir aunque sea, pero sin mapas
         output_base = os.getenv('OUTPUT_DIR', 'OUTPUT')
         output_dir = f"{output_base}/aviso_{numero_aviso}"
