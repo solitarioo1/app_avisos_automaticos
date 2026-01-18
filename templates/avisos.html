@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}Avisos - La Positiva AgroSeguros{% endblock %}
+
+{% block content %}
+<style>
+    .table td {
+        padding: 6px 8px !important;
+        vertical-align: middle;
+        white-space: nowrap;
+        font-size: 13px;
+    }
+    
+    .table th {
+        padding: 8px 8px !important;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .badge-rojo {
+        background-color: #dc3545 !important;
+        color: white;
+        font-size: 11px;
+        padding: 4px 6px !important;
+    }
+    
+    .badge-naranja {
+        background-color: #ff8c00 !important;
+        color: white;
+        font-size: 11px;
+        padding: 4px 6px !important;
+    }
+    
+    .badge-amarillo {
+        background-color: #ffc107 !important;
+        color: #333;
+        font-size: 11px;
+        padding: 4px 6px !important;
+    }
+    
+    .badge-verde {
+        background-color: #198754 !important;
+        color: white;
+        font-size: 11px;
+        padding: 4px 6px !important;
+    }
+    
+    .badge-gris {
+        background-color: #6c757d !important;
+        color: white;
+        font-size: 11px;
+        padding: 4px 6px !important;
+    }
+    
+    .acciones-col {
+        display: flex;
+        gap: 3px;
+        flex-wrap: nowrap;
+    }
+    
+    .btn-sm {
+        padding: 3px 6px !important;
+        font-size: 11px !important;
+    }
+    
+    .card {
+        margin-bottom: 0 !important;
+    }
+    
+    .card-body {
+        padding: 10px !important;
+    }
+    
+    .card-header {
+        padding: 10px 15px !important;
+    }
+    
+    .row.g-2 > div {
+        padding-right: 5px;
+    }
+    
+    .form-label {
+        font-size: 12px;
+    }
+    
+    .form-select-sm {
+        font-size: 12px;
+    }
+    
+    h2 {
+        margin-bottom: 15px !important;
+        font-size: 22px;
+    }
+</style>
+
+<div class="container-fluid p-3">
+    <h2 class="mb-3"><i class="bi bi-cloud-lightning"></i> Gestión de Avisos</h2>
+
+    <!-- Filtros -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <label class="form-label mb-1">Nivel</label>
+                    <select class="form-select form-select-sm" id="filtro-nivel" onchange="aplicarFiltros()">
+                        <option value="">Todos</option>
+                        <option value="ROJO">🔴 ROJO</option>
+                        <option value="NARANJA">🟠 NARANJA</option>
+                        <option value="AMARILLO">🟡 AMARILLO</option>
+                        <!-- <option value="VERDE">🟢 VERDE</option> -->
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label mb-1">Ordenar</label>
+                    <select class="form-select form-select-sm" id="filtro-orden" onchange="aplicarFiltros()">
+                        <option value="desc">Más recientes ↓</option>
+                        <option value="asc">Más antiguos ↑</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label mb-1">Estado</label>
+                    <select class="form-select form-select-sm" id="filtro-estado" onchange="aplicarFiltros()">
+                        <option value="">Todos</option>
+                        <option value="descargado">Descargados ✅</option>
+                        <option value="pendiente">Pendientes ⏳</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla -->
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Lista de Avisos</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 table-sm">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 100px;">Número Aviso</th>
+                        <th style="width: 35%;">Título</th>
+                        <th style="width: 100px;">Nivel</th>
+                        <th style="width: 110px;">Fecha</th>
+                        <th style="width: 85px;">Descargado</th>
+                        <th style="width: 85px;">Mapa Creado</th>
+                        <th style="width: 150px;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-avisos">
+                    {% for aviso in avisos %}
+                    <tr data-numero="{{ aviso.numero }}" data-nivel="{{ aviso.nivel }}" data-descargado="{{ aviso.descargado }}" data-procesado="{{ aviso.procesado }}" data-fecha="{{ aviso.fecha_emision }}" data-color="{{ aviso.color }}">
+                        <td><strong>#{{ aviso.numero }}</strong></td>
+                        <td style="text-align: left;">{{ aviso.titulo }}</td>
+                        <td>
+                            {% if aviso.color == 'rojo' %}
+                                <span class="badge badge-rojo">ROJO</span>
+                            {% elif aviso.color == 'naranja' %}
+                                <span class="badge badge-naranja">NARANJA</span>
+                            {% elif aviso.color == 'amarillo' %}
+                                <span class="badge badge-amarillo">AMARILLO</span>
+                            {% elif aviso.color == 'verde' %}
+                                <span class="badge badge-verde">VERDE</span>
+                            {% else %}
+                                <span class="badge badge-gris">{{ aviso.nivel }}</span>
+                            {% endif %}
+                        </td>
+                        <td><small>{{ aviso.fecha_emision }}</small></td>
+                        <td style="text-align: center;">{{ aviso.descargado }}</td>
+                        <td style="text-align: center;">{{ aviso.mapa_creado }}</td>
+                        <td>
+                            <div class="acciones-col">
+                                <button class="btn btn-sm btn-outline-primary btn-descargar" title="Descargar JSON" data-numero="{{ aviso.numero }}"><i class="bi bi-download"></i></button>
+                                <a href="/mapas?aviso={{ aviso.numero }}" class="btn btn-sm btn-outline-secondary" title="Ver Mapas"><i class="bi bi-eye"></i></a>
+                                <a href="/decisiones?aviso={{ aviso.numero }}" class="btn btn-sm btn-outline-warning" title="Decisiones"><i class="bi bi-geo"></i></a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+const AVISOS_ORIGINALES = [];
+
+function guardarAvisosOriginales() {
+    const filas = document.querySelectorAll('#tabla-avisos tr');
+    filas.forEach(fila => {
+        AVISOS_ORIGINALES.push({
+            numero: fila.getAttribute('data-numero'),
+            nivel: fila.getAttribute('data-nivel'),
+            descargado: fila.getAttribute('data-descargado'),
+            procesado: fila.getAttribute('data-procesado'),
+            fecha: fila.getAttribute('data-fecha'),
+            html: fila.outerHTML
+        });
+    });
+}
+
+function aplicarFiltros() {
+    const nivel = document.getElementById('filtro-nivel').value;
+    const orden = document.getElementById('filtro-orden').value;
+    const estado = document.getElementById('filtro-estado').value;
+    
+    let avisosFiltrados = AVISOS_ORIGINALES.filter(aviso => {
+        const cumpleNivel = !nivel || aviso.nivel === nivel;
+        const esDescargado = aviso.descargado.includes('✅');
+        const cumpleEstado = !estado || (estado === 'descargado' && esDescargado) || (estado === 'pendiente' && !esDescargado);
+        
+        return cumpleNivel && cumpleEstado;
+    });
+    
+    if (orden === 'asc') {
+        avisosFiltrados.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    } else {
+        avisosFiltrados.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    }
+    
+    const tbody = document.getElementById('tabla-avisos');
+    tbody.innerHTML = avisosFiltrados.map(a => a.html).join('');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    guardarAvisosOriginales();
+    aplicarFiltros();
+    
+    // Evento para botón Descargar
+    document.querySelectorAll('.btn-descargar').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const numero = this.getAttribute('data-numero');
+            const btnIcon = this.querySelector('i');
+            const originalClass = btnIcon.className;
+            
+            try {
+                this.disabled = true;
+                btnIcon.className = 'bi bi-hourglass-split spin';
+                
+                const response = await fetch(`/api/avisos/${numero}/descargar`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    btnIcon.className = 'bi bi-check-circle';
+                    this.classList.remove('btn-outline-primary');
+                    this.classList.add('btn-success');
+                    
+                    // Actualizar tabla
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                    btnIcon.className = originalClass;
+                    this.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al descargar: ' + error.message);
+                btnIcon.className = originalClass;
+                this.disabled = false;
+            }
+        });
+    });
+});
+</script>
+<style>
+    .spin {
+        display: inline-block;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}

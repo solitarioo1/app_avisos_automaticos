@@ -23,9 +23,18 @@ from dotenv import load_dotenv
 # Cargar variables de entorno
 load_dotenv()
 
-# Configurar logging
-logging.basicConfig(level=logging.INFO)
+# Configurar logging con flush inmediato
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    force=True
+)
 logger = logging.getLogger(__name__)
+
+# Asegurar que stdout se flush inmediatamente
+import io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True)
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', line_buffering=True)
 
 # Importar utilidades de LAYOUT
 from LAYOUT.utils import (
@@ -119,15 +128,29 @@ def procesar_aviso(numero_aviso, desde_db=False):
         Ruta a la carpeta con mapas generados
     """
     logger.info(f"🔄 Procesando aviso {numero_aviso}...")
+    print(f"\n📢 AVISO #{numero_aviso}\n", flush=True)
     
     # 1. Obtener datos del JSON o BD
+    print(f"⏳ Iniciando la descarga de información...", flush=True)
     datos_aviso = obtener_json_aviso(numero_aviso, desde_db)
     duracion_horas = datos_aviso.get('duracion_horas', 72)
     nivel = datos_aviso.get('nivel', 'NARANJA')
     
+    # Validar que solo se generen mapas para ROJO y NARANJA
+    if nivel not in ['ROJO', 'NARANJA']:
+        print(f"\n⚠️  Este aviso es de nivel {nivel.upper()}", flush=True)
+        print(f"📌 Los mapas solo se generan para avisos ROJO y NARANJA", flush=True)
+        print(f"\n✅ Procesamiento finalizado\n", flush=True)
+        logger.warning(f"⚠ Aviso {numero_aviso} es de nivel {nivel} - Mapas solo se generan para ROJO y NARANJA")
+        # Crear output_dir aunque sea, pero sin mapas
+        output_base = os.getenv('OUTPUT_DIR', 'OUTPUT')
+        output_dir = f"{output_base}/aviso_{numero_aviso}"
+        os.makedirs(output_dir, exist_ok=True)
+        return output_dir
+    
     # 2. Determinar días a procesar
     dias_evento = determinar_dias_aviso(duracion_horas)
-    logger.info(f"✓ Aviso {numero_aviso}: {nivel}, duración {duracion_horas}h ({dias_evento} días)")
+    print(f"\n📅 Duración del evento: {duracion_horas} horas ({dias_evento} día{'s' if dias_evento > 1 else ''})", flush=True)
     
     # 3. Crear carpetas temporales y de salida (usar vars de .env)
     temp_base = os.getenv('TEMP_DIR', 'TEMP')
@@ -139,6 +162,7 @@ def procesar_aviso(numero_aviso, desde_db=False):
     os.makedirs(output_dir, exist_ok=True)
     
     # 4. Descargar SHP para cada día del evento
+    print(f"\n🌐 Descargando mapas de riesgo...", flush=True)
     shp_paths = {}
     
     for dia in range(1, dias_evento + 1):
@@ -151,8 +175,10 @@ def procesar_aviso(numero_aviso, desde_db=False):
         zip_path = f"{temp_dir}/shp_dia{dia}.zip"
         extract_dir = f"{temp_dir}/dia{dia}"
         
+        print(f"  ⬇️  Día {dia}... ", end="", flush=True)
         descargar_shp(url, zip_path)
         descomprimir_zip(zip_path, extract_dir)
+        print(f"✅", flush=True)
         
         shp_path = os.path.join(extract_dir, 'view_aviso.shp')
         if os.path.exists(shp_path):
@@ -163,33 +189,44 @@ def procesar_aviso(numero_aviso, desde_db=False):
         return None
     
     # 5. Seleccionar día crítico
-    logger.info("\n🔍 Seleccionando día crítico...")
+    print(f"\n🔍 Analizando zonas de riesgo...", flush=True)
     dia_critico, shp_critico = seleccionar_dia_critico(shp_paths)
+    print(f"  ✅ Día seleccionado: {dia_critico}", flush=True)
     
     # 6. Extraer departamentos afectados
-    logger.info("🔍 Extrayendo departamentos afectados...")
+    print(f"\n🗺️  Identificando zonas afectadas...", flush=True)
     deptos_afectados = extraer_departamentos_afectados(shp_critico)
     
     if not deptos_afectados:
+        print(f"⚠️  No se encontraron áreas de riesgo alto en este aviso", flush=True)
+        print(f"\n✅ Procesamiento finalizado\n", flush=True)
         logger.warning("⚠ No se encontraron departamentos afectados de nivel ALTO")
         return output_dir
     
     # 7. Extraer y guardar provincias y distritos
-    logger.info("🔍 Extrayendo provincias y distritos...")
     provincias = extraer_provincias_afectadas(shp_critico)
     distritos = extraer_distritos_afectados(shp_critico)
     
+    num_provincias = len(provincias) if provincias is not None else 0
+    num_distritos = len(distritos) if distritos is not None else 0
+    
+    print(f"\n📍 Áreas afectadas:", flush=True)
+    print(f"  🏛️  Departamentos: {len(deptos_afectados)}", flush=True)
+    print(f"  🏢 Provincias: {num_provincias}", flush=True)
+    print(f"  🏘️  Distritos: {num_distritos}", flush=True)
+    
     if provincias is not None:
         provincias.to_csv(f"{output_dir}/provincias_afectadas.csv", index=False)
-        logger.info(f"✓ Guardadas {len(provincias)} provincias")
     if distritos is not None:
         distritos.to_csv(f"{output_dir}/distritos_afectados.csv", index=False)
-        logger.info(f"✓ Guardados {len(distritos)} distritos")
     
     # 8. Generar mapas para cada departamento
-    logger.info(f"🗺️ Generando mapas para {len(deptos_afectados)} departamentos...")
+    print(f"\n⏱️  TIEMPO ESTIMADO: ~{len(deptos_afectados)} minutos", flush=True)
+    print(f"💡 Recomendación: Sé paciente, esto puede tomar un tiempo...", flush=True)
+    print(f"\n🎨 COMENZANDO GENERACIÓN DE MAPAS\n", flush=True)
     
-    for depto in deptos_afectados:
+    for idx, depto in enumerate(deptos_afectados, 1):
+        print(f"  [{idx}/{len(deptos_afectados)}] Generando mapa para {depto}...", end=" ", flush=True)
         logger.info(f"▶ Procesando mapa para {depto}...")
         
         args_mapas = [
@@ -214,6 +251,7 @@ def procesar_aviso(numero_aviso, desde_db=False):
         
         if result.returncode != 0:
             logger.error(f"❌ Error al generar mapa para {depto}:\n{result.stderr}")
+            print(f"❌ ERROR", flush=True)
             continue
             
         mapa_origen = f"mapa_tematico_{depto}.png"
@@ -225,14 +263,16 @@ def procesar_aviso(numero_aviso, desde_db=False):
             img.save(mapa_destino, format="WEBP", quality=90)
             os.remove(mapa_origen)
             logger.info(f"✓ Guardado: {mapa_destino}")
+            print(f"✅ CREADO", flush=True)
         except ImportError:
             shutil.move(mapa_origen, f"{output_dir}/{depto}.png")
             logger.info(f"✓ Guardado: {output_dir}/{depto}.png")
+            print(f"✅ CREADO", flush=True)
     
+    print(f"\n✨ CREACIÓN FINALIZADA ✨\n", flush=True)
+    print(f"👋 ¡Hasta pronto! Esta pestaña se cerrará en 5 segundos...\n", flush=True)
     logger.info(f"\n✅ Procesamiento del aviso {numero_aviso} completado")
     logger.info(f"📁 Mapas guardados en: {output_dir}")
-    
-    return output_dir
 
 
 if __name__ == "__main__":

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}La Positiva - Dashboard Avisos{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <!-- Header -->
+    <header class="header-senamhi">
+        <nav class="navbar navbar-expand-lg">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="/">
+                    <img src="{{ url_for('static', filename='img/logo-positiva.png') }}" alt="La Positiva" class="logo-img me-2">
+                    <strong>La Positiva - SENAMHI</strong>
+                </a>
+                
+                <div class="navbar-nav ms-auto">
+                    <span class="navbar-text me-3">
+                        <i class="bi bi-calendar3"></i>
+                        <span id="current-time"></span>
+                    </span>
+                    <a class="nav-link" href="/logout">
+                        <i class="bi bi-box-arrow-right"></i> Salir
+                    </a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <nav class="sidebar-nav">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/">
+                            <i class="bi bi-speedometer2"></i>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/avisos">
+                            <i class="bi bi-cloud-lightning"></i>
+                            Avisos
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/mapas">
+                            <i class="bi bi-geo-alt"></i>
+                            Mapas
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/decisiones">
+                            <i class="bi bi-graph-up-arrow"></i>
+                            Decisiones
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/whatsapp">
+                            <i class="bi bi-whatsapp"></i>
+                            WhatsApp
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/configuracion">
+                            <i class="bi bi-gear"></i>
+                            Configuración
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/logs">
+                            <i class="bi bi-terminal"></i>
+                            Logs
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Content Area -->
+        <main class="content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>
