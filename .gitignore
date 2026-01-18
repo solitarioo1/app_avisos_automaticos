@@ -60,6 +60,16 @@ TEMP/
 .pytest_cache/
 
 # ========================================
+# Archivos de prueba y desarrollo
+# ========================================
+test_*.py
+check_*.py
+debug_*.py
+*_test.py
+*.test.py
+dev_*.py
+
+# ========================================
 # Datos temporales (no subir al repo)
 # ========================================
 JSON/*.json

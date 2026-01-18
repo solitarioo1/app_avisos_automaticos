@@ -105,7 +105,11 @@
     <div class="card mb-3">
         <div class="card-body">
             <div class="row g-2">
-                <div class="col-md-4">
+                <div class="col-md-3">
+                    <label class="form-label mb-1">🔍 Buscar Aviso</label>
+                    <input type="text" class="form-control form-control-sm" id="filtro-numero" placeholder="Número de aviso..." onkeyup="aplicarFiltros()">
+                </div>
+                <div class="col-md-3">
                     <label class="form-label mb-1">Nivel</label>
                     <select class="form-select form-select-sm" id="filtro-nivel" onchange="aplicarFiltros()">
                         <option value="">Todos</option>
@@ -115,14 +119,14 @@
                         <!-- <option value="VERDE">🟢 VERDE</option> -->
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label mb-1">Ordenar</label>
                     <select class="form-select form-select-sm" id="filtro-orden" onchange="aplicarFiltros()">
                         <option value="desc">Más recientes ↓</option>
                         <option value="asc">Más antiguos ↑</option>
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label mb-1">Estado</label>
                     <select class="form-select form-select-sm" id="filtro-estado" onchange="aplicarFiltros()">
                         <option value="">Todos</option>
@@ -209,13 +213,15 @@ function aplicarFiltros() {
     const nivel = document.getElementById('filtro-nivel').value;
     const orden = document.getElementById('filtro-orden').value;
     const estado = document.getElementById('filtro-estado').value;
+    const numero = document.getElementById('filtro-numero').value.toLowerCase();
     
     let avisosFiltrados = AVISOS_ORIGINALES.filter(aviso => {
         const cumpleNivel = !nivel || aviso.nivel === nivel;
         const esDescargado = aviso.descargado.includes('✅');
         const cumpleEstado = !estado || (estado === 'descargado' && esDescargado) || (estado === 'pendiente' && !esDescargado);
+        const cumpleNumero = !numero || aviso.numero.toString().includes(numero);
         
-        return cumpleNivel && cumpleEstado;
+        return cumpleNivel && cumpleEstado && cumpleNumero;
     });
     
     if (orden === 'asc') {

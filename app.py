@@ -108,6 +108,7 @@ def avisos():
         query = """
         SELECT DISTINCT numero_aviso, fecha_emision, titulo, nivel, color
         FROM avisos_completos
+        WHERE color IN ('rojo', 'naranja')
         ORDER BY numero_aviso DESC
         """
         cursor.execute(query)
