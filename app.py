@@ -652,7 +652,7 @@ def api_avisos():
             )
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             
-            query = "SELECT DISTINCT numero_aviso, titulo, nivel FROM avisos_completos ORDER BY numero_aviso DESC"
+            query = "SELECT DISTINCT numero_aviso, titulo, nivel, color FROM avisos_completos WHERE color IN ('rojo', 'naranja') ORDER BY numero_aviso DESC"
             cursor.execute(query)
             avisos_bd = cursor.fetchall()
             cursor.close()
@@ -1206,6 +1206,107 @@ def internal_error(error):
         'status': 'error',
         'message': 'Error interno del servidor'
     }), 500
+
+
+@app.route('/api/avisos/nuevos', methods=['GET'])
+def api_avisos_nuevos():
+    """API para obtener avisos nuevos en las últimas 24 horas"""
+    try:
+        import psycopg2
+        import psycopg2.extras
+        from datetime import datetime, timedelta
+        
+        # Timeout de 5 segundos para conexión
+        conn = psycopg2.connect(
+            host=os.getenv("DB_HOST", "localhost"),
+            port=int(os.getenv("DB_PORT", "5432")),
+            database=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            connect_timeout=5
+        )
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Buscar avisos con fecha_emision en las últimas 24 horas
+        hace_24_horas = datetime.now() - timedelta(hours=24)
+        
+        query = """
+            SELECT COUNT(DISTINCT numero_aviso) as total
+            FROM avisos_completos 
+            WHERE color IN ('rojo', 'naranja') 
+            AND fecha_emision >= %s
+        """
+        cursor.execute(query, (hace_24_horas,))
+        resultado = cursor.fetchone()
+        total_nuevos = resultado['total'] if resultado else 0
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'status': 'success',
+            'total_nuevos': total_nuevos,
+            'fecha_consulta': datetime.now().isoformat()
+        })
+    except psycopg2.OperationalError as e:
+        logger.error(f"Error de conexión BD: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': 'No hay conexión a la base de datos. Intenta más tarde.'
+        }), 503
+    except Exception as e:
+        logger.error(f"Error al obtener avisos nuevos: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Error al consultar avisos nuevos'
+        }), 500
+
+
+@app.route('/api/avisos/<int:numero>/imagenes', methods=['GET'])
+def api_avisos_imagenes(numero):
+    """API para obtener imágenes y CSV de afectados (para n8n)"""
+    try:
+        carpeta = BASE_DIR / 'OUTPUT' / f'aviso_{numero}'
+        if not carpeta.exists():
+            return jsonify({
+                'status': 'error',
+                'message': f'No hay datos para el aviso {numero}'
+            }), 404
+        
+        # Obtener imágenes WEBP
+        imagenes = []
+        for archivo in sorted(carpeta.glob('*.webp')):
+            imagenes.append({
+                'nombre': archivo.name,
+                'url': f'/static/output/aviso_{numero}/{archivo.name}',
+                'ruta_local': str(archivo)
+            })
+        
+        # Obtener CSVs (departamentos y provincias afectadas)
+        archivos_csv = []
+        for csv_file in carpeta.glob('*.csv'):
+            archivos_csv.append({
+                'nombre': csv_file.name,
+                'url': f'/static/output/aviso_{numero}/{csv_file.name}',
+                'ruta_local': str(csv_file),
+                'tipo': 'departamentos' if 'departamentos' in csv_file.name else 'provincias'
+            })
+        
+        return jsonify({
+            'status': 'success',
+            'numero_aviso': numero,
+            'total_imagenes': len(imagenes),
+            'total_afectados': len(archivos_csv),
+            'imagenes': imagenes,
+            'archivos_csv': archivos_csv,
+            'mensaje': f'Aviso {numero}: {len(imagenes)} imágenes, {len(archivos_csv)} CSV(s) con departamentos/provincias'
+        })
+    except Exception as e:
+        logger.error(f"Error al obtener imágenes: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 
 if __name__ == '__main__':

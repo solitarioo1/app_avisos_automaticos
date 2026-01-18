@@ -115,6 +115,75 @@ def guardar_aviso_json(numero_aviso: int, output_path: str = ".") -> bool:
         return False
 
 
+def limpiar_imagenes_aviso(numero_aviso: int) -> bool:
+    """Elimina datos viejos de un aviso antes de regenerar"""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("DELETE FROM imagenes_avisos WHERE numero_aviso = %s", (numero_aviso,))
+        cursor.execute("DELETE FROM archivos_csv_avisos WHERE numero_aviso = %s", (numero_aviso,))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        logger.info(f"Datos limpios para aviso {numero_aviso}")
+        return True
+    except Exception as e:
+        logger.error(f"Error limpiando datos: {str(e)}")
+        return False
+
+
+def guardar_imagen_aviso(numero_aviso: int, departamento: str, ruta_webp: str) -> bool:
+    """Guarda ruta de imagen WEBP en BD"""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            """INSERT INTO imagenes_avisos (numero_aviso, departamento, ruta_webp, estado)
+               VALUES (%s, %s, %s, 'completado')
+               ON CONFLICT (numero_aviso, departamento) DO UPDATE
+               SET ruta_webp = EXCLUDED.ruta_webp, fecha_creacion = CURRENT_TIMESTAMP""",
+            (numero_aviso, departamento, ruta_webp)
+        )
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        logger.info(f"Imagen guardada: Aviso {numero_aviso} - {departamento}")
+        return True
+    except Exception as e:
+        logger.error(f"Error guardando imagen: {str(e)}")
+        return False
+
+
+def guardar_csv_aviso(numero_aviso: int, tipo: str, ruta_csv: str) -> bool:
+    """Guarda ruta de CSV en BD"""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            """INSERT INTO archivos_csv_avisos (numero_aviso, tipo, ruta_csv)
+               VALUES (%s, %s, %s)
+               ON CONFLICT DO NOTHING""",
+            (numero_aviso, tipo, ruta_csv)
+        )
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        logger.info(f"CSV guardado: Aviso {numero_aviso} - {tipo}")
+        return True
+    except Exception as e:
+        logger.error(f"Error guardando CSV: {str(e)}")
+        return False
+
+
 if __name__ == "__main__":
     # Para pruebas locales
     logging.basicConfig(level=logging.INFO)

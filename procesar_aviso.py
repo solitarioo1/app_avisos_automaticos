@@ -48,7 +48,7 @@ from LAYOUT.utils import (
 )
 
 # Importar funciones de BD
-from CONFIG.db import obtener_aviso_por_numero, guardar_aviso_json
+from CONFIG.db import obtener_aviso_por_numero, guardar_aviso_json, limpiar_imagenes_aviso, guardar_imagen_aviso, guardar_csv_aviso
 
 def obtener_json_aviso(numero_aviso, desde_db=False):
     """
@@ -129,6 +129,10 @@ def procesar_aviso(numero_aviso, desde_db=False):
     """
     logger.info(f"🔄 Procesando aviso {numero_aviso}...")
     print(f"\n📢 AVISO #{numero_aviso}\n", flush=True)
+    
+    # 0. Limpiar datos viejos de BD antes de regenerar
+    limpiar_imagenes_aviso(numero_aviso)
+    logger.info(f"Datos viejos limpiados para aviso {numero_aviso}")
     
     # 1. Obtener datos del JSON o BD
     print(f"⏳ Iniciando la descarga de información...", flush=True)
@@ -217,8 +221,10 @@ def procesar_aviso(numero_aviso, desde_db=False):
     
     if provincias is not None:
         provincias.to_csv(f"{output_dir}/provincias_afectadas.csv", index=False)
+        guardar_csv_aviso(numero_aviso, 'provincias', f"/static/output/aviso_{numero_aviso}/provincias_afectadas.csv")
     if distritos is not None:
         distritos.to_csv(f"{output_dir}/distritos_afectados.csv", index=False)
+        guardar_csv_aviso(numero_aviso, 'distritos', f"/static/output/aviso_{numero_aviso}/distritos_afectados.csv")
     
     # 8. Generar mapas para cada departamento
     print(f"\n⏱️  TIEMPO ESTIMADO: ~{len(deptos_afectados)} minutos", flush=True)
@@ -264,10 +270,19 @@ def procesar_aviso(numero_aviso, desde_db=False):
             os.remove(mapa_origen)
             logger.info(f"✓ Guardado: {mapa_destino}")
             print(f"✅ CREADO", flush=True)
+            
+            # Guardar ruta en BD
+            ruta_relativa = f"/static/output/aviso_{numero_aviso}/{depto}.webp"
+            guardar_imagen_aviso(numero_aviso, depto, ruta_relativa)
+            
         except ImportError:
             shutil.move(mapa_origen, f"{output_dir}/{depto}.png")
             logger.info(f"✓ Guardado: {output_dir}/{depto}.png")
             print(f"✅ CREADO", flush=True)
+            
+            # Guardar ruta en BD (formato PNG si PIL no está disponible)
+            ruta_relativa = f"/static/output/aviso_{numero_aviso}/{depto}.png"
+            guardar_imagen_aviso(numero_aviso, depto, ruta_relativa)
     
     print(f"\n✨ CREACIÓN FINALIZADA ✨\n", flush=True)
     print(f"👋 ¡Hasta pronto! Esta pestaña se cerrará en 5 segundos...\n", flush=True)

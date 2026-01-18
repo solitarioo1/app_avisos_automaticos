@@ -1,0 +1,49 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.Python
+env/
+venv/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Desarrollo
+.env.local
+.env.*.local
+debug/
+test_*.py
+
+# Temporal
+TEMP/
+*.zip
+*.rar
+.cache/
+
+# Documentación
+*.md
+docs/
+README.md
+
+# Docker
+docker-compose.override.yml
+Dockerfile
+
+# CI/CD
+.gitlab-ci.yml
+.github/workflows
