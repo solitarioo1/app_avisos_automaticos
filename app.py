@@ -1279,7 +1279,7 @@ def api_avisos_imagenes(numero):
         for archivo in sorted(carpeta.glob('*.webp')):
             imagenes.append({
                 'nombre': archivo.name,
-                'url': f'/static/output/aviso_{numero}/{archivo.name}',
+                'url': f'/OUTPUT/aviso_{numero}/{archivo.name}',
                 'ruta_local': str(archivo)
             })
         
@@ -1288,7 +1288,7 @@ def api_avisos_imagenes(numero):
         for csv_file in carpeta.glob('*.csv'):
             archivos_csv.append({
                 'nombre': csv_file.name,
-                'url': f'/static/output/aviso_{numero}/{csv_file.name}',
+                'url': f'/OUTPUT/aviso_{numero}/{csv_file.name}',
                 'ruta_local': str(csv_file),
                 'tipo': 'departamentos' if 'departamentos' in csv_file.name else 'provincias'
             })
