@@ -18,23 +18,44 @@
 </head>
 <body>
     <!-- Header -->
-    <header class="header-senamhi">
-        <nav class="navbar navbar-expand-lg">
-            <div class="container-fluid">
-                <a class="navbar-brand" href="/">
-                    <img src="/static/img/logo-positiva.png" alt="La Positiva" class="logo-img me-2">
-                    <strong>La Positiva - AVISOS METEOROLÓGICOS</strong>
-                </a>
-                
-                <div class="navbar-nav ms-auto">
-                    <span class="navbar-text me-3">
-                        <i class="bi bi-calendar3"></i>
-                        <span id="current-time"></span>
-                    </span>
-                    <a class="nav-link" href="/logout">
-                        <i class="bi bi-box-arrow-right"></i> Salir
-                    </a>
+    <header class="site-header">
+        <div class="top-strip">
+            <div class="container">
+                <div class="d-flex justify-content-end social-icons">
+                    <a href="#" aria-label="facebook"><i class="bi bi-facebook"></i></a>
+                    <a href="#" aria-label="youtube" class="ms-3"><i class="bi bi-youtube"></i></a>
+                    <a href="#" aria-label="twitter" class="ms-3"><i class="bi bi-twitter"></i></a>
+                    <a href="#" aria-label="linkedin" class="ms-3"><i class="bi bi-linkedin"></i></a>
                 </div>
+            </div>
+        </div>
+
+        <div class="header-main">
+            <div class="container">
+                <a class="navbar-brand d-flex align-items-center" href="/">
+                    <img src="/static/img/logo-positiva.png" alt="La Positiva" class="logo-img me-3">
+                    <div>
+                        <strong>La Positiva</strong>
+                        <div class="small text-muted">AVISOS METEOROLÓGICOS</div>
+                    </div>
+                </a>
+
+                <div>
+                    <a class="btn btn-cta" href="/mapas">ACCEDER AL VISOR DE MAPAS</a>
+                </div>
+            </div>
+        </div>
+
+        <nav class="nav-bar">
+            <div class="container">
+                <ul class="nav">
+                    <li class="nav-item"><a class="nav-link" href="/">INICIO</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/avisos">AVISOS</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/mapas">MAPAS</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/decisiones">DECISIONES</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/descargas">DESCARGAS</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/reportes">REPORTES</a></li>
+                </ul>
             </div>
         </nav>
     </header>
