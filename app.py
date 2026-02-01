@@ -64,29 +64,8 @@ active_processes = {}
 
 @app.route('/', methods=['GET'])
 def dashboard():
-    """Dashboard principal"""
-    try:
-        # Obtener estadísticas
-        stats = obtener_estadisticas()
-        
-        # Obtener avisos recientes
-        avisos_recientes = obtener_avisos_recientes()
-        
-        # Obtener mapas recientes
-        mapas_recientes = obtener_mapas_recientes()
-        
-        # Obtener evento actual
-        evento_actual = obtener_evento_actual()
-        
-        return render_template('dashboard.html', 
-                             stats=stats,
-                             avisos_recientes=avisos_recientes,
-                             mapas_recientes=mapas_recientes,
-                             evento_actual=evento_actual)
-    except Exception as e:
-        logger.error(f"Error en dashboard: {str(e)}")
-        return render_template('dashboard.html', 
-                             stats={}, avisos_recientes=[], mapas_recientes=[])
+    """Dashboard principal - Página de inicio"""
+    return render_template('inicio.html')
 
 @app.route('/avisos', methods=['GET'])
 def avisos():

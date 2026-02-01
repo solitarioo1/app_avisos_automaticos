@@ -3,161 +3,7 @@
 {% block title %}Mapas - La Positiva AgroSeguros{% endblock %}
 
 {% block content %}
-<style>
-    .mapas-container {
-        max-width: 1200px;
-    }
-    
-    .filtro-orden {
-        margin-bottom: 1.5rem;
-    }
-    
-    .avisos-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 1.5rem;
-        margin-top: 1rem;
-    }
-    
-    .aviso-card {
-        background: white;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        transition: transform 0.2s;
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .aviso-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-    }
-    
-    .aviso-card.color-amarillo {
-        background: rgba(255, 193, 7, 0.08);
-    }
-    
-    .aviso-card.color-rojo {
-        background: rgba(220, 53, 69, 0.08);
-    }
-    
-    .aviso-card.color-naranja {
-        background: rgba(255, 140, 0, 0.08);
-    }
-    
-    .aviso-card.color-plomo {
-        background: rgba(108, 117, 125, 0.08);
-    }
-    
-    .aviso-header {
-        background: linear-gradient(135deg, #0070C0 0%, #00A4EF 100%);
-        color: white;
-        padding: 1rem;
-    }
-    
-    .aviso-header.color-rojo {
-        background: linear-gradient(135deg, #c82333 0%, #bb2d3b 100%);
-    }
-    
-    .aviso-header.color-naranja {
-        background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
-    }
-    
-    .aviso-header.color-amarillo {
-        background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
-        color: #333;
-    }
-    
-    .aviso-header.color-plomo {
-        background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
-    }
-    
-    .aviso-numero {
-        font-size: 20px;
-        font-weight: 700;
-        margin: 0;
-    }
-    
-    .aviso-titulo {
-        font-size: 12px;
-        opacity: 0.9;
-        margin: 0.25rem 0 0 0;
-    }
-    
-    .aviso-body {
-        padding: 1rem;
-        flex: 1;
-    }
-    
-    .info-row {
-        margin-bottom: 0.75rem;
-    }
-    
-    .info-label {
-        font-size: 11px;
-        color: #6c757d;
-        font-weight: 600;
-    }
-    
-    .info-value {
-        font-size: 13px;
-        color: #333;
-        margin-top: 0.25rem;
-    }
-    
-    .departamentos-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-    }
-    
-    .depto-tag {
-        background: #e9ecef;
-        color: #333;
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: 500;
-    }
-    
-    .nivel-badge {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-weight: 600;
-        font-size: 12px;
-        color: white;
-    }
-    
-    .nivel-rojo { background: #dc3545; }
-    .nivel-naranja { background: #ff8c00; }
-    .nivel-amarillo { background: #ffc107; color: #333; }
-    .nivel-verde { background: #198754; }
-    
-    .mapas-preview {
-        display: flex;
-        gap: 0.5rem;
-        margin: 0.75rem 0 0 0;
-        flex-wrap: wrap;
-    }
-    
-    .mapa-thumb {
-        width: 40px;
-        height: 40px;
-        border-radius: 4px;
-        background: #e9ecef;
-        overflow: hidden;
-        cursor: pointer;
-    }
-    
-    .mapa-thumb img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-    
-    .aviso-footer {
+<div class="container-fluid p-3">
         padding: 1rem;
         border-top: 1px solid #e9ecef;
         display: flex;
@@ -367,7 +213,6 @@
         border-radius: 8px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
-</style>
 
 <div class="container-fluid p-3 mapas-container">
     <h2 class="mb-1"><i class="bi bi-map"></i> Mapas Meteorológicos</h2>
@@ -448,26 +293,7 @@
     </div>
 </div>
 
-<script>
-    const spin = document.querySelector('.spin');
-    if (spin) {
-        const style = document.createElement('style');
-        style.textContent = `
-            .spin {
-                display: inline-block;
-                animation: spin 1s linear infinite;
-            }
-            @keyframes spin {
-                from { transform: rotate(0deg); }
-                to { transform: rotate(360deg); }
-            }
-        `;
-        document.head.appendChild(style);
-    }
-    
-    let avisos_cache = [];  // Guardar tarjetas originales
-    
-    async function cargarAvisos() {
+{% endblock %}
         try {
             const url = new URL(window.location);
             const avisoParam = url.searchParams.get('aviso');
@@ -906,5 +732,9 @@
     }
     
     document.addEventListener('DOMContentLoaded', cargarAvisos);
-</script>
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/mapas.js') }}"></script>
 {% endblock %}
+</body>
+</html>

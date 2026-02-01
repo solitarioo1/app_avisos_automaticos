@@ -1,0 +1,74 @@
+/* ============================================================================
+   MAIN.CSS - Archivo Maestro
+   Importa todos los CSS categorizados
+   La Positiva AgroSeguros - Sistema de Gestión de Avisos Meteorológicos
+   ============================================================================ */
+
+/* 1. COLORES */
+@import url('./1-colores.css');
+
+/* 2. VARIABLES */
+@import url('./2-variables.css');
+
+/* 3. MIXINS Y UTILIDADES */
+@import url('./3-mixins.css');
+
+/* 4. ESTILOS GENERALES */
+@import url('./4-generales.css');
+
+/* PÁGINAS ESPECÍFICAS */
+@import url('./inicio.css');
+@import url('./avisos.css');
+@import url('./mapas.css');
+@import url('./dashboard.css');
+@import url('./decisiones.css');
+@import url('./whatsapp.css');
+
+/* ============================================================================
+   ESTILOS GLOBALES ADICIONALES
+   ============================================================================ */
+
+/* Scroll Bar personalizada */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--gray-light);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-light);
+}
+
+/* Selección de texto */
+::selection {
+    background: var(--primary-color);
+    color: var(--white);
+}
+
+/* Focus visible */
+:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Print Styles */
+@media print {
+    .main-header,
+    .main-navigation,
+    .btn,
+    .nav-link {
+        display: none !important;
+    }
+    
+    .main-content {
+        margin-top: 0;
+        padding: 0;
+    }
+}

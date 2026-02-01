@@ -3,126 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}La Positiva - Dashboard Avisos{% endblock %}</title>
+    <title>{% block title %}La Positiva - Avisos Meteorológicos{% endblock %}</title>
     
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-    <!-- Favicon -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="icon" href="/static/img/imagen_icono.jpeg" type="image/jpeg">
-    <!-- Custom CSS -->
-    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
-    
+    <link href="{{ url_for('static', filename='css/main.css') }}" rel="stylesheet">
     {% block head %}{% endblock %}
 </head>
 <body>
-    <!-- Header -->
-    <header class="site-header">
-        <div class="top-strip">
-            <div class="container">
-                <div class="d-flex justify-content-end social-icons">
-                    <a href="#" aria-label="facebook"><i class="bi bi-facebook"></i></a>
-                    <a href="#" aria-label="youtube" class="ms-3"><i class="bi bi-youtube"></i></a>
-                    <a href="#" aria-label="twitter" class="ms-3"><i class="bi bi-twitter"></i></a>
-                    <a href="#" aria-label="linkedin" class="ms-3"><i class="bi bi-linkedin"></i></a>
-                </div>
-            </div>
-        </div>
-
-        <div class="header-main">
-            <div class="container">
-                <a class="navbar-brand d-flex align-items-center" href="/">
-                    <img src="/static/img/logo-positiva.png" alt="La Positiva" class="logo-img me-3">
-                    <div>
-                        <strong>La Positiva</strong>
-                        <div class="small text-muted">AVISOS METEOROLÓGICOS</div>
+    <header class="main-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="header-brand">
+                        <img src="/static/img/logo-positiva.png" alt="La Positiva" class="header-logo">
+                        <div class="brand-text">
+                            <h1>Avisos Meteorológicos</h1>
+                            <small>Sistema de Gestión Empresarial</small>
+                        </div>
                     </div>
-                </a>
-
-                <div>
-                    <a class="btn btn-cta" href="/mapas">ACCEDER AL VISOR DE MAPAS</a>
+                </div>
+                <div class="col-md-6">
+                    <div class="header-status">
+                        <span class="status-label">Estado activo</span>
+                        <div class="datetime"><span id="current-time"></span></div>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <nav class="nav-bar">
-            <div class="container">
-                <ul class="nav">
-                    <li class="nav-item"><a class="nav-link" href="/">INICIO</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/avisos">AVISOS</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/mapas">MAPAS</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/decisiones">DECISIONES</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/descargas">DESCARGAS</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/reportes">REPORTES</a></li>
-                </ul>
-            </div>
-        </nav>
     </header>
 
-    <!-- Main Content -->
-    <div class="main-container">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <nav class="sidebar-nav">
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="/">
-                            <i class="bi bi-speedometer2"></i>
-                            Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/avisos">
-                            <i class="bi bi-cloud-lightning"></i>
-                            Avisos
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/mapas">
-                            <i class="bi bi-geo-alt"></i>
-                            Mapas
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/decisiones">
-                            <i class="bi bi-graph-up-arrow"></i>
-                            Decisiones
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/whatsapp">
-                            <i class="bi bi-whatsapp"></i>
-                            WhatsApp
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/configuracion">
-                            <i class="bi bi-gear"></i>
-                            Configuración
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/logs">
-                            <i class="bi bi-terminal"></i>
-                            Logs
-                        </a>
-                    </li>
-                </ul>
-            </nav>
-        </aside>
+    <nav class="main-navigation">
+        <div class="container-fluid">
+            <ul class="nav nav-pills">
+                <li class="nav-item"><a class="nav-link" href="/">Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="/avisos">Avisos</a></li>
+                <li class="nav-item"><a class="nav-link" href="/mapas">Mapas</a></li>
+                <li class="nav-item"><a class="nav-link" href="/decisiones">Decisiones</a></li>
+                <li class="nav-item"><a class="nav-link" href="/whatsapp">WhatsApp</a></li>
+            </ul>
+        </div>
+    </nav>
 
-        <!-- Content Area -->
-        <main class="content">
+    <main class="main-content">
+        <div class="container-fluid">
             {% block content %}{% endblock %}
-        </main>
-    </div>
+        </div>
+    </main>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Custom JS -->
-    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

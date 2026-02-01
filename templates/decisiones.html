@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}Toma de Decisiones - La Positiva AgroSeguros{% endblock %}
 
@@ -290,94 +290,8 @@
     </div>
 </div>
 
-<!-- JavaScript específico para decisiones -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Actualizar fecha actual
-    document.getElementById('fecha-actual').textContent = 
-        new Date().toLocaleString('es-PE', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-
-    // Interacción con departamentos del mapa
-    document.querySelectorAll('.departamento-item').forEach(item => {
-        item.addEventListener('mouseenter', function(e) {
-            const dept = e.target.getAttribute('data-dept');
-            const tooltip = document.getElementById('dept-tooltip-decisiones');
-            tooltip.innerHTML = `
-                <strong>${dept}</strong><br>
-                📍 Estado: ALERTA ACTIVA<br>
-                👥 Agricultores: ${e.target.textContent.match(/\\d+/)[0]}<br>
-                💰 Valor en riesgo: S/ 45.2M<br>
-                🌡️ Precipitación esperada: 85mm
-            `;
-            tooltip.style.display = 'block';
-            tooltip.style.left = (e.pageX + 10) + 'px';
-            tooltip.style.top = (e.pageY - 10) + 'px';
-        });
-
-        item.addEventListener('mouseleave', function() {
-            document.getElementById('dept-tooltip-decisiones').style.display = 'none';
-        });
-
-        item.addEventListener('click', function(e) {
-            const dept = e.target.getAttribute('data-dept');
-            mostrarDetallesDepartamento(dept);
-        });
-    });
-});
-
-function mostrarDetallesDepartamento(departamento) {
-    const detailDiv = document.getElementById('dept-detail-decisiones');
-    detailDiv.innerHTML = `
-        <h6 class="text-primary">📍 ${departamento.toUpperCase()}</h6>
-        <div class="alert alert-danger py-2 px-3">
-            <small><strong>🚨 SITUACIÓN CRÍTICA</strong></small>
-        </div>
-        <ul class="list-unstyled small">
-            <li>👥 <strong>Agricultores:</strong> 1,247 registrados</li>
-            <li>🏠 <strong>Pólizas activas:</strong> 856</li>
-            <li>💰 <strong>Suma asegurada:</strong> S/ 67.8M</li>
-            <li>📊 <strong>Probabilidad pérdida:</strong> 85%</li>
-            <li>⏰ <strong>Tiempo estimado impacto:</strong> 6-12 horas</li>
-        </ul>
-    `;
-}
-
-function resetMapaDecisiones() {
-    alert('🔄 Vista general restablecida');
-}
-
-function toggleProvinciasDecisiones() {
-    alert('🏛️ Cambiando a vista provincial...');
-}
-
-function exportarMapaDecisiones() {
-    alert('📊 Generando reporte del mapa...');
-}
-
-function activarBrigadas() {
-    alert('👥 Activando brigadas de emergencia...');
-}
-
-function notificarAutoridades() {
-    alert('📢 Notificando a autoridades regionales...');
-}
-
-function enviarAlertaWhatsApp() {
-    alert('📱 Enviando alertas por WhatsApp a agricultores...');
-}
-
-function activarEquiposTecnicos() {
-    alert('🔧 Activando equipos técnicos de campo...');
-}
-
-function generarReporteCompleto() {
-    alert('📄 Generando reporte PDF completo...');
-}
-</script>
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/decisiones.js') }}"></script>
 {% endblock %}
+</body>
+</html>

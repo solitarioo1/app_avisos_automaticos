@@ -1,0 +1,110 @@
+/* ============================================================================
+   ESTILOS - PÁGINA AVISOS
+   Estilos específicos para la página de gestión de avisos
+   ============================================================================ */
+
+.table td {
+    padding: 6px 8px !important;
+    vertical-align: middle;
+    white-space: nowrap;
+    font-size: 13px;
+}
+
+.table th {
+    padding: 8px 8px !important;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.badge-rojo {
+    background-color: #dc3545 !important;
+    color: white;
+    font-size: 11px;
+    padding: 4px 6px !important;
+}
+
+.badge-naranja {
+    background-color: #ff8c00 !important;
+    color: white;
+    font-size: 11px;
+    padding: 4px 6px !important;
+}
+
+.badge-amarillo {
+    background-color: #ffc107 !important;
+    color: #333;
+    font-size: 11px;
+    padding: 4px 6px !important;
+}
+
+.badge-verde {
+    background-color: #198754 !important;
+    color: white;
+    font-size: 11px;
+    padding: 4px 6px !important;
+}
+
+.badge-gris {
+    background-color: #6c757d !important;
+    color: white;
+    font-size: 11px;
+    padding: 4px 6px !important;
+}
+
+.acciones-col {
+    display: flex;
+    gap: 3px;
+    flex-wrap: nowrap;
+}
+
+.btn-sm {
+    padding: 3px 6px !important;
+    font-size: 11px !important;
+}
+
+.card {
+    margin-bottom: 0 !important;
+}
+
+.card-body {
+    padding: 10px !important;
+}
+
+.card-header {
+    padding: 10px 15px !important;
+}
+
+.row.g-2 > div {
+    padding-right: 5px;
+}
+
+.form-label {
+    font-size: 12px;
+}
+
+.form-select-sm {
+    font-size: 12px;
+}
+
+h2 {
+    margin-bottom: 15px !important;
+    font-size: 22px;
+}
+
+/* Tabla responsiva */
+.table-responsive {
+    overflow-x: auto;
+}
+
+/* Filtros */
+.filtro-avisos {
+    background: var(--white);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.filtro-avisos .row {
+    gap: var(--spacing-md);
+}
