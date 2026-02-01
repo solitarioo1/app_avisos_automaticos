@@ -63,9 +63,24 @@ active_processes = {}
 # ============================================================================
 
 @app.route('/', methods=['GET'])
-def dashboard():
-    """Dashboard principal - Página de inicio"""
+def inicio():
+    """Página de login - Inicio"""
     return render_template('inicio.html')
+
+@app.route('/dashboard', methods=['GET'])
+def dashboard_page():
+    """Dashboard principal después del login"""
+    stats = {
+        'avisos_activos': 0,
+        'departamentos_afectados': 0,
+        'agricultores_afectados': 0,
+        'cultivos_riesgo': 0
+    }
+    evento_actual = None
+    avisos_recientes = []
+    mapas_recientes = []
+    return render_template('dashboard.html', stats=stats, evento_actual=evento_actual, 
+                         avisos_recientes=avisos_recientes, mapas_recientes=mapas_recientes)
 
 @app.route('/avisos', methods=['GET'])
 def avisos():

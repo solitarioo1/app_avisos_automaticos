@@ -6,8 +6,8 @@
 :root {
     /* Layout */
     --header-height: 80px;
-    --nav-height: 50px;
-    --total-top: 130px;
+    --nav-height: 0px;
+    --total-top: 160px;
     
     /* Espaciado */
     --spacing-xs: 4px;
