@@ -3,738 +3,121 @@
 {% block title %}Mapas - La Positiva AgroSeguros{% endblock %}
 
 {% block content %}
-<div class="container-fluid p-3">
-        padding: 1rem;
-        border-top: 1px solid #e9ecef;
-        display: flex;
-        gap: 0.5rem;
-    }
-    
-    .aviso-footer .btn-sm {
-        flex: 1;
-        padding: 6px 8px;
-        font-size: 12px;
-    }
-    
-    .status-badge {
-        display: inline-block;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 10px;
-        font-weight: 600;
-    }
-    
-    /* Panel flotante de logs */
-    #logPanel {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 560px;
-        max-height: 75vh;
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 16px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-        z-index: 9999;
-        display: none;
-        flex-direction: column;
-        font-family: 'Segoe UI', 'Roboto', sans-serif;
-        color: #374151;
-        animation: slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-    
-    @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translate(-50%, -45%) scale(0.95);
-        }
-        to {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-        }
-    }
-    
-    #logPanel.visible {
-        display: flex;
-    }
-    
-    .log-header {
-        background: linear-gradient(135deg, #f3f4f6 0%, #f9fafb 100%);
-        color: #1f2937;
-        padding: 16px 18px;
-        border-bottom: 1px solid #e5e7eb;
-        border-radius: 16px 16px 0 0;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-weight: 700;
-        font-size: 14px;
-        letter-spacing: 0.3px;
-    }
-    
-    .log-header .stats {
-        font-size: 12px;
-        opacity: 0.95;
-        font-weight: 500;
-    }
-    
-    .log-content {
-        flex: 1;
-        overflow-y: auto;
-        padding: 14px 16px;
-        font-size: 12px;
-        line-height: 1.6;
-        background: #fafbfc;
-    }
-    
-    .log-content::-webkit-scrollbar {
-        width: 6px;
-    }
-    
-    .log-content::-webkit-scrollbar-track {
-        background: #f3f4f6;
-        border-radius: 3px;
-    }
-    
-    .log-content::-webkit-scrollbar-thumb {
-        background: #d1d5db;
-        border-radius: 3px;
-    }
-    
-    .log-line {
-        margin: 4px 0;
-        padding: 6px 8px;
-        border-left: 3px solid #e5e7eb;
-        border-radius: 2px;
-    }
-    
-    .log-line.info {
-        color: #2563eb;
-        border-left-color: #3b82f6;
-        background: #eff6ff;
-    }
-    
-    .log-line.success {
-        color: #059669;
-        border-left-color: #10b981;
-        background: #ecfdf5;
-    }
-    
-    .log-line.warning {
-        color: #b45309;
-        border-left-color: #f59e0b;
-        background: #fffbeb;
-    }
-    
-    .log-line.error {
-        color: #991b1b;
-        border-left-color: #ef4444;
-        background: #fee2e2;
-    }
-    
-    .log-footer {
-        background: #f9fafb;
-        padding: 12px 16px;
-        border-top: 1px solid #e5e7eb;
-        border-radius: 0 0 16px 16px;
-        display: flex;
-        gap: 10px;
-        align-items: center;
-    }
-    
-    .log-progress {
-        flex: 1;
-        height: 4px;
-        background: #e5e7eb;
-        border-radius: 2px;
-        overflow: hidden;
-    }
-    
-    .log-progress-bar {
-        height: 100%;
-        background: linear-gradient(90deg, #3b82f6 0%, #6366f1 100%);
-        width: 0%;
-        transition: width 0.3s ease;
-        border-radius: 2px;
-    }
-    
-    .log-time {
-        font-size: 12px;
-        color: #6b7280;
-        min-width: 45px;
-        text-align: right;
-        font-weight: 600;
-        font-weight: 600;
-        font-family: 'Monaco', 'Menlo', monospace;
-    }
-    
-    .btn-cancel-log {
-        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-        color: white;
-        border: none;
-        padding: 6px 14px;
-        border-radius: 6px;
-        font-size: 12px;
-        cursor: pointer;
-        font-weight: 600;
-        transition: all 0.2s ease;
-        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-    }
-    
-    .btn-cancel-log:hover {
-        box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
-        transform: translateY(-1px);
-    }
-    
-    .btn-cancel-log:hover {
-        background: #c82333;
-    }
-    
-    /* Bloqueo de interfaz - sin fondo */
-    #logPanel {
-        pointer-events: auto !important;
-        opacity: 1 !important;
-        z-index: 9999;
-    }
-    
-    #logPanel button {
-        pointer-events: auto !important;
-    }
+<div class="container-fluid px-5 py-4" style="max-width: 1400px; margin: 0 auto;">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0"><i class="bi bi-map"></i> Galería de Mapas ({{ mapas|length }} mapas)</h2>
+        <button class="btn btn-info btn-sm" onclick="location.reload()">
+            <i class="bi bi-arrow-clockwise"></i> Recargar
+        </button>
+    </div>
 
-    .status-ready { background: #d4edda; color: #155724; }
-    .status-pending { background: #fff3cd; color: #856404; }
-    
-    .modal-body img {
-        max-width: 100%;
-        max-height: 600px;
-        width: auto;
-        height: auto;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-
-<div class="container-fluid p-3 mapas-container">
-    <h2 class="mb-1"><i class="bi bi-map"></i> Mapas Meteorológicos</h2>
-    <p class="text-muted mb-3">Gestión y visualización de mapas por aviso</p>
-    
-    <!-- Filtro de orden y nivel -->
-    <div class="card filtro-orden">
-        <div class="card-body p-2">
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
             <div class="row g-2">
                 <div class="col-md-4">
-                    <label class="form-label mb-1" style="font-size: 12px;">Ordenar por</label>
-                    <select class="form-select form-select-sm" id="filtro-orden" onchange="aplicarFiltros()">
-                        <option value="reciente">📅 Más recientes primero</option>
-                        <option value="antiguo">📅 Más antiguos primero</option>
-                    </select>
+                    <label class="form-label mb-1">🔍 Filtrar por Aviso</label>
+                    <input type="text" class="form-control form-control-sm" id="filtro-numero" placeholder="Ej: 10, 12..." onkeyup="filtrarMapas()">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label mb-1" style="font-size: 12px;">Filtrar por Nivel</label>
-                    <select class="form-select form-select-sm" id="filtro-nivel" onchange="aplicarFiltros()">
-                        <option value="todos">Todos los niveles</option>
-                        <option value="rojo">🔴 Rojo</option>
-                        <option value="naranja">🟠 Naranja</option>
-                        <option value="amarillo">🟡 Amarillo</option>
-                        <option value="plomo">⚫ Plomo</option>
-                    </select>
+                    <label class="form-label mb-1">Departamento</label>
+                    <input type="text" class="form-control form-control-sm" id="filtro-depto" placeholder="Ej: LIMA, CUSCO..." onkeyup="filtrarMapas()">
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button class="btn btn-sm btn-outline-secondary w-100" onclick="resetearFiltros()">
-                        <i class="bi bi-arrow-clockwise"></i> Resetear Filtros
+                <div class="col-md-4">
+                    <label class="form-label mb-1">&nbsp;</label>
+                    <button class="btn btn-secondary btn-sm w-100" onclick="document.getElementById('filtro-numero').value=''; document.getElementById('filtro-depto').value=''; filtrarMapas()">
+                        <i class="bi bi-x"></i> Limpiar Filtros
                     </button>
                 </div>
             </div>
         </div>
     </div>
-    
-    <!-- Grid de avisos -->
-    <div class="avisos-grid" id="avisos-grid">
-        <div class="text-center py-5" style="grid-column: 1/-1;">
-            <i class="bi bi-hourglass-split display-4 text-muted spin"></i>
-            <p class="text-muted mt-3">Cargando avisos...</p>
-        </div>
-    </div>
-</div>
 
-<!-- Panel flotante de logs -->
-<div id="logPanel">
-    <div class="log-header">
-        <div>
-            ✨ Procesando Mapas Meteorológicos
-            <div class="stats" id="logStats">Conectando servidor...</div>
-        </div>
-    </div>
-    <div class="log-content" id="logContent"></div>
-    <div class="log-footer">
-        <div class="log-progress">
-            <div class="log-progress-bar" id="logProgressBar"></div>
-        </div>
-        <div class="log-time" id="logTime">--:--</div>
-        <button class="btn-cancel-log" onclick="cancelarGeneracion()">✕ Cancelar</button>
-    </div>
-</div>
-
-<!-- Modal para visualizar mapas completos -->
-<div class="modal fade" id="mapaModal" tabindex="-1">
-    <div class="modal-dialog modal-md">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="mapaModalTitle">Mapas del Aviso</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body text-center">
-                <div id="mapaModalContent" style="display: flex; flex-direction: column; gap: 1rem; max-height: 60vh; overflow-y: auto;"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-{% endblock %}
-        try {
-            const url = new URL(window.location);
-            const avisoParam = url.searchParams.get('aviso');
-            
-            let avisos = [];
-            
-            if (avisoParam) {
-                // Si viene ?aviso=X, obtener ese aviso específicamente de la BD
-                const res = await fetch(`/api/avisos/${parseInt(avisoParam)}/info`);
-                const data = await res.json();
-                
-                if (data.success) {
-                    avisos = [{
-                        numero: data.numero,
-                        titulo: data.titulo,
-                        nivel: data.nivel,
-                        color: data.color
-                    }];
-                    // Asegurar que el filtro de nivel se resetee cuando viene con ?aviso=X
-                    document.getElementById('filtro-orden').value = 'reciente';
-                    document.getElementById('filtro-nivel').value = 'todos';
-                } else {
-                    document.getElementById('avisos-grid').innerHTML = `
-                        <div style="grid-column: 1/-1; text-align: center; padding: 2rem;">
-                            <p class="text-danger">Aviso no encontrado</p>
-                            <a href="/avisos" class="btn btn-primary btn-sm mt-2">Volver a Avisos</a>
-                        </div>
-                    `;
-                    return;
-                }
-            } else {
-                // Si no hay filtro, obtener todos
-                const res = await fetch('/api/avisos');
-                const result = await res.json();
-                console.log('Avisos cargados:', result);
-                avisos = result.avisos || [];
-            }
-            
-            let html = '';
-            
-            // Hacer llamadas en paralelo con Promise.all para no bloquear
-            const avisoPromises = avisos.map(async (aviso) => {
-                try {
-                    const infoRes = await fetch(`/api/avisos/${aviso.numero}/info`);
-                    if (!infoRes.ok) {
-                        console.warn(`Error cargando info del aviso ${aviso.numero}:`, infoRes.status);
-                        return '';
-                    }
-                    const info = await infoRes.json();
-                    
-                    if (!info.success) {
-                        console.warn(`Aviso ${aviso.numero} no encontrado en BD`);
-                        return '';
-                    }
-                    
-                    // Cargar departamentos SOLO si los mapas están creados
-                    let departamentos = [];
-                    if (info.mapas_creados) {
-                        const deptosRes = await fetch(`/api/avisos/${aviso.numero}/departamentos`).catch(e => {
-                            console.warn(`Error cargando departamentos de ${aviso.numero}:`, e);
-                            return null;
-                        });
-                        if (deptosRes && deptosRes.ok) {
-                            const deptosData = await deptosRes.json();
-                            departamentos = deptosData.departamentos || [];
-                        }
-                    }
-                    
-                    const mapasRes = await fetch(`/api/mapas/aviso/${aviso.numero}`).catch(e => {
-                        console.warn(`Error cargando mapas de ${aviso.numero}:`, e);
-                        return null;
-                    });
-                    const mapas = mapasRes ? await mapasRes.json().catch(() => ({ mapas: [] })) : { mapas: [] };
-                    
-                    if (!info.success) return '';
-                    
-                    const mapaStatus = info.mapas_creados ? 'ready' : 'pending';
-                    const mapaStatusText = info.mapas_creados ? '✅ Mapas Creados' : '⏳ No Creados';
-                    
-                    // Verificar si se pueden generar mapas (solo ROJO y NARANJA)
-                    const puedeGenerarMapas = ['rojo', 'naranja'].includes(info.color.toLowerCase());
-                    const mensajeNivelBajo = !puedeGenerarMapas ? '<em style="color: #999; font-size: 12px;">Este nivel no requiere mapas</em>' : '';
-                    
-                    return `
-                        <div class="aviso-card color-${info.color}" data-numero="${aviso.numero}">
-                            <div class="aviso-header color-${info.color}">
-                                <h5 class="aviso-numero">#${aviso.numero}</h5>
-                                <p class="aviso-titulo">${aviso.titulo}</p>
-                            </div>
-                            <div class="aviso-body">
-                                <div class="info-row">
-                                    <div class="info-label">NIVEL</div>
-                                    <span class="nivel-badge nivel-${info.color}">${info.color.toUpperCase()}</span>
-                                    ${mensajeNivelBajo}
-                                </div>
-                                <div class="info-row">
-                                    <div class="info-label">DEPARTAMENTOS AFECTADOS</div>
-                                    <div class="departamentos-list">
-                                        ${puedeGenerarMapas ? (info.mapas_creados ? (departamentos.length > 0 ? departamentos.map(d => `<span class="depto-tag">${d}</span>`).join('') : '<em style="color: #999;">No disponibles</em>') : '<em style="color: #999;">Se mostrarán después de generar mapas</em>') : '<em style="color: #999;">N/A - Nivel no aplica</em>'}
-                                    </div>
-                                </div>
-                                <div class="info-row">
-                                    <div class="info-label">ESTADO DE MAPAS</div>
-                                    <span class="status-badge status-${mapaStatus}">${puedeGenerarMapas ? mapaStatusText : '⊘ No Aplica'}</span>
-                                </div>
-                                ${info.mapas_creados && mapas.mapas && mapas.mapas.length > 0 ? `
-                                    <div class="info-row">
-                                        <div class="info-label">VISTA PREVIA</div>
-                                        <div class="mapas-preview">
-                                            ${mapas.mapas.slice(0, 4).map(m => `
-                                                <div class="mapa-thumb" title="${m.nombre}" onclick="abrirMapaModal(${aviso.numero}, '${m.nombre}', '${m.url}')">
-                                                    <img src="${m.url}" alt="${m.nombre}">
-                                                </div>
-                                            `).join('')}
-                                            ${mapas.mapas.length > 4 ? `<div class="depto-tag">+${mapas.mapas.length - 4}</div>` : ''}
-                                        </div>
-                                    </div>
-                                ` : ''}
-                            </div>
-                            <div class="aviso-footer">
-                                <button class="btn btn-sm btn-outline-primary" onclick="generarMapas(${aviso.numero})" ${!puedeGenerarMapas ? 'disabled title="Los mapas solo se generan para avisos ROJO y NARANJA"' : ''}>
-                                    <i class="bi bi-cog"></i> Generar${info.mapas_creados ? '/Recrear' : ''}
-                                </button>
-                                <button class="btn btn-sm btn-outline-info" onclick="abrirTodosMapas(${aviso.numero})" ${!info.mapas_creados ? 'disabled' : ''}>
-                                    <i class="bi bi-eye"></i> Ver Todos
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                } catch (error) {
-                    console.error(`Error cargando aviso ${aviso.numero}:`, error);
-                    return '';
-                }
-            });
-            
-            // Esperar a que terminen todas las promesas en paralelo
-            const results = await Promise.all(avisoPromises);
-            html = results.filter(r => r).join('');
-            
-            if (!html) {
-                html = `
-                    <div style="grid-column: 1/-1; text-align: center; padding: 3rem 1rem;">
-                        <i class="bi bi-inbox display-1 text-muted"></i>
-                        <h4 class="text-muted mt-3">Sin avisos disponibles</h4>
-                        <a href="/avisos" class="btn btn-primary btn-sm mt-2">Ir a Avisos</a>
-                    </div>
-                `;
-            }
-            
-            document.getElementById('avisos-grid').innerHTML = html;
-            // Guardar tarjetas originales para poder restaurarlas
-            avisos_cache = Array.from(document.getElementById('avisos-grid').querySelectorAll('.aviso-card'));
-            // Aplicar filtros después de cargar los avisos
-            aplicarFiltros();
-        } catch (error) {
-            console.error('Error:', error);
-            document.getElementById('avisos-grid').innerHTML = `
-                <div style="grid-column: 1/-1; text-align: center; padding: 2rem;">
-                    <p class="text-danger">Error: ${error.message}</p>
+    <!-- Grid de Mapas -->
+    {% if mapas|length > 0 %}
+    <div id="mapas-grid" class="row g-3">
+        {% for mapa in mapas %}
+        <div class="col-lg-3 col-md-4 col-sm-6 mapa-item" data-numero="{{ mapa.numero_aviso }}" data-depto="{{ mapa.departamento|upper }}">
+            <div class="card h-100 shadow-sm hover-lift" style="transition: transform 0.2s, box-shadow 0.2s;">
+                <div style="height: 200px; background: #f0f0f0; overflow: hidden; border-radius: 4px 4px 0 0;">
+                    <img src="{{ mapa.url }}" alt="{{ mapa.departamento }}" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="abrirMapaModal('{{ mapa.nombre }}', '{{ mapa.url }}')">
                 </div>
-            `;
-        }
-    }
-    
-    let logEventSource = null;
-    let currentNumero = null;
-    let processingAborted = false;
-    
-    async function generarMapas(numero) {
-        const btn = event.target.closest('button');
-        const originalText = btn.innerHTML;
-        currentNumero = numero;
-        processingAborted = false;
-        
-        // Mostrar panel de logs
-        const logPanel = document.getElementById('logPanel');
-        const logContent = document.getElementById('logContent');
-        const logStats = document.getElementById('logStats');
-        const logProgressBar = document.getElementById('logProgressBar');
-        const logTime = document.getElementById('logTime');
-        
-        logPanel.classList.add('visible');
-        logContent.innerHTML = '';
-        logStats.innerHTML = 'Conectando...';
-        logProgressBar.style.width = '0%';
-        logTime.textContent = '--:--';
-        
-        // Deshabilitar controles
-        document.querySelectorAll('.filter-card button, .card button').forEach(b => {
-            b.disabled = true;
-        });
-        document.body.classList.add('blurred');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="bi bi-hourglass-split spin"></i> Generando...';
-        
-        try {
-            // Iniciar SSE para logs
-            if (logEventSource) {
-                logEventSource.close();
-            }
-            
-            logEventSource = new EventSource(`/api/avisos/${numero}/procesar?stream=true`);
-            let startTime = Date.now();
-            let updateInterval = null;
-            let lastMessageTime = Date.now();
-            
-            logEventSource.onmessage = (event) => {
-                lastMessageTime = Date.now();
-                const data = JSON.parse(event.data);
-                
-                if (data.type === 'log') {
-                    agregarLogLinea(data.message, data.severity || 'info');
-                } else if (data.type === 'progress') {
-                    logStats.innerHTML = `${data.current} / ${data.total} departamentos`;
-                    const percentage = Math.round((data.current / data.total) * 100);
-                    logProgressBar.style.width = percentage + '%';
-                    
-                    // Estimar tiempo
-                    const elapsed = (Date.now() - startTime) / 1000;
-                    const perDept = elapsed / data.current;
-                    const remaining = (data.total - data.current) * perDept;
-                    actualizarTiempo(remaining);
-                } else if (data.type === 'error') {
-                    agregarLogLinea('❌ Error: ' + data.message, 'error');
-                } else if (data.type === 'complete') {
-                    agregarLogLinea('✅ Procesamiento completado', 'success');
-                    if (logEventSource) {
-                        logEventSource.close();
-                        logEventSource = null;
-                    }
-                    finalizarGeneracion(btn, originalText, numero);
-                }
-            };
-            
-            logEventSource.onerror = (error) => {
-                if (!processingAborted) {
-                    agregarLogLinea('⚠️ Reconectando al servidor...', 'warning');
-                    // SSE se reconecta automáticamente
-                }
-            };
-            
-            // Actualizar tiempo cada segundo
-            updateInterval = setInterval(() => {
-                const elapsed = (Date.now() - startTime) / 1000;
-                if (elapsed > 0 && !processingAborted) {
-                    logTime.textContent = formatearTiempo(elapsed);
-                }
-            }, 1000);
-            
-        } catch (error) {
-            agregarLogLinea('❌ Error: ' + error.message, 'error');
-            finalizarGeneracion(btn, originalText, numero);
-        }
-    }
-    
-    function agregarLogLinea(mensaje, severity = 'info') {
-        const logContent = document.getElementById('logContent');
-        const linea = document.createElement('div');
-        linea.className = 'log-line ' + severity;
-        
-        const timestamp = new Date().toLocaleTimeString();
-        linea.textContent = `[${timestamp}] ${mensaje}`;
-        
-        logContent.appendChild(linea);
-        logContent.scrollTop = logContent.scrollHeight;
-    }
-    
-    function actualizarTiempo(segundos) {
-        const logTime = document.getElementById('logTime');
-        logTime.textContent = formatearTiempo(segundos);
-    }
-    
-    function formatearTiempo(segundos) {
-        const mins = Math.floor(segundos / 60);
-        const secs = Math.floor(segundos % 60);
-        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    
-    function finalizarGeneracion(btn, originalText, numero) {
-        // Habilitar controles
-        document.querySelectorAll('.filter-card button, .card button').forEach(b => {
-            b.disabled = false;
-        });
-        document.body.classList.remove('blurred');
-        
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-        
-        // Recargar avisos después de 2 segundos
-        setTimeout(() => {
-            cargarAvisos();
-            // Cerrar panel automáticamente cuando termine - DESPUÉS DE 5 SEGUNDOS
-            if (!processingAborted) {
-                setTimeout(() => {
-                    document.getElementById('logPanel').classList.remove('visible');
-                }, 5000);
-            }
-        }, 2000);
-    }
-    
-    function cancelarGeneracion() {
-        processingAborted = true;
-        
-        if (logEventSource) {
-            logEventSource.close();
-            logEventSource = null;
-        }
-        
-        // Notificar al backend que cancele el proceso
-        if (currentNumero) {
-            fetch(`/api/avisos/${currentNumero}/cancel`, { method: 'POST' }).catch(e => console.log('Cancel request failed'));
-        }
-        
-        agregarLogLinea('🛑 Generación cancelada por el usuario', 'warning');
-        
-        // Buscar el botón que estaba generando
-        const cards = document.querySelectorAll('.aviso-card');
-        let btn = null;
-        for (let card of cards) {
-            const buttons = card.querySelectorAll('button');
-            for (let b of buttons) {
-                if (b.disabled && b.innerHTML.includes('Generando')) {
-                    btn = b;
-                    break;
-                }
-            }
-            if (btn) break;
-        }
-        
-        if (btn) {
-            finalizarGeneracion(btn, '<i class="bi bi-plus-circle"></i> Generar Mapas', currentNumero);
-        }
-        
-        // Cerrar panel después de 3 segundos
-        setTimeout(() => {
-            document.getElementById('logPanel').classList.remove('visible');
-        }, 3000);
-    }
-    
-    async function abrirTodosMapas(numero) {
-        const res = await fetch(`/api/mapas/aviso/${numero}`);
-        const data = await res.json();
-        
-        if (!data.success) {
-            alert('Error al cargar mapas');
-            return;
-        }
-        
-        let html = '';
-        for (const mapa of data.mapas) {
-            html += `
-                <div>
-                    <h6>${mapa.nombre}</h6>
-                    <img src="${mapa.url}" class="img-fluid" style="border-radius: 4px;">
-                    <a href="${mapa.url}" download class="btn btn-sm btn-outline-primary mt-2">
+                <div class="card-body p-3">
+                    <h6 class="card-title mb-1">{{ mapa.departamento }}</h6>
+                    <small class="text-muted">Aviso #{{ mapa.numero_aviso }}</small>
+                    <div class="mt-2">
+                        <small class="text-muted">{{ mapa.fecha }}</small>
+                    </div>
+                    <div class="mt-2 d-flex gap-1">
+                        <a href="{{ mapa.url }}" target="_blank" class="btn btn-sm btn-primary flex-grow-1">
+                            <i class="bi bi-eye"></i> Ver
+                        </a>
+                        <a href="{{ mapa.url }}" download class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-download"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info" role="alert">
+        <i class="bi bi-info-circle"></i> No hay mapas generados aún. 
+        <a href="/avisos">Procesa un aviso en la sección de Avisos</a> para generar mapas.
+    </div>
+    {% endif %}
+
+    <!-- Modal para ver mapa en grande -->
+    <div class="modal fade" id="mapaModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="mapaModalLabel">Mapa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="mapaImage" src="" alt="Mapa" class="img-fluid" style="max-height: 600px;">
+                </div>
+                <div class="modal-footer">
+                    <a id="descargaLink" href="" download class="btn btn-primary">
                         <i class="bi bi-download"></i> Descargar
                     </a>
                 </div>
-            `;
-        }
-        
-        document.getElementById('mapaModalTitle').textContent = `Aviso #${numero} - Todos los Mapas`;
-        document.getElementById('mapaModalContent').innerHTML = html;
-        new bootstrap.Modal(document.getElementById('mapaModal')).show();
-    }
-    
-    function abrirMapaModal(numero, nombre, url) {
-        document.getElementById('mapaModalTitle').textContent = `Aviso #${numero} - ${nombre}`;
-        document.getElementById('mapaModalContent').innerHTML = `
-            <div>
-                <img src="${url}" class="img-fluid" style="border-radius: 4px;">
-                <div style="margin-top: 1rem;">
-                    <a href="${url}" download class="btn btn-primary w-100">
-                        <i class="bi bi-download"></i> Descargar ${nombre}
-                    </a>
-                </div>
             </div>
-        `;
-        new bootstrap.Modal(document.getElementById('mapaModal')).show();
-    }
-    
-    function aplicarFiltros() {
-        const orden = document.getElementById('filtro-orden').value;
-        const nivel = document.getElementById('filtro-nivel').value;
-        const grid = document.getElementById('avisos-grid');
-        const cards = Array.from(grid.querySelectorAll('.aviso-card'));
-        
-        // Filtrar por nivel
-        const cardsFiltradas = cards.filter(card => {
-            if (nivel === 'todos') return true;
-            return card.classList.contains('color-' + nivel);
-        });
-        
-        // Ordenar según la selección
-        cardsFiltradas.sort((a, b) => {
-            const numeroA = parseInt(a.dataset.numero) || 0;
-            const numeroB = parseInt(b.dataset.numero) || 0;
-            
-            if (orden === 'reciente') {
-                return numeroA - numeroB; // Menor a mayor (números más altos después)
-            } else {
-                return numeroB - numeroA; // Mayor a menor (números más bajos después)
-            }
-        });
-        
-        // Ocultar todas las tarjetas primero
-        cards.forEach(card => card.style.display = 'none');
-        
-        // Mostrar solo las filtradas en orden correcto
-        grid.innerHTML = '';
-        cardsFiltradas.forEach(card => {
-            card.style.display = 'block';
-            grid.appendChild(card);
-        });
-    }
-    
-    function resetearFiltros() {
-        document.getElementById('filtro-orden').value = 'reciente';
-        document.getElementById('filtro-nivel').value = 'todos';
-        
-        // Si vino con ?aviso=X, ir a /mapas sin parámetro para cargar todos
-        const url = new URL(window.location);
-        if (url.searchParams.has('aviso')) {
-            window.location.href = '/mapas';
-            return;
-        }
-        
-        // Si no hay parámetro, reconstruir grid desde el cache
-        const grid = document.getElementById('avisos-grid');
-        grid.innerHTML = '';
-        avisos_cache.forEach(card => {
-            grid.appendChild(card.cloneNode(true));
-        });
-        
-        aplicarFiltros();
-    }
-    
-    document.addEventListener('DOMContentLoaded', cargarAvisos);
+        </div>
+    </div>
+</div>
+
+<style>
+.hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15) !important;
+}
+</style>
 
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/mapas.js') }}"></script>
+<script>
+function filtrarMapas() {
+    const numero = document.getElementById('filtro-numero').value.toLowerCase();
+    const depto = document.getElementById('filtro-depto').value.toUpperCase();
+    
+    document.querySelectorAll('.mapa-item').forEach(item => {
+        const matchNumero = !numero || item.dataset.numero.includes(numero);
+        const matchDepto = !depto || item.dataset.depto.includes(depto);
+        
+        item.style.display = (matchNumero && matchDepto) ? '' : 'none';
+    });
+}
+
+function abrirMapaModal(nombre, url) {
+    document.getElementById('mapaModalLabel').textContent = nombre;
+    document.getElementById('mapaImage').src = url;
+    document.getElementById('descargaLink').href = url;
+    new bootstrap.Modal(document.getElementById('mapaModal')).show();
+}
+</script>
 {% endblock %}

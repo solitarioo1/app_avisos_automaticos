@@ -3,6 +3,19 @@
    Estilos específicos para la página de gestión de avisos
    ============================================================================ */
 
+/* Container centrado con padding generoso */
+.container-fluid.px-5 {
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+}
+
+@media (max-width: 768px) {
+    .container-fluid.px-5 {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+}
+
 .table td {
     padding: 6px 8px !important;
     vertical-align: middle;

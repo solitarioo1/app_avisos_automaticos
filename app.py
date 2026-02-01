@@ -84,12 +84,15 @@ def dashboard_page():
 
 @app.route('/avisos', methods=['GET'])
 def avisos():
-    """Página de gestión de avisos - Conectado a BD"""
+    """Página de gestión de avisos - Conectado a BD o archivos locales"""
+    import json
+    avisos_lista = []
+    
+    # Intentar obtener de BD
     try:
         import psycopg2
         import psycopg2.extras
         
-        # Obtener avisos de BD
         conn = psycopg2.connect(
             host=os.getenv("DB_HOST", "localhost"),
             port=int(os.getenv("DB_PORT", "5432")),
@@ -111,14 +114,12 @@ def avisos():
         conn.close()
         
         # Procesar avisos y verificar estado
-        avisos_lista = []
         for aviso in avisos_bd:
             numero = aviso['numero_aviso']
             json_path = BASE_DIR / 'JSON' / f'aviso_{numero}.json'
             output_path = OUTPUT_DIR / f'aviso_{numero}'
             
             estado_descargado = json_path.exists()
-            # Verificar si existen mapas (webp o png)
             mapas_creados = output_path.exists() and (any(output_path.glob('*.webp')) or any(output_path.glob('*.png')))
             
             avisos_lista.append({
@@ -131,11 +132,44 @@ def avisos():
                 'mapa_creado': '✅' if mapas_creados else '⏳',
                 'estado_css': 'table-success' if mapas_creados else ('table-warning' if estado_descargado else '')
             })
-        
-        return render_template('avisos.html', avisos=avisos_lista)
     except Exception as e:
-        logger.error(f"Error en página avisos: {str(e)}")
-        return render_template('avisos.html', avisos=[])
+        logger.warning(f"BD no disponible, usando JSON locales: {str(e)}")
+        # Fallback: cargar desde archivos JSON locales
+        try:
+            json_dir = BASE_DIR / 'JSON'
+            if json_dir.exists():
+                for json_file in sorted(json_dir.glob('aviso_*.json'), reverse=True):
+                    try:
+                        with open(json_file, 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                            numero = str(data.get('numero_aviso', json_file.stem.replace('aviso_', '')))
+                            
+                            json_path = json_file
+                            output_path = OUTPUT_DIR / f'aviso_{numero}'
+                            
+                            estado_descargado = True
+                            mapas_creados = output_path.exists() and (any(output_path.glob('*.webp')) or any(output_path.glob('*.png')))
+                            
+                            # Obtener nivel correctamente del JSON
+                            nivel = data.get('nivel', 'AMARILLO').upper()
+                            color = data.get('color', 'plomo').lower()
+                            
+                            avisos_lista.append({
+                                'numero': numero,
+                                'titulo': data.get('titulo', f'Aviso {numero}'),
+                                'nivel': nivel,
+                                'color': color,
+                                'fecha_emision': data.get('fecha_emision', '2026-02-01'),
+                                'descargado': '✅',
+                                'mapa_creado': '✅' if mapas_creados else '⏳',
+                                'estado_css': 'table-success' if mapas_creados else 'table-warning'
+                            })
+                    except Exception as je:
+                        logger.error(f"Error leyendo {json_file}: {str(je)}")
+        except Exception as fe:
+            logger.error(f"Error cargando JSON locales: {str(fe)}")
+    
+    return render_template('avisos.html', avisos=avisos_lista)
 
 @app.route('/api/avisos/<int:numero>/descargar', methods=['POST'])
 def api_descargar_aviso(numero):
@@ -896,12 +930,15 @@ def obtener_lista_mapas(aviso_filtro=None):
             webp_files = [f for f in aviso_dir.iterdir() if f.suffix == '.webp']
             
             for webp_file in webp_files:
+                # Usar URLs locales para desarrollo
+                url_local = f"/mapas/imagen/{numero_aviso}/{webp_file.name}"
+                
                 mapas.append({
                     'id': f"{numero_aviso}_{webp_file.stem}",
                     'nombre': f"{webp_file.stem}.webp",
                     'numero_aviso': numero_aviso,
                     'departamento': webp_file.stem,
-                    'url': f"{DOMAIN}/OUTPUT/{aviso_dir.name}/{webp_file.name}",
+                    'url': url_local,  # URL local para desarrollo
                     'fecha': datetime.fromtimestamp(aviso_dir.stat().st_mtime).strftime('%d/%m/%Y')
                 })
     
