@@ -3,121 +3,377 @@
 {% block title %}Mapas - La Positiva AgroSeguros{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-5 py-4" style="max-width: 1400px; margin: 0 auto;">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="mb-0"><i class="bi bi-map"></i> Galería de Mapas ({{ mapas|length }} mapas)</h2>
-        <button class="btn btn-info btn-sm" onclick="location.reload()">
-            <i class="bi bi-arrow-clockwise"></i> Recargar
-        </button>
-    </div>
+<style>
+    .mapas-container {
+        max-width: 1200px;
+    }
+    
+    .filtro-orden {
+        margin-bottom: 1.5rem;
+    }
+    
+    .avisos-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1rem;
+    }
+    
+    .aviso-card {
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .aviso-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    }
+    
+    .aviso-card.color-rojo { background: rgba(220, 53, 69, 0.08); }
+    .aviso-card.color-naranja { background: rgba(255, 140, 0, 0.08); }
+    .aviso-card.color-amarillo { background: rgba(255, 193, 7, 0.08); }
+    .aviso-card.color-plomo { background: rgba(108, 117, 125, 0.08); }
+    
+    .aviso-header {
+        background: linear-gradient(135deg, #0070C0 0%, #00A4EF 100%);
+        color: white;
+        padding: 1rem;
+    }
+    
+    .aviso-header.color-rojo { background: linear-gradient(135deg, #c82333 0%, #bb2d3b 100%); }
+    .aviso-header.color-naranja { background: linear-gradient(135deg, #e67e22 0%, #d35400 100%); }
+    .aviso-header.color-amarillo { background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: #333; }
+    .aviso-header.color-plomo { background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); }
+    
+    .aviso-numero { font-size: 20px; font-weight: 700; margin: 0; }
+    .aviso-titulo { font-size: 12px; opacity: 0.9; margin: 0.25rem 0 0 0; }
+    
+    .aviso-body { padding: 1rem; flex: 1; }
+    .info-row { margin-bottom: 0.75rem; }
+    .info-label { font-size: 11px; color: #6c757d; font-weight: 600; }
+    .info-value { font-size: 13px; color: #333; margin-top: 0.25rem; }
+    
+    .departamentos-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .depto-tag { background: #e9ecef; color: #333; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 11px; font-weight: 500; }
+    
+    .nivel-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 20px; font-weight: 600; font-size: 12px; color: white; }
+    .nivel-rojo { background: #dc3545; }
+    .nivel-naranja { background: #ff8c00; }
+    .nivel-amarillo { background: #ffc107; color: #333; }
+    .nivel-verde { background: #198754; }
+    
+    .mapas-preview { display: flex; gap: 0.5rem; margin: 0.75rem 0 0 0; flex-wrap: wrap; }
+    .mapa-thumb { width: 40px; height: 40px; border-radius: 4px; background: #e9ecef; overflow: hidden; cursor: pointer; }
+    .mapa-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    
+    .aviso-footer { padding: 1rem; border-top: 1px solid #e9ecef; display: flex; gap: 0.5rem; }
+    .aviso-footer .btn-sm { flex: 1; padding: 6px 8px; font-size: 12px; }
+    
+    .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+    .status-ready { background: #d4edda; color: #155724; }
+    .status-pending { background: #fff3cd; color: #856404; }
+    
+    .modal-body img { max-width: 100%; max-height: 600px; width: auto; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+</style>
 
-    <!-- Filtros -->
-    <div class="card mb-4">
-        <div class="card-body">
+<div class="container-fluid p-3 mapas-container">
+    <h2 class="mb-1"><i class="bi bi-map"></i> Mapas Meteorológicos</h2>
+    <p class="text-muted mb-3">Gestión y visualización de mapas por aviso</p>
+    
+    <!-- Filtro de orden y nivel -->
+    <div class="card filtro-orden">
+        <div class="card-body p-2">
             <div class="row g-2">
                 <div class="col-md-4">
-                    <label class="form-label mb-1">🔍 Filtrar por Aviso</label>
-                    <input type="text" class="form-control form-control-sm" id="filtro-numero" placeholder="Ej: 10, 12..." onkeyup="filtrarMapas()">
+                    <label class="form-label mb-1" style="font-size: 12px;">Ordenar por</label>
+                    <select class="form-select form-select-sm" id="filtro-orden" onchange="aplicarFiltros()">
+                        <option value="reciente">📅 Más recientes primero</option>
+                        <option value="antiguo">📅 Más antiguos primero</option>
+                    </select>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label mb-1">Departamento</label>
-                    <input type="text" class="form-control form-control-sm" id="filtro-depto" placeholder="Ej: LIMA, CUSCO..." onkeyup="filtrarMapas()">
+                    <label class="form-label mb-1" style="font-size: 12px;">Filtrar por Nivel</label>
+                    <select class="form-select form-select-sm" id="filtro-nivel" onchange="aplicarFiltros()">
+                        <option value="todos">Todos los niveles</option>
+                        <option value="rojo">🔴 Rojo</option>
+                        <option value="naranja">🟠 Naranja</option>
+                        <option value="amarillo">🟡 Amarillo</option>
+                        <option value="plomo">⚫ Plomo</option>
+                    </select>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label mb-1">&nbsp;</label>
-                    <button class="btn btn-secondary btn-sm w-100" onclick="document.getElementById('filtro-numero').value=''; document.getElementById('filtro-depto').value=''; filtrarMapas()">
-                        <i class="bi bi-x"></i> Limpiar Filtros
+                <div class="col-md-4 d-flex align-items-end">
+                    <button class="btn btn-sm btn-outline-secondary w-100" onclick="resetearFiltros()">
+                        <i class="bi bi-arrow-clockwise"></i> Resetear Filtros
                     </button>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Grid de Mapas -->
-    {% if mapas|length > 0 %}
-    <div id="mapas-grid" class="row g-3">
-        {% for mapa in mapas %}
-        <div class="col-lg-3 col-md-4 col-sm-6 mapa-item" data-numero="{{ mapa.numero_aviso }}" data-depto="{{ mapa.departamento|upper }}">
-            <div class="card h-100 shadow-sm hover-lift" style="transition: transform 0.2s, box-shadow 0.2s;">
-                <div style="height: 200px; background: #f0f0f0; overflow: hidden; border-radius: 4px 4px 0 0;">
-                    <img src="{{ mapa.url }}" alt="{{ mapa.departamento }}" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="abrirMapaModal('{{ mapa.nombre }}', '{{ mapa.url }}')">
-                </div>
-                <div class="card-body p-3">
-                    <h6 class="card-title mb-1">{{ mapa.departamento }}</h6>
-                    <small class="text-muted">Aviso #{{ mapa.numero_aviso }}</small>
-                    <div class="mt-2">
-                        <small class="text-muted">{{ mapa.fecha }}</small>
-                    </div>
-                    <div class="mt-2 d-flex gap-1">
-                        <a href="{{ mapa.url }}" target="_blank" class="btn btn-sm btn-primary flex-grow-1">
-                            <i class="bi bi-eye"></i> Ver
-                        </a>
-                        <a href="{{ mapa.url }}" download class="btn btn-sm btn-outline-secondary">
-                            <i class="bi bi-download"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
+    
+    <!-- Grid de avisos -->
+    <div class="avisos-grid" id="avisos-grid">
+        <div class="text-center py-5" style="grid-column: 1/-1;">
+            <i class="bi bi-hourglass-split display-4 text-muted spin"></i>
+            <p class="text-muted mt-3">Cargando avisos...</p>
         </div>
-        {% endfor %}
     </div>
-    {% else %}
-    <div class="alert alert-info" role="alert">
-        <i class="bi bi-info-circle"></i> No hay mapas generados aún. 
-        <a href="/avisos">Procesa un aviso en la sección de Avisos</a> para generar mapas.
-    </div>
-    {% endif %}
+</div>
 
-    <!-- Modal para ver mapa en grande -->
-    <div class="modal fade" id="mapaModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="mapaModalLabel">Mapa</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body text-center">
-                    <img id="mapaImage" src="" alt="Mapa" class="img-fluid" style="max-height: 600px;">
-                </div>
-                <div class="modal-footer">
-                    <a id="descargaLink" href="" download class="btn btn-primary">
-                        <i class="bi bi-download"></i> Descargar
-                    </a>
-                </div>
+<!-- Modal para visualizar mapas completos -->
+<div class="modal fade" id="mapaModal" tabindex="-1">
+    <div class="modal-dialog modal-md">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="mapaModalTitle">Mapas del Aviso</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="mapaModalContent" style="display: flex; flex-direction: column; gap: 1rem; max-height: 60vh; overflow-y: auto;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-.hover-lift:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.15) !important;
-}
-</style>
-
-{% endblock %}
-
-{% block scripts %}
 <script>
-function filtrarMapas() {
-    const numero = document.getElementById('filtro-numero').value.toLowerCase();
-    const depto = document.getElementById('filtro-depto').value.toUpperCase();
+    const spin = document.querySelector('.spin');
+    if (spin) {
+        const style = document.createElement('style');
+        style.textContent = `
+            .spin {
+                display: inline-block;
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
     
-    document.querySelectorAll('.mapa-item').forEach(item => {
-        const matchNumero = !numero || item.dataset.numero.includes(numero);
-        const matchDepto = !depto || item.dataset.depto.includes(depto);
+    let avisos_cache = [];
+    
+    function obtenerParametroURL(nombre) {
+        const params = new URLSearchParams(window.location.search);
+        return params.get(nombre);
+    }
+    
+    async function cargarAvisos() {
+        try {
+            const avisoEspecifico = obtenerParametroURL('aviso');
+            
+            const res = await fetch('/api/avisos');
+            const result = await res.json();
+            let avisos = result.avisos || [];
+            
+            // Si viene con ?aviso=X, filtrar solo ese aviso
+            if (avisoEspecifico) {
+                avisos = avisos.filter(a => a.numero == avisoEspecifico);
+                document.querySelector('h2').textContent = `🗺️ Mapas - Aviso #${avisoEspecifico}`;
+            }
+            
+            let html = '';
+            
+            const avisoPromises = avisos.map(async (aviso) => {
+                try {
+                    const infoRes = await fetch(`/api/avisos/${aviso.numero}/info`);
+                    if (!infoRes.ok) return '';
+                    
+                    const info = await infoRes.json();
+                    if (!info.success) return '';
+                    
+                    let departamentos = [];
+                    if (info.mapas_creados) {
+                        const deptosRes = await fetch(`/api/avisos/${aviso.numero}/departamentos`).catch(() => null);
+                        if (deptosRes && deptosRes.ok) {
+                            const deptosData = await deptosRes.json();
+                            departamentos = deptosData.departamentos || [];
+                        }
+                    }
+                    
+                    const mapasRes = await fetch(`/api/mapas/aviso/${aviso.numero}`).catch(() => null);
+                    const mapas = mapasRes ? await mapasRes.json().catch(() => ({ mapas: [] })) : { mapas: [] };
+                    
+                    const mapaStatus = info.mapas_creados ? 'ready' : 'pending';
+                    const mapaStatusText = info.mapas_creados ? '✅ Mapas Creados' : '⏳ No Creados';
+                    const puedeGenerarMapas = ['rojo', 'naranja'].includes(info.color.toLowerCase());
+                    const mensajeNivelBajo = !puedeGenerarMapas ? '<em style="color: #999; font-size: 12px;">Este nivel no requiere mapas</em>' : '';
+                    
+                    return `
+                        <div class="aviso-card color-${info.color}" data-numero="${aviso.numero}">
+                            <div class="aviso-header color-${info.color}">
+                                <h5 class="aviso-numero">#${aviso.numero}</h5>
+                                <p class="aviso-titulo">${aviso.titulo}</p>
+                            </div>
+                            <div class="aviso-body">
+                                <div class="info-row">
+                                    <div class="info-label">NIVEL</div>
+                                    <span class="nivel-badge nivel-${info.color}">${info.color.toUpperCase()}</span>
+                                    ${mensajeNivelBajo}
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">DEPARTAMENTOS AFECTADOS</div>
+                                    <div class="departamentos-list">
+                                        ${puedeGenerarMapas ? (info.mapas_creados ? (departamentos.length > 0 ? departamentos.map(d => `<span class="depto-tag">${d}</span>`).join('') : '<em style="color: #999;">No disponibles</em>') : '<em style="color: #999;">Se mostrarán después de generar mapas</em>') : '<em style="color: #999;">N/A - Nivel no aplica</em>'}
+                                    </div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-label">ESTADO DE MAPAS</div>
+                                    <span class="status-badge status-${mapaStatus}">${puedeGenerarMapas ? mapaStatusText : '⊘ No Aplica'}</span>
+                                </div>
+                                ${info.mapas_creados && mapas.mapas && mapas.mapas.length > 0 ? `
+                                    <div class="info-row">
+                                        <div class="info-label">VISTA PREVIA</div>
+                                        <div class="mapas-preview">
+                                            ${mapas.mapas.slice(0, 4).map(m => `
+                                                <div class="mapa-thumb" title="${m.nombre}" onclick="abrirMapaModal(${aviso.numero}, '${m.nombre}', '${m.url}')">
+                                                    <img src="${m.url}" alt="${m.nombre}">
+                                                </div>
+                                            `).join('')}
+                                            ${mapas.mapas.length > 4 ? `<div class="depto-tag">+${mapas.mapas.length - 4}</div>` : ''}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <div class="aviso-footer">
+                                <button class="btn btn-sm btn-outline-info" onclick="abrirTodosMapas(${aviso.numero})" ${!info.mapas_creados ? 'disabled' : ''}>
+                                    <i class="bi bi-eye"></i> Ver Todos
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="irAAviso(${aviso.numero})">
+                                    <i class="bi bi-link"></i> Ir a Aviso
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                } catch (error) {
+                    console.error(`Error cargando aviso ${aviso.numero}:`, error);
+                    return '';
+                }
+            });
+            
+            const results = await Promise.all(avisoPromises);
+            html = results.filter(r => r).join('');
+            
+            if (!html) {
+                html = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 3rem 1rem;">
+                        <i class="bi bi-inbox display-1 text-muted"></i>
+                        <h4 class="text-muted mt-3">Sin avisos disponibles</h4>
+                        <a href="/avisos" class="btn btn-primary btn-sm mt-2">Ir a Avisos</a>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('avisos-grid').innerHTML = html;
+            avisos_cache = Array.from(document.getElementById('avisos-grid').querySelectorAll('.aviso-card'));
+            aplicarFiltros();
+        } catch (error) {
+            console.error('Error:', error);
+            document.getElementById('avisos-grid').innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 2rem;"><p class="text-danger">Error: ${error.message}</p></div>`;
+        }
+    }
+    
+    async function abrirTodosMapas(numero) {
+        const res = await fetch(`/api/mapas/aviso/${numero}`);
+        const data = await res.json();
         
-        item.style.display = (matchNumero && matchDepto) ? '' : 'none';
-    });
-}
-
-function abrirMapaModal(nombre, url) {
-    document.getElementById('mapaModalLabel').textContent = nombre;
-    document.getElementById('mapaImage').src = url;
-    document.getElementById('descargaLink').href = url;
-    new bootstrap.Modal(document.getElementById('mapaModal')).show();
-}
+        if (!data.success) {
+            alert('Error al cargar mapas');
+            return;
+        }
+        
+        let html = '';
+        for (const mapa of data.mapas) {
+            html += `
+                <div>
+                    <h6>${mapa.nombre}</h6>
+                    <img src="${mapa.url}" class="img-fluid" style="border-radius: 4px;">
+                    <a href="${mapa.url}" download class="btn btn-sm btn-outline-primary mt-2">
+                        <i class="bi bi-download"></i> Descargar
+                    </a>
+                </div>
+            `;
+        }
+        
+        document.getElementById('mapaModalTitle').textContent = `Aviso #${numero} - Todos los Mapas`;
+        document.getElementById('mapaModalContent').innerHTML = html;
+        new bootstrap.Modal(document.getElementById('mapaModal')).show();
+    }
+    
+    function abrirMapaModal(numero, nombre, url) {
+        document.getElementById('mapaModalTitle').textContent = `Aviso #${numero} - ${nombre}`;
+        document.getElementById('mapaModalContent').innerHTML = `
+            <div>
+                <img src="${url}" class="img-fluid" style="border-radius: 4px;">
+                <div style="margin-top: 1rem;">
+                    <a href="${url}" download class="btn btn-primary w-100">
+                        <i class="bi bi-download"></i> Descargar ${nombre}
+                    </a>
+                </div>
+            </div>
+        `;
+        new bootstrap.Modal(document.getElementById('mapaModal')).show();
+    }
+    
+    function irAAviso(numero) {
+        window.location.href = `/avisos?aviso=${numero}`;
+    }
+    
+    function aplicarFiltros() {
+        const orden = document.getElementById('filtro-orden').value;
+        const nivel = document.getElementById('filtro-nivel').value;
+        const grid = document.getElementById('avisos-grid');
+        const cards = Array.from(grid.querySelectorAll('.aviso-card'));
+        
+        const cardsFiltradas = cards.filter(card => {
+            if (nivel === 'todos') return true;
+            return card.classList.contains('color-' + nivel);
+        });
+        
+        cardsFiltradas.sort((a, b) => {
+            const numeroA = parseInt(a.dataset.numero) || 0;
+            const numeroB = parseInt(b.dataset.numero) || 0;
+            
+            if (orden === 'reciente') {
+                return numeroA - numeroB;
+            } else {
+                return numeroB - numeroA;
+            }
+        });
+        
+        cards.forEach(card => card.style.display = 'none');
+        grid.innerHTML = '';
+        cardsFiltradas.forEach(card => {
+            card.style.display = 'block';
+            grid.appendChild(card);
+        });
+    }
+    
+    function resetearFiltros() {
+        if (obtenerParametroURL('aviso')) {
+            window.location.href = '/mapas';
+            return;
+        }
+        document.getElementById('filtro-orden').value = 'reciente';
+        document.getElementById('filtro-nivel').value = 'todos';
+        
+        const grid = document.getElementById('avisos-grid');
+        grid.innerHTML = '';
+        avisos_cache.forEach(card => {
+            grid.appendChild(card.cloneNode(true));
+        });
+        
+        aplicarFiltros();
+    }
+    
+    document.addEventListener('DOMContentLoaded', cargarAvisos);
 </script>
 {% endblock %}

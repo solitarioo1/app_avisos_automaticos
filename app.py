@@ -681,7 +681,7 @@ def api_avisos():
             )
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             
-            query = "SELECT DISTINCT numero_aviso, titulo, nivel, color FROM avisos_completos WHERE color IN ('rojo', 'naranja') ORDER BY numero_aviso DESC"
+            query = "SELECT DISTINCT numero_aviso, titulo, nivel, color, fecha_emision FROM avisos_completos WHERE color IN ('rojo', 'naranja') ORDER BY numero_aviso DESC"
             cursor.execute(query)
             avisos_bd = cursor.fetchall()
             cursor.close()
@@ -693,44 +693,60 @@ def api_avisos():
                     'numero': numero,
                     'titulo': aviso['titulo'],
                     'nivel': aviso['nivel'],
+                    'color': aviso.get('color', 'plomo'),
+                    'fecha_emision': str(aviso.get('fecha_emision', '')),
+                    'descargado': '✅',
+                    'mapa_creado': '⏳',
                     'fuente': 'bd'
                 }
         except Exception as e:
             logger.warning(f"No se pudo conectar a BD: {e}")
         
-        # 2. Buscar carpetas en OUTPUT/ que no estén en BD
+        # 2. Buscar archivos JSON locales que no estén en BD
+        if (BASE_DIR / 'JSON').exists():
+            for json_file in sorted((BASE_DIR / 'JSON').glob('aviso_*.json'), reverse=True):
+                try:
+                    numero = int(json_file.stem.split('_')[1])
+                    
+                    if numero not in avisos_dict:
+                        with open(json_file, 'r', encoding='utf-8') as f:
+                            datos = json.load(f)
+                        
+                        output_path = OUTPUT_DIR / f'aviso_{numero}'
+                        mapas_creados = output_path.exists() and (any(output_path.glob('*.webp')) or any(output_path.glob('*.png')))
+                        
+                        avisos_dict[numero] = {
+                            'numero': numero,
+                            'titulo': datos.get('titulo', f'Aviso {numero}'),
+                            'nivel': datos.get('nivel', 'AMARILLO'),
+                            'color': datos.get('color', 'plomo'),
+                            'fecha_emision': datos.get('fecha_emision', '2026-02-01'),
+                            'descargado': '✅',
+                            'mapa_creado': '✅' if mapas_creados else '⏳',
+                            'fuente': 'json'
+                        }
+                except Exception as je:
+                    logger.warning(f"Error leyendo {json_file}: {je}")
+        
+        # 3. Verificar también carpetas OUTPUT que no tengan JSON
         if OUTPUT_DIR.exists():
             for carpeta in OUTPUT_DIR.iterdir():
                 if carpeta.is_dir() and carpeta.name.startswith('aviso_'):
-                    numero = int(carpeta.name.split('_')[1])
-                    
-                    if numero not in avisos_dict:
-                        # Intentar obtener info del JSON
-                        json_path = BASE_DIR / 'JSON' / f'aviso_{numero}.json'
-                        if json_path.exists():
-                            try:
-                                with open(json_path, 'r', encoding='utf-8') as f:
-                                    datos = json.load(f)
-                                avisos_dict[numero] = {
-                                    'numero': numero,
-                                    'titulo': datos.get('titulo', f'Aviso {numero}'),
-                                    'nivel': datos.get('nivel', 'N/A'),
-                                    'fuente': 'json'
-                                }
-                            except:
-                                avisos_dict[numero] = {
-                                    'numero': numero,
-                                    'titulo': f'Aviso {numero}',
-                                    'nivel': 'N/A',
-                                    'fuente': 'output'
-                                }
-                        else:
+                    try:
+                        numero = int(carpeta.name.split('_')[1])
+                        if numero not in avisos_dict:
                             avisos_dict[numero] = {
                                 'numero': numero,
                                 'titulo': f'Aviso {numero}',
                                 'nivel': 'N/A',
+                                'color': 'plomo',
+                                'fecha_emision': '2026-02-01',
+                                'descargado': '⏳',
+                                'mapa_creado': '✅' if any(carpeta.glob('*.webp')) or any(carpeta.glob('*.png')) else '⏳',
                                 'fuente': 'output'
                             }
+                    except Exception as oe:
+                        logger.warning(f"Error procesando {carpeta}: {oe}")
         
         avisos = sorted(avisos_dict.values(), key=lambda x: x['numero'], reverse=True)
         
