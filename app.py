@@ -88,6 +88,10 @@ def avisos():
     import json
     avisos_lista = []
     
+    # Obtener parámetro de filtro de URL
+    aviso_param = request.args.get('aviso')
+    filtro_numero = int(aviso_param) if aviso_param else None
+    
     # Intentar obtener de BD
     try:
         import psycopg2
@@ -116,6 +120,11 @@ def avisos():
         # Procesar avisos y verificar estado
         for aviso in avisos_bd:
             numero = aviso['numero_aviso']
+            
+            # Aplicar filtro si existe
+            if filtro_numero and numero != filtro_numero:
+                continue
+                
             json_path = BASE_DIR / 'JSON' / f'aviso_{numero}.json'
             output_path = OUTPUT_DIR / f'aviso_{numero}'
             
@@ -142,7 +151,11 @@ def avisos():
                     try:
                         with open(json_file, 'r', encoding='utf-8') as f:
                             data = json.load(f)
-                            numero = str(data.get('numero_aviso', json_file.stem.replace('aviso_', '')))
+                            numero = int(data.get('numero_aviso', json_file.stem.replace('aviso_', '')))
+                            
+                            # Aplicar filtro si existe
+                            if filtro_numero and numero != filtro_numero:
+                                continue
                             
                             json_path = json_file
                             output_path = OUTPUT_DIR / f'aviso_{numero}'

@@ -1,52 +1,65 @@
 {% extends "base.html" %}
 
-{% block title %}Avisos - La Positiva AgroSeguros{% endblock %}
-
 {% block content %}
 <style>
-    .nivel-badge { display: inline-block; padding: 0.35rem 0.75rem; border-radius: 4px; font-weight: 600; font-size: 12px; color: white; }
-    .nivel-rojo { background: #dc3545; }
-    .nivel-naranja { background: #ff8c00; }
-    .nivel-amarillo { background: #ffc107; color: #333; }
-    .nivel-verde { background: #198754; }
+    .avisos-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
 </style>
-
-<div class="container-fluid px-5 py-4" style="max-width: 1400px; margin: 0 auto;">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="mb-0"><i class="bi bi-cloud-lightning"></i> Gestión de Avisos</h2>
-        <button class="btn btn-success btn-sm" id="btnConsultarNuevos" onclick="consultarNuevos()">
-            <i class="bi bi-search"></i> 🔍 Consultar Avisos Nuevos
-        </button>
+<div class="container-fluid p-3 avisos-container">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h1 class="h2">Avisos</h1>
+        </div>
+        <div class="col-md-6 text-end">
+            <button id="btnConsultarNuevos" class="btn btn-success">
+                <i class="bi bi-cloud-download"></i> Consultar Nuevos
+            </button>
+        </div>
     </div>
 
     <!-- Filtros -->
-    <div class="card mb-3">
-        <div class="card-body">
-            <div class="row g-2">
-                <div class="col-md-3">
-                    <label class="form-label mb-1">🔍 Buscar Aviso</label>
-                    <input type="text" class="form-control form-control-sm" id="filtro-numero" placeholder="Número de aviso..." onkeyup="aplicarFiltros()">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label mb-1">Nivel</label>
-                    <select class="form-select form-select-sm" id="filtro-nivel" onchange="aplicarFiltros()">
-                        <option value="">Todos</option>
-                        <option value="rojo">🔴 ROJO</option>
-                        <option value="naranja">🟠 NARANJA</option>
-                        <option value="amarillo">🟡 AMARILLO</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label mb-1">Ordenar</label>
-                    <select class="form-select form-select-sm" id="filtro-orden" onchange="aplicarFiltros()">
-                        <option value="desc">Más recientes ↓</option>
-                        <option value="asc">Más antiguos ↑</option>
-                    </select>
-                </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button class="btn btn-sm btn-outline-secondary w-100" onclick="resetearFiltros()">
-                        <i class="bi bi-arrow-clockwise"></i> Resetear Filtros
-                    </button>
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-2">
+                            <label for="filtro-numero" class="form-label">Número</label>
+                            <input type="text" id="filtro-numero" class="form-control" placeholder="Ej: 4" />
+                        </div>
+                        <div class="col-md-2">
+                            <label for="filtro-nivel" class="form-label">Nivel</label>
+                            <select id="filtro-nivel" class="form-select">
+                                <option value="">Todos</option>
+                                <option value="rojo">Rojo</option>
+                                <option value="naranja">Naranja</option>
+                                <option value="amarillo">Amarillo</option>
+                                <option value="verde">Verde</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="filtro-orden" class="form-label">Orden</label>
+                            <select id="filtro-orden" class="form-select">
+                                <option value="desc">Más Reciente</option>
+                                <option value="asc">Más Antiguo</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <button id="btnAplicarFiltros" class="btn btn-primary w-100">
+                                <i class="bi bi-funnel"></i> Filtrar
+                            </button>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <button id="btnResetearFiltros" class="btn btn-secondary w-100">
+                                <i class="bi bi-arrow-clockwise"></i> Reset
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -71,214 +84,63 @@
                     </tr>
                 </thead>
                 <tbody id="tabla-avisos">
-                    <tr style="grid-column: 1/-1;">
-                        <td colspan="7" class="text-center py-4">
-                            <i class="bi bi-hourglass-split display-4 text-muted spin"></i>
-                            <p class="text-muted mt-2">Cargando avisos...</p>
+                    {% for aviso in avisos %}
+                    <tr data-numero="{{ aviso.numero }}" data-nivel="{{ aviso.nivel }}" data-descargado="{{ aviso.descargado }}" data-procesado="{{ aviso.mapa_creado }}" data-fecha="{{ aviso.fecha_emision }}" data-color="{{ aviso.color }}">
+                        <td><strong>#{{ aviso.numero }}</strong></td>
+                        <td style="text-align: left;">{{ aviso.titulo }}</td>
+                        <td>
+                            {% if aviso.color == 'rojo' %}
+                                <span class="nivel-badge nivel-rojo">ROJO</span>
+                            {% elif aviso.color == 'naranja' %}
+                                <span class="nivel-badge nivel-naranja">NARANJA</span>
+                            {% elif aviso.color == 'amarillo' %}
+                                <span class="nivel-badge nivel-amarillo">AMARILLO</span>
+                            {% elif aviso.color == 'verde' %}
+                                <span class="nivel-badge nivel-verde">VERDE</span>
+                            {% else %}
+                                <span class="nivel-badge nivel-gris">{{ aviso.nivel }}</span>
+                            {% endif %}
+                        </td>
+                        <td><small>{{ aviso.fecha_emision }}</small></td>
+                        <td style="text-align: center;">{{ aviso.descargado }}</td>
+                        <td style="text-align: center;">{{ aviso.mapa_creado }}</td>
+                        <td>
+                            <div class="acciones-col" style="display: flex; gap: 0.5rem;">
+                                <button class="btn btn-sm btn-outline-primary btn-descargar" title="Descargar JSON" data-numero="{{ aviso.numero }}"><i class="bi bi-download"></i></button>
+                                <a href="/mapas?aviso={{ aviso.numero }}" class="btn btn-sm btn-outline-secondary" title="Ver Mapas"><i class="bi bi-eye"></i></a>
+                                <a href="/decisiones?aviso={{ aviso.numero }}" class="btn btn-sm btn-outline-warning" title="Decisiones"><i class="bi bi-geo"></i></a>
+                            </div>
                         </td>
                     </tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 </div>
 
-<script>
-    let AVISOS_ORIGINALES = [];
-    let avisoEspecifico = null;
-
-    function obtenerParametroURL(nombre) {
-        const params = new URLSearchParams(window.location.search);
-        return params.get(nombre);
+<style>
+    .nivel-badge {
+        padding: 0.35rem 0.65rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border-radius: 0.25rem;
     }
-
-    async function cargarAvisos() {
-        try {
-            avisoEspecifico = obtenerParametroURL('aviso');
-            
-            const res = await fetch('/api/avisos');
-            const result = await res.json();
-            let avisos = result.avisos || [];
-
-            // Si viene con ?aviso=X, filtrar solo ese aviso
-            if (avisoEspecifico) {
-                avisos = avisos.filter(a => a.numero == avisoEspecifico);
-                document.getElementById('tabla-titulo').textContent = `Aviso #${avisoEspecifico}`;
-            }
-
-            AVISOS_ORIGINALES = avisos.map(aviso => ({
-                numero: aviso.numero,
-                titulo: aviso.titulo,
-                nivel: aviso.nivel ? aviso.nivel.toLowerCase() : 'amarillo',
-                color: aviso.color || 'amarillo',
-                fecha: aviso.fecha_emision,
-                descargado: aviso.descargado,
-                mapa_creado: aviso.mapa_creado
-            }));
-
-            if (AVISOS_ORIGINALES.length === 0) {
-                document.getElementById('tabla-avisos').innerHTML = `
-                    <tr>
-                        <td colspan="7" class="text-center py-4 text-muted">
-                            No hay avisos disponibles
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            aplicarFiltros();
-        } catch (error) {
-            console.error('Error:', error);
-            document.getElementById('tabla-avisos').innerHTML = `
-                <tr>
-                    <td colspan="7" class="text-center py-4 text-danger">Error cargando avisos</td>
-                </tr>
-            `;
-        }
+    .nivel-rojo { background-color: #dc3545; color: white; }
+    .nivel-naranja { background-color: #fd7e14; color: white; }
+    .nivel-amarillo { background-color: #ffc107; color: black; }
+    .nivel-verde { background-color: #198754; color: white; }
+    .nivel-gris { background-color: #6c757d; color: white; }
+    
+    .spin { 
+        display: inline-block; 
+        animation: spin 1s linear infinite; 
     }
-
-    function aplicarFiltros() {
-        const nivel = document.getElementById('filtro-nivel').value.toLowerCase();
-        const orden = document.getElementById('filtro-orden').value;
-        const numero = document.getElementById('filtro-numero').value.toLowerCase();
-
-        let avisosFiltrados = AVISOS_ORIGINALES.filter(aviso => {
-            const cumpleNivel = !nivel || aviso.nivel === nivel;
-            const cumpleNumero = !numero || aviso.numero.toString().includes(numero);
-            return cumpleNivel && cumpleNumero;
-        });
-
-        if (orden === 'asc') {
-            avisosFiltrados.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-        } else {
-            avisosFiltrados.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-        }
-
-        const tbody = document.getElementById('tabla-avisos');
-        let html = '';
-
-        avisosFiltrados.forEach(aviso => {
-            const colorBadge = aviso.color.charAt(0).toUpperCase() + aviso.color.slice(1);
-            html += `
-                <tr data-numero="${aviso.numero}" data-nivel="${aviso.nivel}" data-fecha="${aviso.fecha}" data-color="${aviso.color}">
-                    <td><strong>#${aviso.numero}</strong></td>
-                    <td style="text-align: left;">${aviso.titulo}</td>
-                    <td>
-                        <span class="nivel-badge nivel-${aviso.color}">
-                            ${aviso.color.toUpperCase()}
-                        </span>
-                    </td>
-                    <td><small>${aviso.fecha}</small></td>
-                    <td style="text-align: center;">${aviso.descargado}</td>
-                    <td style="text-align: center;">${aviso.mapa_creado}</td>
-                    <td>
-                        <div class="acciones-col" style="display: flex; gap: 0.5rem;">
-                            <button class="btn btn-sm btn-outline-primary btn-descargar" title="Descargar JSON" data-numero="${aviso.numero}">
-                                <i class="bi bi-download"></i>
-                            </button>
-                            <a href="/mapas?aviso=${aviso.numero}" class="btn btn-sm btn-outline-secondary" title="Ver Mapas">
-                                <i class="bi bi-eye"></i>
-                            </a>
-                            <a href="/decisiones?aviso=${aviso.numero}" class="btn btn-sm btn-outline-warning" title="Decisiones">
-                                <i class="bi bi-geo"></i>
-                            </a>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        });
-
-        tbody.innerHTML = html || `<tr><td colspan="7" class="text-center py-4 text-muted">No hay resultados</td></tr>`;
-
-        // Agregar eventos de descarga
-        document.querySelectorAll('.btn-descargar').forEach(btn => {
-            btn.addEventListener('click', descargarAviso);
-        });
+    @keyframes spin { 
+        from { transform: rotate(0deg); } 
+        to { transform: rotate(360deg); } 
     }
+</style>
 
-    function resetearFiltros() {
-        if (avisoEspecifico) {
-            window.location.href = '/avisos';
-            return;
-        }
-        document.getElementById('filtro-numero').value = '';
-        document.getElementById('filtro-nivel').value = '';
-        document.getElementById('filtro-orden').value = 'desc';
-        aplicarFiltros();
-    }
-
-    async function descargarAviso() {
-        const numero = this.getAttribute('data-numero');
-        const btnIcon = this.querySelector('i');
-        const originalClass = btnIcon.className;
-
-        try {
-            this.disabled = true;
-            btnIcon.className = 'bi bi-hourglass-split spin';
-
-            const response = await fetch(`/api/avisos/${numero}/descargar`, { method: 'POST' });
-            const data = await response.json();
-
-            if (response.ok) {
-                btnIcon.className = 'bi bi-check-circle';
-                this.classList.remove('btn-outline-primary');
-                this.classList.add('btn-success');
-                setTimeout(() => location.reload(), 1000);
-            } else {
-                alert('Error: ' + data.error);
-                btnIcon.className = originalClass;
-                this.disabled = false;
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Error al descargar: ' + error.message);
-            btnIcon.className = originalClass;
-            this.disabled = false;
-        }
-    }
-
-    async function consultarNuevos() {
-        const btn = document.getElementById('btnConsultarNuevos');
-        const originalHTML = btn.innerHTML;
-
-        try {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="bi bi-hourglass-split spin"></i> Consultando...';
-
-            const response = await fetch('/api/avisos/nuevos');
-            const data = await response.json();
-
-            if (data.status === 'success') {
-                const total = data.total_nuevos;
-                if (total > 0) {
-                    alert(`✅ Se encontraron ${total} aviso(s) nuevo(s)`);
-                } else {
-                    alert('ℹ️ Por el momento no hay avisos nuevos');
-                }
-            } else {
-                alert('❌ Error: ' + data.message);
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('❌ Error: ' + error.message);
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = originalHTML;
-        }
-    }
-
-    // Spin animation
-    const style = document.createElement('style');
-    style.textContent = `.spin { display: inline-block; animation: spin 1s linear infinite; } @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
-    document.head.appendChild(style);
-
-    // Esperar a que el DOM esté listo
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', cargarAvisos);
-    } else {
-        cargarAvisos();
-    }
-</script>
-
+<script src="{{ url_for('static', filename='js/avisos.js') }}"></script>
 {% endblock %}

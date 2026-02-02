@@ -1,6 +1,13 @@
 ﻿{% extends "base.html" %}
 
 {% block content %}
+<style>
+    .dashboard-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+</style>
+<div class="container-fluid p-3 dashboard-container">
 <div class="dashboard-header">
     <h1><i class="bi bi-speedometer2"></i> Dashboard Principal</h1>
     <p class="text-muted">Sistema de Gestión de Avisos Meteorológicos para Agricultores</p>
@@ -297,6 +304,7 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 
 {% endblock %}

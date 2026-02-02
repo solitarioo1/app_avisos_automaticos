@@ -79,6 +79,31 @@ document.addEventListener('DOMContentLoaded', function() {
     guardarAvisosOriginales();
     aplicarFiltros();
     
+    // Evento para botón Aplicar Filtros
+    const btnFiltros = document.getElementById('btnAplicarFiltros');
+    if (btnFiltros) {
+        btnFiltros.addEventListener('click', aplicarFiltros);
+    }
+    
+    // Evento para botón Reset Filtros
+    const btnReset = document.getElementById('btnResetearFiltros');
+    if (btnReset) {
+        btnReset.addEventListener('click', function() {
+            document.getElementById('filtro-numero').value = '';
+            document.getElementById('filtro-nivel').value = '';
+            document.getElementById('filtro-orden').value = 'desc';
+            aplicarFiltros();
+        });
+    }
+    
+    // Evento para cambios en filtros (aplicar en tiempo real)
+    ['filtro-numero', 'filtro-nivel', 'filtro-orden'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', aplicarFiltros);
+        }
+    });
+    
     // Evento para botón Descargar
     document.querySelectorAll('.btn-descargar').forEach(btn => {
         btn.addEventListener('click', async function() {
@@ -116,4 +141,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+    
+    // Evento para botón Consultar Nuevos
+    const btnConsultar = document.getElementById('btnConsultarNuevos');
+    if (btnConsultar) {
+        btnConsultar.addEventListener('click', consultarNuevos);
+    }
 });
