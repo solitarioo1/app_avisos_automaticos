@@ -4,13 +4,8 @@
 
 {% block content %}
 <style>
-    .mapas-container {
-        max-width: 1200px;
-    }
-    
-    .filtro-orden {
-        margin-bottom: 1.5rem;
-    }
+    .mapas-container { max-width: 1200px; }
+    .filtro-orden { margin-bottom: 1.5rem; }
     
     .avisos-grid {
         display: grid;
@@ -21,23 +16,20 @@
     
     .aviso-card {
         background: white;
-        border-radius: 8px;
+        border-radius: 0;
         overflow: hidden;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        transition: transform 0.2s;
         display: flex;
         flex-direction: column;
     }
     
     .aviso-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
     
-    .aviso-card.color-rojo { background: rgba(220, 53, 69, 0.08); }
-    .aviso-card.color-naranja { background: rgba(255, 140, 0, 0.08); }
-    .aviso-card.color-amarillo { background: rgba(255, 193, 7, 0.08); }
-    .aviso-card.color-plomo { background: rgba(108, 117, 125, 0.08); }
+    .aviso-card.color-rojo { background: rgba(200, 130, 130, 0.1); border-left: 4px solid #a67676; }
+    .aviso-card.color-naranja { background: rgba(200, 150, 100, 0.1); border-left: 4px solid #b8956a; }
+    .aviso-card.color-plomo { background: rgba(108, 117, 125, 0.08); border-left: 4px solid #6c757d; }
     
     .aviso-header {
         background: linear-gradient(135deg, #0070C0 0%, #00A4EF 100%);
@@ -45,40 +37,37 @@
         padding: 1rem;
     }
     
-    .aviso-header.color-rojo { background: linear-gradient(135deg, #c82333 0%, #bb2d3b 100%); }
-    .aviso-header.color-naranja { background: linear-gradient(135deg, #e67e22 0%, #d35400 100%); }
-    .aviso-header.color-amarillo { background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: #333; }
+    .aviso-header.color-rojo { background: linear-gradient(135deg, #a67676 0%, #926e6e 100%); }
+    .aviso-header.color-naranja { background: linear-gradient(135deg, #b8956a 0%, #9d7e57 100%); }
     .aviso-header.color-plomo { background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); }
     
-    .aviso-numero { font-size: 20px; font-weight: 700; margin: 0; }
-    .aviso-titulo { font-size: 12px; opacity: 0.9; margin: 0.25rem 0 0 0; }
+    .aviso-titulo { font-size: 14px; font-weight: 700; margin: 0; color: inherit; }
+    .aviso-numero-small { font-size: 11px; margin: 0.25rem 0 0 0; opacity: 0.8; }
     
     .aviso-body { padding: 1rem; flex: 1; }
     .info-row { margin-bottom: 0.75rem; }
     .info-label { font-size: 11px; color: #6c757d; font-weight: 600; }
-    .info-value { font-size: 13px; color: #333; margin-top: 0.25rem; }
+    
+    .nivel-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 20px; font-weight: 600; font-size: 12px; color: white; }
+    .nivel-rojo { background: #a67676; }
+    .nivel-naranja { background: #b8956a; }
     
     .departamentos-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .depto-tag { background: #e9ecef; color: #333; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 11px; font-weight: 500; }
-    
-    .nivel-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 20px; font-weight: 600; font-size: 12px; color: white; }
-    .nivel-rojo { background: #dc3545; }
-    .nivel-naranja { background: #ff8c00; }
-    .nivel-amarillo { background: #ffc107; color: #333; }
-    .nivel-verde { background: #198754; }
-    
-    .mapas-preview { display: flex; gap: 0.5rem; margin: 0.75rem 0 0 0; flex-wrap: wrap; }
-    .mapa-thumb { width: 40px; height: 40px; border-radius: 4px; background: #e9ecef; overflow: hidden; cursor: pointer; }
-    .mapa-thumb img { width: 100%; height: 100%; object-fit: cover; }
-    
-    .aviso-footer { padding: 1rem; border-top: 1px solid #e9ecef; display: flex; gap: 0.5rem; }
-    .aviso-footer .btn-sm { flex: 1; padding: 6px 8px; font-size: 12px; }
     
     .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
     .status-ready { background: #d4edda; color: #155724; }
     .status-pending { background: #fff3cd; color: #856404; }
     
-    .modal-body img { max-width: 100%; max-height: 600px; width: auto; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .aviso-footer { padding: 1rem; border-top: 1px solid #e9ecef; display: flex; gap: 0.5rem; }
+    .aviso-footer .btn-sm { flex: 1; padding: 6px 8px; font-size: 12px; }
+    
+    .carousel-mapas { display: flex; align-items: center; gap: 1rem; margin: 1rem 0; }
+    .carousel-nav { cursor: pointer; padding: 8px 12px; background: #f0f0f0; border: none; border-radius: 4px; font-size: 18px; }
+    .carousel-nav:hover { background: #e0e0e0; }
+    .carousel-nav:disabled { opacity: 0.5; cursor: not-allowed; }
+    .carousel-container { flex: 1; position: relative; overflow: hidden; border-radius: 8px; }
+    .carousel-imagen { max-width: 100%; height: 300px; object-fit: contain; background: #f9f9f9; }
 </style>
 
 <div class="container-fluid p-3 mapas-container">
@@ -99,16 +88,14 @@
                 <div class="col-md-4">
                     <label class="form-label mb-1" style="font-size: 12px;">Filtrar por Nivel</label>
                     <select class="form-select form-select-sm" id="filtro-nivel" onchange="aplicarFiltros()">
-                        <option value="todos">Todos los niveles</option>
+                        <option value="todos">Todos</option>
                         <option value="rojo">🔴 Rojo</option>
                         <option value="naranja">🟠 Naranja</option>
-                        <option value="amarillo">🟡 Amarillo</option>
-                        <option value="plomo">⚫ Plomo</option>
                     </select>
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button class="btn btn-sm btn-outline-secondary w-100" onclick="resetearFiltros()">
-                        <i class="bi bi-arrow-clockwise"></i> Resetear Filtros
+                <div class="col-md-4 d-flex align-items-end justify-content-center">
+                    <button class="btn btn-secondary" style="padding: 8px 24px;" onclick="resetearFiltros()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset
                     </button>
                 </div>
             </div>
@@ -124,16 +111,16 @@
     </div>
 </div>
 
-<!-- Modal para visualizar mapas completos -->
+<!-- Modal para visualizar mapas con carrusel -->
 <div class="modal fade" id="mapaModal" tabindex="-1">
-    <div class="modal-dialog modal-md">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="mapaModalTitle">Mapas del Aviso</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center">
-                <div id="mapaModalContent" style="display: flex; flex-direction: column; gap: 1rem; max-height: 60vh; overflow-y: auto;"></div>
+                <div id="carouselContent"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
@@ -160,6 +147,8 @@
     }
     
     let avisos_cache = [];
+    let carousel_state = {};
+    let cards_cache = [];
     
     function obtenerParametroURL(nombre) {
         const params = new URLSearchParams(window.location.search);
@@ -174,10 +163,8 @@
             const result = await res.json();
             let avisos = result.avisos || [];
             
-            // Si viene con ?aviso=X, filtrar solo ese aviso
             if (avisoEspecifico) {
                 avisos = avisos.filter(a => a.numero == avisoEspecifico);
-                document.querySelector('h2').textContent = `🗺️ Mapas - Aviso #${avisoEspecifico}`;
             }
             
             let html = '';
@@ -190,6 +177,9 @@
                     const info = await infoRes.json();
                     if (!info.success) return '';
                     
+                    const mapasRes = await fetch(`/api/mapas/aviso/${aviso.numero}`).catch(() => null);
+                    const mapas = mapasRes ? await mapasRes.json().catch(() => ({ mapas: [] })) : { mapas: [] };
+                    
                     let departamentos = [];
                     if (info.mapas_creados) {
                         const deptosRes = await fetch(`/api/avisos/${aviso.numero}/departamentos`).catch(() => null);
@@ -199,57 +189,48 @@
                         }
                     }
                     
-                    const mapasRes = await fetch(`/api/mapas/aviso/${aviso.numero}`).catch(() => null);
-                    const mapas = mapasRes ? await mapasRes.json().catch(() => ({ mapas: [] })) : { mapas: [] };
-                    
                     const mapaStatus = info.mapas_creados ? 'ready' : 'pending';
-                    const mapaStatusText = info.mapas_creados ? '✅ Mapas Creados' : '⏳ No Creados';
-                    const puedeGenerarMapas = ['rojo', 'naranja'].includes(info.color.toLowerCase());
-                    const mensajeNivelBajo = !puedeGenerarMapas ? '<em style="color: #999; font-size: 12px;">Este nivel no requiere mapas</em>' : '';
+                    const mapaStatusText = info.mapas_creados ? '✅ Creados' : '⏳ No Creados';
+                    const colorCard = info.mapas_creados ? info.color : 'plomo';
                     
                     return `
-                        <div class="aviso-card color-${info.color}" data-numero="${aviso.numero}">
-                            <div class="aviso-header color-${info.color}">
-                                <h5 class="aviso-numero">#${aviso.numero}</h5>
+                        <div class="aviso-card color-${colorCard}" data-numero="${aviso.numero}" data-color="${info.color}">
+                            <div class="aviso-header color-${colorCard}">
                                 <p class="aviso-titulo">${aviso.titulo}</p>
+                                <p class="aviso-numero-small">aviso N° ${aviso.numero}</p>
                             </div>
                             <div class="aviso-body">
                                 <div class="info-row">
                                     <div class="info-label">NIVEL</div>
-                                    <span class="nivel-badge nivel-${info.color}">${info.color.toUpperCase()}</span>
-                                    ${mensajeNivelBajo}
+                                    <span class="nivel-badge nivel-${info.color.toLowerCase()}">${info.color.toUpperCase()}</span>
                                 </div>
                                 <div class="info-row">
-                                    <div class="info-label">DEPARTAMENTOS AFECTADOS</div>
-                                    <div class="departamentos-list">
-                                        ${puedeGenerarMapas ? (info.mapas_creados ? (departamentos.length > 0 ? departamentos.map(d => `<span class="depto-tag">${d}</span>`).join('') : '<em style="color: #999;">No disponibles</em>') : '<em style="color: #999;">Se mostrarán después de generar mapas</em>') : '<em style="color: #999;">N/A - Nivel no aplica</em>'}
-                                    </div>
+                                    <div class="info-label">ESTADO</div>
+                                    <span class="status-badge status-${mapaStatus}">${mapaStatusText}</span>
                                 </div>
-                                <div class="info-row">
-                                    <div class="info-label">ESTADO DE MAPAS</div>
-                                    <span class="status-badge status-${mapaStatus}">${puedeGenerarMapas ? mapaStatusText : '⊘ No Aplica'}</span>
-                                </div>
-                                ${info.mapas_creados && mapas.mapas && mapas.mapas.length > 0 ? `
+                                ${departamentos.length > 0 ? `
                                     <div class="info-row">
-                                        <div class="info-label">VISTA PREVIA</div>
-                                        <div class="mapas-preview">
-                                            ${mapas.mapas.slice(0, 4).map(m => `
-                                                <div class="mapa-thumb" title="${m.nombre}" onclick="abrirMapaModal(${aviso.numero}, '${m.nombre}', '${m.url}')">
-                                                    <img src="${m.url}" alt="${m.nombre}">
-                                                </div>
-                                            `).join('')}
-                                            ${mapas.mapas.length > 4 ? `<div class="depto-tag">+${mapas.mapas.length - 4}</div>` : ''}
+                                        <div class="info-label">DEPARTAMENTOS</div>
+                                        <div class="departamentos-list">
+                                            ${departamentos.map(d => `<span class="depto-tag">${d}</span>`).join('')}
                                         </div>
                                     </div>
                                 ` : ''}
                             </div>
                             <div class="aviso-footer">
-                                <button class="btn btn-sm btn-outline-info" onclick="abrirTodosMapas(${aviso.numero})" ${!info.mapas_creados ? 'disabled' : ''}>
-                                    <i class="bi bi-eye"></i> Ver Todos
-                                </button>
-                                <button class="btn btn-sm btn-outline-secondary" onclick="irAAviso(${aviso.numero})">
-                                    <i class="bi bi-link"></i> Ir a Aviso
-                                </button>
+                                ${info.mapas_creados && mapas.mapas.length > 0 ? `
+                                    <button class="btn btn-sm btn-info" onclick="abrirCarruselModal(${aviso.numero})">
+                                        <i class="bi bi-eye"></i> Ver Todos
+                                    </button>
+                                    <button class="btn btn-sm btn-warning" onclick="generarMapas(${aviso.numero})">
+                                        <i class="bi bi-arrow-repeat"></i> Regenerar
+                                    </button>
+                                ` : `<button class="btn btn-sm btn-info" disabled><i class="bi bi-eye"></i> Ver Todos</button>
+                                ${['rojo', 'naranja'].includes(info.color.toLowerCase()) ? `
+                                    <button class="btn btn-sm btn-warning" onclick="generarMapas(${aviso.numero})">
+                                        <i class="bi bi-play-circle"></i> Generar
+                                    </button>
+                                ` : ''}`}
                             </div>
                         </div>
                     `;
@@ -263,17 +244,14 @@
             html = results.filter(r => r).join('');
             
             if (!html) {
-                html = `
-                    <div style="grid-column: 1/-1; text-align: center; padding: 3rem 1rem;">
-                        <i class="bi bi-inbox display-1 text-muted"></i>
-                        <h4 class="text-muted mt-3">Sin avisos disponibles</h4>
-                        <a href="/avisos" class="btn btn-primary btn-sm mt-2">Ir a Avisos</a>
-                    </div>
-                `;
+                html = `<div style="grid-column: 1/-1; text-align: center; padding: 3rem 1rem;">
+                    <i class="bi bi-inbox display-1 text-muted"></i>
+                    <h4 class="text-muted mt-3">Sin avisos</h4>
+                </div>`;
             }
             
             document.getElementById('avisos-grid').innerHTML = html;
-            avisos_cache = Array.from(document.getElementById('avisos-grid').querySelectorAll('.aviso-card'));
+            cards_cache = Array.from(document.getElementById('avisos-grid').querySelectorAll('.aviso-card'));
             aplicarFiltros();
         } catch (error) {
             console.error('Error:', error);
@@ -281,96 +259,119 @@
         }
     }
     
-    async function abrirTodosMapas(numero) {
+    async function abrirCarruselModal(numero) {
         const res = await fetch(`/api/mapas/aviso/${numero}`);
         const data = await res.json();
         
-        if (!data.success) {
-            alert('Error al cargar mapas');
+        if (!data.success || !data.mapas.length) {
+            alert('Sin mapas');
             return;
         }
         
-        let html = '';
-        for (const mapa of data.mapas) {
-            html += `
-                <div>
-                    <h6>${mapa.nombre}</h6>
-                    <img src="${mapa.url}" class="img-fluid" style="border-radius: 4px;">
-                    <a href="${mapa.url}" download class="btn btn-sm btn-outline-primary mt-2">
-                        <i class="bi bi-download"></i> Descargar
-                    </a>
-                </div>
-            `;
-        }
+        carousel_state[numero] = { mapas: data.mapas, index: 0 };
+        mostrarCarrusel(numero);
+        new bootstrap.Modal(document.getElementById('mapaModal')).show();
+    }
+    
+    function mostrarCarrusel(numero) {
+        const state = carousel_state[numero];
+        const mapa = state.mapas[state.index];
         
-        document.getElementById('mapaModalTitle').textContent = `Aviso #${numero} - Todos los Mapas`;
-        document.getElementById('mapaModalContent').innerHTML = html;
-        new bootstrap.Modal(document.getElementById('mapaModal')).show();
-    }
-    
-    function abrirMapaModal(numero, nombre, url) {
-        document.getElementById('mapaModalTitle').textContent = `Aviso #${numero} - ${nombre}`;
-        document.getElementById('mapaModalContent').innerHTML = `
-            <div>
-                <img src="${url}" class="img-fluid" style="border-radius: 4px;">
-                <div style="margin-top: 1rem;">
-                    <a href="${url}" download class="btn btn-primary w-100">
-                        <i class="bi bi-download"></i> Descargar ${nombre}
-                    </a>
+        let html = `
+            <div class="carousel-mapas">
+                <button class="carousel-nav" onclick="carouselAnterior(${numero})" ${state.index === 0 ? 'disabled' : ''}>◀</button>
+                <div class="carousel-container">
+                    <img class="carousel-imagen" src="${mapa.url}" alt="${mapa.nombre}">
                 </div>
+                <button class="carousel-nav" onclick="carouselSiguiente(${numero})" ${state.index === state.mapas.length - 1 ? 'disabled' : ''}>▶</button>
             </div>
+            <p style="text-align: center; margin: 0.5rem 0; font-size: 12px; color: #666;">
+                ${state.index + 1} de ${state.mapas.length}
+            </p>
+            <a href="${mapa.url}" download class="btn btn-sm btn-primary w-100">
+                <i class="bi bi-download"></i> Descargar ${mapa.nombre}
+            </a>
         `;
-        new bootstrap.Modal(document.getElementById('mapaModal')).show();
+        
+        document.getElementById('mapaModalTitle').textContent = `Aviso #${numero} - Mapas`;
+        document.getElementById('carouselContent').innerHTML = html;
     }
     
-    function irAAviso(numero) {
-        window.location.href = `/avisos?aviso=${numero}`;
+    function carouselAnterior(numero) {
+        const state = carousel_state[numero];
+        if (state.index > 0) {
+            state.index--;
+            mostrarCarrusel(numero);
+        }
+    }
+    
+    function carouselSiguiente(numero) {
+        const state = carousel_state[numero];
+        if (state.index < state.mapas.length - 1) {
+            state.index++;
+            mostrarCarrusel(numero);
+        }
+    }
+    
+    async function generarMapas(numero) {
+        const modal = new bootstrap.Modal(document.getElementById('mapaModal'));
+        document.getElementById('mapaModalTitle').textContent = `Generando mapas - Aviso #${numero}`;
+        document.getElementById('carouselContent').innerHTML = '<p>Iniciando generación...</p>';
+        modal.show();
+        
+        const eventSource = new EventSource(`/api/avisos/${numero}/procesar?stream=true`);
+        let logHTML = '';
+        
+        eventSource.onmessage = function(event) {
+            const msg = JSON.parse(event.data);
+            
+            if (msg.type === 'log') {
+                const color = msg.severity === 'error' ? '#cc0000' : msg.severity === 'success' ? '#008000' : '#333';
+                logHTML += `<div style="color: ${color}; font-size: 12px;">${msg.message}</div>`;
+            } else if (msg.type === 'complete') {
+                logHTML += `<div style="color: #008000; font-weight: bold;">✅ ${msg.message}</div>`;
+                eventSource.close();
+                setTimeout(() => { location.reload(); }, 2000);
+            }
+            
+            document.getElementById('carouselContent').innerHTML = logHTML;
+            document.getElementById('carouselContent').scrollTop = document.getElementById('carouselContent').scrollHeight;
+        };
+        
+        eventSource.onerror = function() {
+            eventSource.close();
+            logHTML += `<div style="color: #cc0000;">❌ Error en conexión</div>`;
+            document.getElementById('carouselContent').innerHTML = logHTML;
+        };
     }
     
     function aplicarFiltros() {
         const orden = document.getElementById('filtro-orden').value;
         const nivel = document.getElementById('filtro-nivel').value;
         const grid = document.getElementById('avisos-grid');
-        const cards = Array.from(grid.querySelectorAll('.aviso-card'));
         
-        const cardsFiltradas = cards.filter(card => {
+        let cardsFiltradas = cards_cache.filter(card => {
             if (nivel === 'todos') return true;
-            return card.classList.contains('color-' + nivel);
+            const color = card.getAttribute('data-color').toLowerCase();
+            return color === nivel;
         });
         
         cardsFiltradas.sort((a, b) => {
             const numeroA = parseInt(a.dataset.numero) || 0;
             const numeroB = parseInt(b.dataset.numero) || 0;
-            
-            if (orden === 'reciente') {
-                return numeroA - numeroB;
-            } else {
-                return numeroB - numeroA;
-            }
+            return orden === 'reciente' ? numeroB - numeroA : numeroA - numeroB;
         });
         
-        cards.forEach(card => card.style.display = 'none');
         grid.innerHTML = '';
         cardsFiltradas.forEach(card => {
-            card.style.display = 'block';
-            grid.appendChild(card);
+            const clone = card.cloneNode(true);
+            grid.appendChild(clone);
         });
     }
     
     function resetearFiltros() {
-        if (obtenerParametroURL('aviso')) {
-            window.location.href = '/mapas';
-            return;
-        }
         document.getElementById('filtro-orden').value = 'reciente';
         document.getElementById('filtro-nivel').value = 'todos';
-        
-        const grid = document.getElementById('avisos-grid');
-        grid.innerHTML = '';
-        avisos_cache.forEach(card => {
-            grid.appendChild(card.cloneNode(true));
-        });
-        
         aplicarFiltros();
     }
     

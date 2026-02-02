@@ -11,6 +11,7 @@ function guardarAvisosOriginales() {
         AVISOS_ORIGINALES.push({
             numero: fila.getAttribute('data-numero'),
             nivel: fila.getAttribute('data-nivel'),
+            color: fila.getAttribute('data-color'),
             descargado: fila.getAttribute('data-descargado'),
             procesado: fila.getAttribute('data-procesado'),
             fecha: fila.getAttribute('data-fecha'),
@@ -20,18 +21,16 @@ function guardarAvisosOriginales() {
 }
 
 function aplicarFiltros() {
-    const nivel = document.getElementById('filtro-nivel').value;
+    const nivelSeleccionado = document.getElementById('filtro-nivel').value;
     const orden = document.getElementById('filtro-orden').value;
-    const estado = document.getElementById('filtro-estado').value;
     const numero = document.getElementById('filtro-numero').value.toLowerCase();
     
     let avisosFiltrados = AVISOS_ORIGINALES.filter(aviso => {
-        const cumpleNivel = !nivel || aviso.nivel === nivel;
-        const esDescargado = aviso.descargado.includes('✅');
-        const cumpleEstado = !estado || (estado === 'descargado' && esDescargado) || (estado === 'pendiente' && !esDescargado);
+        const color = aviso.color ? aviso.color.toLowerCase() : '';
+        const cumpleNivel = !nivelSeleccionado || color === nivelSeleccionado;
         const cumpleNumero = !numero || aviso.numero.toString().includes(numero);
         
-        return cumpleNivel && cumpleEstado && cumpleNumero;
+        return cumpleNivel && cumpleNumero;
     });
     
     if (orden === 'asc') {
@@ -79,12 +78,6 @@ document.addEventListener('DOMContentLoaded', function() {
     guardarAvisosOriginales();
     aplicarFiltros();
     
-    // Evento para botón Aplicar Filtros
-    const btnFiltros = document.getElementById('btnAplicarFiltros');
-    if (btnFiltros) {
-        btnFiltros.addEventListener('click', aplicarFiltros);
-    }
-    
     // Evento para botón Reset Filtros
     const btnReset = document.getElementById('btnResetearFiltros');
     if (btnReset) {
@@ -101,6 +94,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('change', aplicarFiltros);
+            el.addEventListener('keyup', aplicarFiltros);
         }
     });
     

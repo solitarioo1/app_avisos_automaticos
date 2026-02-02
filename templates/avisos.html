@@ -26,35 +26,26 @@
             <div class="card">
                 <div class="card-body">
                     <div class="row g-3">
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label for="filtro-numero" class="form-label">Número</label>
                             <input type="text" id="filtro-numero" class="form-control" placeholder="Ej: 4" />
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label for="filtro-nivel" class="form-label">Nivel</label>
                             <select id="filtro-nivel" class="form-select">
                                 <option value="">Todos</option>
                                 <option value="rojo">Rojo</option>
                                 <option value="naranja">Naranja</option>
-                                <option value="amarillo">Amarillo</option>
-                                <option value="verde">Verde</option>
                             </select>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label for="filtro-orden" class="form-label">Orden</label>
                             <select id="filtro-orden" class="form-select">
                                 <option value="desc">Más Reciente</option>
                                 <option value="asc">Más Antiguo</option>
                             </select>
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label">&nbsp;</label>
-                            <button id="btnAplicarFiltros" class="btn btn-primary w-100">
-                                <i class="bi bi-funnel"></i> Filtrar
-                            </button>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">&nbsp;</label>
+                        <div class="col-md-3 d-flex align-items-end">
                             <button id="btnResetearFiltros" class="btn btn-secondary w-100">
                                 <i class="bi bi-arrow-clockwise"></i> Reset
                             </button>
@@ -129,7 +120,7 @@
     .nivel-rojo { background-color: #dc3545; color: white; }
     .nivel-naranja { background-color: #fd7e14; color: white; }
     .nivel-amarillo { background-color: #ffc107; color: black; }
-    .nivel-verde { background-color: #198754; color: white; }
+    /* .nivel-verde { background-color: #198754; color: white; } */
     .nivel-gris { background-color: #6c757d; color: white; }
     
     .spin { 
