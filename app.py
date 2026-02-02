@@ -64,11 +64,13 @@ active_processes = {}
 from routes.avisos import avisos_bp
 from routes.mapas import mapas_bp
 from routes.utils import utils_bp
+from routes.decisiones import decisiones_bp
 
 # Registrar blueprints (cada blueprint contiene sus propias rutas)
 app.register_blueprint(avisos_bp)
 app.register_blueprint(mapas_bp)
 app.register_blueprint(utils_bp)
+app.register_blueprint(decisiones_bp)
 
 # ============================================================================
 # ENDPOINT PRINCIPAL - PROCESAR AVISO (Integración con n8n)
