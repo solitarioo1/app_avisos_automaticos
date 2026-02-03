@@ -87,6 +87,13 @@
         border-radius: 0;
         font-size: 13px;
         background: white;
+        max-height: 250px;
+        overflow-y: auto;
+    }
+    
+    .filtro-select option {
+        padding: 8px;
+        line-height: 1.5;
     }
     
     .estadisticas-card {
@@ -221,6 +228,33 @@
                 <select id="filtro-aviso" class="filtro-select" onchange="cargarAviso()">
                     <option value="">-- Cargando avisos --</option>
                 </select>
+            </div>
+            
+            <!-- Filtro Jerárquico: Depto → Provincia → Distrito -->
+            <div class="filtro-card">
+                <label class="filtro-label">📍 Filtrar por Zona</label>
+                
+                <div style="margin-bottom: 0.75rem;">
+                    <select id="filtro-depto" class="filtro-select" onchange="cambiarDepartamento()">
+                        <option value="">-- Todos los Departamentos --</option>
+                    </select>
+                </div>
+                
+                <div style="margin-bottom: 0.75rem;">
+                    <select id="filtro-provincia" class="filtro-select" onchange="cambiarProvincia()" disabled>
+                        <option value="">-- Selecciona Departamento --</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <select id="filtro-distrito" class="filtro-select" onchange="cambiarDistrito()" disabled>
+                        <option value="">-- Selecciona Provincia --</option>
+                    </select>
+                </div>
+                
+                <button onclick="limpiarFiltros()" class="btn btn-sm btn-outline-secondary w-100 mt-2" style="font-size: 12px;">
+                    🔄 Limpiar Filtros
+                </button>
             </div>
             
             <!-- Estadísticas -->

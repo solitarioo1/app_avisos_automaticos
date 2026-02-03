@@ -9,6 +9,10 @@ import json
 import os
 import logging
 from typing import Optional, Dict, Any
+from dotenv import load_dotenv
+
+# Cargar variables de entorno
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 

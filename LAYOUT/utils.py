@@ -206,3 +206,4 @@ def extraer_distritos_afectados(shp_riesgo_path):
     print(f"✓ Distritos afectados: {len(distritos_afectados)}")
     
     return distritos_afectados
+

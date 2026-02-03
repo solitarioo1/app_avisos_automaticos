@@ -11,4 +11,14 @@
 
 
 nota para apertura de .venv
+# Eliminar venv corrupto
+Remove-Item .venv -Recurse -Force
 
+# Crear nuevo venv
+python -m venv .venv
+
+# Activar
+.venv\Scripts\Activate.ps1
+
+# Reinstalar dependencias
+pip install -r requirements.txt
