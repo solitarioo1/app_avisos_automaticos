@@ -3,149 +3,255 @@
 {% block content %}
 <style>
     .whatsapp-container {
-        max-width: 1200px;
+        max-width: 1400px;
         margin: 0 auto;
     }
+
+    .color-badge {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        margin-right: 8px;
+    }
+
+    .color-rojo { background-color: #FF0000; }
+    .color-naranja { background-color: #FF8C00; }
+    .color-amarillo { background-color: #FFFF00; border: 1px solid #ccc; }
+
+    .canal-option {
+        padding: 15px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+
+    .canal-option.selected {
+        border-color: #28a745;
+        background-color: #f0fff4;
+    }
+
+    .stat-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 14px;
+    }
+
+    .stat-row:last-child {
+        border-bottom: none;
+    }
+
+    .stat-value {
+        font-weight: bold;
+        color: #333;
+    }
+
+    .nivel-filter {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .nivel-option {
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+    }
+
+    .nivel-option input[type="radio"] {
+        margin-right: 10px;
+    }
+
+    .modal-backdrop {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        z-index: 999;
+    }
+
+    .modal-backdrop.show {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .preview-modal {
+        background: white;
+        border-radius: 10px;
+        padding: 30px;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+    }
+
+    .preview-item {
+        display: flex;
+        align-items: center;
+        margin: 12px 0;
+        font-size: 15px;
+    }
+
+    .preview-item strong {
+        min-width: 120px;
+    }
+
+    .preview-value {
+        color: #28a745;
+        font-weight: bold;
+    }
+
+    .programa-section {
+        background: #f9f9f9;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        display: none;
+    }
+
+    .bloques-section {
+        background: #f9f9f9;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        display: none;
+    }
+
+    .bloques-section.show {
+        display: block;
+    }
+
+    .historial-table {
+        font-size: 13px;
+    }
+
+    .historial-table td {
+        padding: 8px 4px;
+    }
+
+    .canal-count {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: bold;
+        margin: 0 2px;
+    }
+
+    .canal-count.wa { background-color: #dcf8c6; color: #075e54; }
+    .canal-count.sms { background-color: #e3f2fd; color: #1565c0; }
+    .canal-count.email { background-color: #fce4ec; color: #880e4f; }
 </style>
 <div class="container-fluid p-3 whatsapp-container">
-<div class="dashboard-header">
-    <h1><i class="bi bi-whatsapp"></i> WhatsApp Masivo</h1>
-    <p class="text-muted">Envío de avisos meteorológicos a agricultores asegurados</p>
-</div>
+    <div class="dashboard-header mb-4">
+        <h1><i class="bi bi-whatsapp"></i> Envío de Avisos</h1>
+        <p class="text-muted">Distribuir alertas a agricultores por WhatsApp, SMS o Email</p>
+    </div>
 
-<!-- Estadísticas WhatsApp -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card stat-card stat-success">
-            <div class="card-body">
-                <div class="stat-icon">
-                    <i class="bi bi-people"></i>
+    <div class="row">
+        <!-- Panel Principal -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-send"></i> Configurar Envío</h5>
                 </div>
-                <div class="stat-info">
-                    <h3>{{ stats.total_contactos or 0 }}</h3>
-                    <p>Contactos</p>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stat-card stat-info">
-            <div class="card-body">
-                <div class="stat-icon">
-                    <i class="bi bi-check-circle"></i>
-                </div>
-                <div class="stat-info">
-                    <h3>{{ stats.enviados_hoy or 0 }}</h3>
-                    <p>Enviados Hoy</p>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stat-card stat-warning">
-            <div class="card-body">
-                <div class="stat-icon">
-                    <i class="bi bi-clock"></i>
-                </div>
-                <div class="stat-info">
-                    <h3>{{ stats.pendientes or 0 }}</h3>
-                    <p>Pendientes</p>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stat-card stat-danger">
-            <div class="card-body">
-                <div class="stat-icon">
-                    <i class="bi bi-x-circle"></i>
-                </div>
-                <div class="stat-info">
-                    <h3>{{ stats.fallidos or 0 }}</h3>
-                    <p>Fallidos</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <!-- Panel de Envío -->
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h5><i class="bi bi-send"></i> Enviar Aviso Meteorológico</h5>
-            </div>
-            <div class="card-body">
-                <form id="form-envio-whatsapp">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
+                <div class="card-body">
+                    <form id="form-envio-whatsapp">
+                        <!-- Seleccionar Aviso -->
+                        <div class="mb-3">
                             <label class="form-label">Aviso a Enviar</label>
                             <select class="form-select" id="aviso-seleccionado" required>
                                 <option value="">Seleccionar aviso...</option>
-                                {% for aviso in avisos_disponibles %}
-                                <option value="{{ aviso.numero }}">
-                                    Aviso #{{ aviso.numero }} - {{ aviso.fecha }} ({{ aviso.departamentos|length }} depto.)
-                                </option>
-                                {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Destinatarios</label>
-                            <select class="form-select" id="tipo-destinatarios" required>
-                                <option value="todos">Todos los contactos</option>
-                                <option value="departamento">Por departamento</option>
-                                <option value="grupo">Grupo específico</option>
-                                <option value="manual">Lista manual</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <!-- Filtros dinámicos -->
-                    <div id="filtros-destinatarios" class="mb-3" style="display: none;">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <label class="form-label">Departamento</label>
-                                <select class="form-select" id="departamento-filtro" multiple>
-                                    <option value="LIMA">LIMA</option>
-                                    <option value="LORETO">LORETO</option>
-                                    <option value="CUSCO">CUSCO</option>
-                                    <option value="AREQUIPA">AREQUIPA</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Tipo de Cultivo</label>
-                                <select class="form-select" id="cultivo-filtro" multiple>
-                                    <option value="arroz">Arroz</option>
-                                    <option value="maiz">Maíz</option>
-                                    <option value="papa">Papa</option>
-                                    <option value="cafe">Café</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- Preview del mensaje -->
-                    <div class="mb-3">
-                        <label class="form-label">Vista Previa del Mensaje</label>
-                        <div class="whatsapp-preview">
-                            <div id="mensaje-preview" class="p-3 border rounded bg-light">
-                                <div class="d-flex align-items-center mb-2">
-                                    <img src="{{ url_for('static', filename='img/logo-positiva.png') }}" 
-                                         alt="La Positiva" style="height: 25px;" class="me-2">
-                                    <strong>La Positiva Seguros</strong>
+                        <!-- Nivel a Enviar -->
+                        <div class="mb-4">
+                            <label class="form-label">Nivel a Enviar</label>
+                            <div class="nivel-filter">
+                                <div class="nivel-option">
+                                    <input type="radio" name="nivel" id="nivel-todos" value="todos" checked>
+                                    <label for="nivel-todos" class="flex-grow-1 mb-0">
+                                        ⭕ Todos los afectados
+                                    </label>
                                 </div>
-                                <p id="texto-mensaje">Selecciona un aviso para ver el preview...</p>
-                                <div id="mapa-preview" style="display: none;">
-                                    <small class="text-muted">📍 Mapa adjunto</small>
+                                <div class="nivel-option">
+                                    <input type="radio" name="nivel" id="nivel-rojo" value="rojo">
+                                    <label for="nivel-rojo" class="flex-grow-1 mb-0">
+                                        <span class="color-badge color-rojo"></span> Solo Rojo
+                                    </label>
+                                </div>
+                                <div class="nivel-option">
+                                    <input type="radio" name="nivel" id="nivel-naranja" value="naranja">
+                                    <label for="nivel-naranja" class="flex-grow-1 mb-0">
+                                        <span class="color-badge color-naranja"></span> Solo Naranja
+                                    </label>
+                                </div>
+                                <div class="nivel-option">
+                                    <input type="radio" name="nivel" id="nivel-amarillo" value="amarillo">
+                                    <label for="nivel-amarillo" class="flex-grow-1 mb-0">
+                                        <span class="color-badge color-amarillo"></span> Solo Amarillo
+                                    </label>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Opciones de envío -->
-                    <div class="row mb-3">
-                        <div class="col-md-6">
+                        <!-- Entidad -->
+                        <div class="mb-4">
+                            <label class="form-label">Filtrar por Entidad (Opcional)</label>
+                            <select class="form-select" id="entidad-filtro">
+                                <option value="">Todas las entidades</option>
+                                <option value="caja-rural">Caja Rural</option>
+                                <option value="banco-pichincha">Banco Pichincha</option>
+                                <option value="financiera-autonoma">Financiera Autónoma</option>
+                            </select>
+                        </div>
+
+                        <!-- Canales de Envío -->
+                        <div class="mb-4">
+                            <label class="form-label">Canales de Envío</label>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="canal-option selected" data-canal="whatsapp">
+                                        <div style="text-align: center;">
+                                            <i class="bi bi-whatsapp" style="font-size: 24px; color: #25d366;"></i>
+                                            <div style="margin-top: 8px; font-weight: bold;">WhatsApp</div>
+                                            <div style="font-size: 12px; color: #666;">✅ Activo</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="canal-option" data-canal="sms">
+                                        <div style="text-align: center;">
+                                            <i class="bi bi-chat" style="font-size: 24px; color: #1565c0;"></i>
+                                            <div style="margin-top: 8px; font-weight: bold;">SMS</div>
+                                            <div style="font-size: 12px; color: #666;">Sin WhatsApp</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="canal-option" data-canal="email">
+                                        <div style="text-align: center;">
+                                            <i class="bi bi-envelope" style="font-size: 24px; color: #d32f2f;"></i>
+                                            <div style="margin-top: 8px; font-weight: bold;">Email</div>
+                                            <div style="font-size: 12px; color: #666;">Alternativo</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="canal-seleccionado" name="canal_final" value="whatsapp">
+                        </div>
+
+                        <!-- Opciones Adicionales -->
+                        <div class="mb-4">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="incluir-mapa" checked>
                                 <label class="form-check-label" for="incluir-mapa">
@@ -153,119 +259,285 @@
                                 </label>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="programar-envio">
-                                <label class="form-check-label" for="programar-envio">
-                                    Programar envío
-                                </label>
+
+                        <!-- Envío por Bloques -->
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" id="envio-bloques">
+                            <label class="form-check-label" for="envio-bloques">
+                                Envío por bloques (para evitar sobrecarga)
+                            </label>
+                        </div>
+
+                        <div class="bloques-section" id="bloques-config">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">Mensajes por Bloque</label>
+                                    <input type="number" class="form-control" id="msgs-por-bloque" value="50" min="10" max="500">
+                                    <small class="text-muted">Cantidad de mensajes por lote</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Intervalo entre Bloques (seg)</label>
+                                    <input type="number" class="form-control" id="intervalo-bloques" value="120" min="30" max="600">
+                                    <small class="text-muted">Espera entre lotes</small>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Botones -->
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-outline-info" onclick="previsualizarEnvio()">
-                            <i class="bi bi-eye"></i> Previsualizar
-                        </button>
-                        <button type="submit" class="btn btn-success">
-                            <i class="bi bi-whatsapp"></i> Enviar Mensajes
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- Historial de Envíos -->
-        <div class="card mt-4">
-            <div class="card-header">
-                <h5><i class="bi bi-clock-history"></i> Historial de Envíos</h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Aviso</th>
-                                <th>Destinatarios</th>
-                                <th>Enviados</th>
-                                <th>Estado</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for envio in historial_envios %}
-                            <tr>
-                                <td>{{ envio.fecha }}</td>
-                                <td>#{{ envio.aviso }}</td>
-                                <td>{{ envio.destinatarios }}</td>
-                                <td>{{ envio.enviados }}/{{ envio.total }}</td>
-                                <td>
-                                    <span class="badge bg-{{ envio.estado_color }}">{{ envio.estado }}</span>
-                                </td>
-                                <td>
-                                    <button class="btn btn-outline-primary btn-sm" onclick="verDetalleEnvio({{ envio.id }})">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="6" class="text-center text-muted">No hay envíos registrados</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Sidebar derecha -->
-    <div class="col-md-4">
-        <!-- Estado WhatsApp -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h6><i class="bi bi-phone"></i> Estado WhatsApp API</h6>
-            </div>
-            <div class="card-body">
-                <div class="d-flex align-items-center mb-2">
-                    <span class="status-icon status-online me-2"></span>
-                    <span>Conectado</span>
-                </div>
-                <small class="text-muted">Última conexión: hace 2 min</small>
-            </div>
-        </div>
-
-        <!-- Contactos Recientes -->
-        <div class="card">
-            <div class="card-header">
-                <h6><i class="bi bi-people"></i> Contactos Activos</h6>
-            </div>
-            <div class="card-body">
-                <div class="list-group list-group-flush">
-                    {% for contacto in contactos_recientes %}
-                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                        <div>
-                            <strong>{{ contacto.nombre }}</strong><br>
-                            <small class="text-muted">{{ contacto.telefono }}</small>
+                        <!-- Programación -->
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" id="programar-envio">
+                            <label class="form-check-label" for="programar-envio">
+                                Programar para después
+                            </label>
                         </div>
-                        <span class="badge bg-primary rounded-pill">{{ contacto.departamento }}</span>
+
+                        <div class="programa-section" id="programa-config">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">Fecha</label>
+                                    <input type="date" class="form-control" id="fecha-programa">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Hora</label>
+                                    <input type="time" class="form-control" id="hora-programa">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-info" onclick="mostrarPreview()">
+                                <i class="bi bi-eye"></i> Previsualizar
+                            </button>
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-whatsapp"></i> Enviar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Historial de Envíos -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5><i class="bi bi-clock-history"></i> Historial de Envíos</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm historial-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Aviso</th>
+                                    <th>Nivel</th>
+                                    <th>Canales</th>
+                                    <th>Total</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historial-body">
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">No hay envíos registrados</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-                    {% else %}
-                    <p class="text-muted text-center">No hay contactos</p>
-                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Derecha -->
+        <div class="col-lg-4">
+            <!-- Resumen de Clientes Afectados -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6><i class="bi bi-people-fill"></i> Clientes Afectados</h6>
+                </div>
+                <div class="card-body">
+                    <div class="stat-row">
+                        <span><span class="color-badge color-rojo"></span> Rojo</span>
+                        <span class="stat-value" id="stat-rojo">45</span>
+                    </div>
+                    <div class="stat-row">
+                        <span><span class="color-badge color-naranja"></span> Naranja</span>
+                        <span class="stat-value" id="stat-naranja">120</span>
+                    </div>
+                    <div class="stat-row">
+                        <span><span class="color-badge color-amarillo"></span> Amarillo</span>
+                        <span class="stat-value" id="stat-amarillo">280</span>
+                    </div>
+                    <div class="stat-row" style="border-top: 2px solid #f0f0f0; padding-top: 15px; margin-top: 10px;">
+                        <strong>Total</strong>
+                        <strong class="stat-value" id="stat-total">445</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Disponibilidad por Canal -->
+            <div class="card">
+                <div class="card-header">
+                    <h6><i class="bi bi-arrow-repeat"></i> Disponibilidad por Canal</h6>
+                </div>
+                <div class="card-body">
+                    <div class="stat-row">
+                        <span>✅ Con WhatsApp</span>
+                        <span class="stat-value" id="disp-whatsapp">380</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>⚠️ Solo SMS</span>
+                        <span class="stat-value" id="disp-sms">45</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>❌ Solo Email</span>
+                        <span class="stat-value" id="disp-email">20</span>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Modal de Previsualización -->
+<div class="modal-backdrop" id="preview-modal">
+    <div class="preview-modal">
+        <div style="margin-bottom: 20px;">
+            <h5><i class="bi bi-eye"></i> Previsualización de Envío</h5>
+        </div>
+        <div id="preview-content">
+            <div class="preview-item">
+                <strong>Aviso:</strong>
+                <span class="preview-value" id="prev-aviso">#29</span>
+            </div>
+            <div class="preview-item">
+                <strong>Nivel:</strong>
+                <span class="preview-value" id="prev-nivel">Todos</span>
+            </div>
+            <div class="preview-item">
+                <strong>Canal:</strong>
+                <span class="preview-value" id="prev-canal">WhatsApp</span>
+            </div>
+            <div class="preview-item">
+                <strong>📱 WhatsApp:</strong>
+                <span class="preview-value" id="prev-whatsapp">0</span>
+            </div>
+            <div class="preview-item">
+                <strong>📞 SMS:</strong>
+                <span class="preview-value" id="prev-sms">0</span>
+            </div>
+            <div class="preview-item">
+                <strong>✉️ Email:</strong>
+                <span class="preview-value" id="prev-email">0</span>
+            </div>
+            <div class="preview-item">
+                <strong style="color: #333;">Total:</strong>
+                <span class="preview-value" id="prev-total">0</span>
+            </div>
+            <hr>
+            <div id="bloques-info" style="display: none;">
+                <div class="preview-item">
+                    <strong>Bloques:</strong>
+                    <span class="preview-value" id="prev-bloques">50/120s</span>
+                </div>
+            </div>
+        </div>
+        <div style="margin-top: 20px; display: flex; gap: 10px;">
+            <button class="btn btn-outline-secondary flex-grow-1" onclick="cerrarPreview()">Cancelar</button>
+            <button class="btn btn-success flex-grow-1" onclick="confirmarEnvio()">Confirmar y Enviar</button>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/whatsapp.js') }}"></script>
+<script>
+// Seleccionar canales
+document.querySelectorAll('.canal-option').forEach(option => {
+    option.addEventListener('click', function() {
+        document.querySelectorAll('.canal-option').forEach(o => o.classList.remove('selected'));
+        this.classList.add('selected');
+        const canal = this.getAttribute('data-canal');
+        document.getElementById('canal-seleccionado').value = canal;
+    });
+});
+
+// Mostrar/Ocultar bloques
+document.getElementById('envio-bloques').addEventListener('change', function() {
+    document.getElementById('bloques-config').classList.toggle('show', this.checked);
+});
+
+// Mostrar/Ocultar programación
+document.getElementById('programar-envio').addEventListener('change', function() {
+    document.getElementById('programa-config').style.display = this.checked ? 'block' : 'none';
+});
+
+// Previsualización
+function mostrarPreview() {
+    const aviso = document.getElementById('aviso-seleccionado').value;
+    const nivel = document.querySelector('input[name="nivel"]:checked').value;
+    const canal = document.getElementById('canal-seleccionado').value;
+    
+    if (!aviso) {
+        alert('Por favor selecciona un aviso');
+        return;
+    }
+
+    // Simular datos (luego vienen del backend)
+    const datos = {
+        rojo: 45, naranja: 120, amarillo: 280,
+        whatsapp: 380, sms: 45, email: 20
+    };
+
+    let total = 0;
+    if (nivel === 'todos') total = datos.rojo + datos.naranja + datos.amarillo;
+    else if (nivel === 'rojo') total = datos.rojo;
+    else if (nivel === 'naranja') total = datos.naranja;
+    else if (nivel === 'amarillo') total = datos.amarillo;
+
+    document.getElementById('prev-aviso').textContent = '#' + aviso;
+    document.getElementById('prev-nivel').textContent = nivel.charAt(0).toUpperCase() + nivel.slice(1);
+    document.getElementById('prev-canal').textContent = canal.charAt(0).toUpperCase() + canal.slice(1);
+    document.getElementById('prev-total').textContent = total;
+
+    // Por canal
+    if (canal === 'whatsapp') {
+        document.getElementById('prev-whatsapp').textContent = Math.floor(total * 0.85);
+        document.getElementById('prev-sms').textContent = '0';
+        document.getElementById('prev-email').textContent = '0';
+    }
+
+    const bloques = document.getElementById('envio-bloques').checked;
+    if (bloques) {
+        document.getElementById('bloques-info').style.display = 'block';
+        const msgsBloque = document.getElementById('msgs-por-bloque').value;
+        const intervalo = document.getElementById('intervalo-bloques').value;
+        document.getElementById('prev-bloques').textContent = msgsBloque + '/' + intervalo + 's';
+    } else {
+        document.getElementById('bloques-info').style.display = 'none';
+    }
+
+    document.getElementById('preview-modal').classList.add('show');
+}
+
+function cerrarPreview() {
+    document.getElementById('preview-modal').classList.remove('show');
+}
+
+function confirmarEnvio() {
+    alert('Envío iniciado. El historial se actualizará en breve.');
+    cerrarPreview();
+}
+
+// Cerrar modal al hacer click afuera
+document.getElementById('preview-modal').addEventListener('click', function(e) {
+    if (e.target === this) cerrarPreview();
+});
+
+// Submit del form
+document.getElementById('form-envio-whatsapp').addEventListener('submit', function(e) {
+    e.preventDefault();
+    mostrarPreview();
+});
+</script>
 {% endblock %}
 </body>
 </html>

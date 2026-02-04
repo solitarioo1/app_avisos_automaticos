@@ -44,30 +44,21 @@ ENV/
 .DS_Store
 
 # ========================================
-# Configuración sensible
+# Tests (no subir)
+# ========================================
+test_*.py
+*_test.py
+check_*.py
+debug_*.py
+*.test.py
+dev_*.py
+
+# ========================================
+# Configuración sensible (NUNCA subir)
 # ========================================
 .env
 .env.local
 .env.*.local
-
-# ========================================
-# Archivos temporales y de caché
-# ========================================
-TEMP/
-*.log
-*.tmp
-.cache/
-.pytest_cache/
-
-# ========================================
-# Archivos de prueba y desarrollo
-# ========================================
-test_*.py
-check_*.py
-debug_*.py
-*_test.py
-*.test.py
-dev_*.py
 
 # ========================================
 # Datos temporales (no subir al repo)
