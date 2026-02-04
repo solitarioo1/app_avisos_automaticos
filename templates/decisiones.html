@@ -11,33 +11,109 @@
         margin: 0 auto;
     }
     
-    .kpi-row {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 1rem;
+    /* ===== KPI SECTION ===== */
+    .kpi-section {
+        background: white;
+        border-radius: 0;
+        padding: 1.5rem;
         margin-bottom: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    
+    .kpi-section-hectareas {
+        margin-bottom: 2rem;
+    }
+    
+    .kpi-grid-top {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .kpi-grid-bottom {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1.5rem;
     }
     
     .kpi-card {
         background: white;
-        border-radius: 0;
-        padding: 1rem;
+        border-radius: 4px;
+        padding: 1.25rem;
         text-align: center;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-left: 5px solid #007bff;
+        border: 1px solid #e9ecef;
     }
+    
+    .kpi-grid-top .kpi-card:nth-child(1) { border-left-color: #fa6f4a; background: #f9fafa; }
+    .kpi-grid-top .kpi-card:nth-child(2) { border-left-color: #fb9c84; background: #f9fafa; }
+    .kpi-grid-top .kpi-card:nth-child(3) { border-left-color: #fc6c44; background: #f9fafa; }
+    .kpi-grid-top .kpi-card:nth-child(4) { border-left-color: #2cdde4; background: #f9fafa; }
+    .kpi-grid-top .kpi-card:nth-child(5) { border-left-color: #04ccc4; background: #f9fafa; }
+    
+    .kpi-grid-bottom .kpi-card:nth-child(1) { border-left-color: #64d3ce; background: #f9fafa; }
+    .kpi-grid-bottom .kpi-card:nth-child(2) { border-left-color: #b9e8e3; background: #f9fafa; }
     
     .kpi-label {
         font-size: 12px;
         color: #6c757d;
         text-transform: uppercase;
         font-weight: 600;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.75rem;
+        letter-spacing: 0.5px;
     }
     
     .kpi-value {
-        font-size: 24px;
+        font-size: 26px;
         font-weight: 700;
-        color: #333;
+        color: #1a1a1a;
+        margin: 0;
+    }
+    
+    .kpi-currency {
+        font-size: 18px !important;
+    }
+    
+    @media (max-width: 1024px) {
+        .kpi-grid-top, .kpi-grid-bottom {
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+        }
+        
+        .kpi-card {
+            padding: 1rem;
+        }
+        
+        .kpi-value {
+            font-size: 20px;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .kpi-grid-top, .kpi-grid-bottom {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+        
+        .kpi-card {
+            padding: 0.75rem;
+        }
+        
+        .kpi-label {
+            font-size: 11px;
+        }
+        
+        .kpi-value {
+            font-size: 16px;
+        }
+    }
+    
+    /* ===== MAPA Y PANEL ===== */
+    .kpi-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
     }
     
     .kpi-icon {
@@ -67,10 +143,11 @@
     }
     
     .filtro-card {
-        background: white;
+        background: #f9fafa;
         border-radius: 0;
         padding: 1.5rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        border-left: 4px solid #fb9c84;
     }
     
     .filtro-label {
@@ -97,10 +174,11 @@
     }
     
     .estadisticas-card {
-        background: white;
+        background: #f9fafa;
         border-radius: 0;
         padding: 1.5rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        border-left: 4px solid #2cdde4;
     }
     
     .stat-item {
@@ -147,10 +225,10 @@
     }
     
     .info-hover {
-        background: #f9f9f9;
+        background: #f9fafa;
         border-radius: 0;
         padding: 1rem;
-        border-left: 4px solid #a67676;
+        border-left: 4px solid #fb9c84;
         font-size: 13px;
         margin-top: 1rem;
     }
@@ -221,7 +299,7 @@
         min-width: 80px;
     }
     
-    .zona-roja {
+    .zona-rojo {
         background: rgba(255, 0, 0, 0.1) !important;
         border-left: 4px solid #FF0000;
     }
@@ -231,7 +309,7 @@
         border-left: 4px solid #FF8C00;
     }
     
-    .zona-amarilla {
+    .zona-amarillo {
         background: rgba(255, 255, 0, 0.15) !important;
         border-left: 4px solid #FFFF00;
     }
@@ -270,32 +348,43 @@
         </div>
     </div>
     
-    <!-- KPI Cards Row -->
-    <div class="kpi-row">
-        <div class="kpi-card">
-            <div class="kpi-icon">🔴</div>
-            <div class="kpi-label">Crítico</div>
-            <div class="kpi-value" id="kpi-critico">-</div>
+    <!-- KPI SUPERIOR - PARTE 1: Agricultores y Pólizas -->
+    <div class="kpi-section">
+        <div class="kpi-grid-top">
+            <div class="kpi-card">
+                <div class="kpi-label">Agr. Totales</div>
+                <div class="kpi-value" id="kpi-agr-totales">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Agr. Afectados</div>
+                <div class="kpi-value" id="kpi-agr-afectados">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">% Afectación</div>
+                <div class="kpi-value" id="kpi-porcentaje-afectacion">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Póliza Total</div>
+                <div class="kpi-value kpi-currency" id="kpi-poliza-total">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Póliza Afectados</div>
+                <div class="kpi-value kpi-currency" id="kpi-poliza-afectados">-</div>
+            </div>
         </div>
-        <div class="kpi-card">
-            <div class="kpi-icon">🟠</div>
-            <div class="kpi-label">Alto Riesgo</div>
-            <div class="kpi-value" id="kpi-alto">-</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon">👥</div>
-            <div class="kpi-label">Agricultores</div>
-            <div class="kpi-value" id="kpi-agr">-</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon">💰</div>
-            <div class="kpi-label">Póliza</div>
-            <div class="kpi-value" id="kpi-pol">-</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon">🌾</div>
-            <div class="kpi-label">Hectáreas</div>
-            <div class="kpi-value" id="kpi-ha">-</div>
+    </div>
+    
+    <!-- KPI SUPERIOR - PARTE 2: Hectáreas -->
+    <div class="kpi-section kpi-section-hectareas">
+        <div class="kpi-grid-bottom">
+            <div class="kpi-card">
+                <div class="kpi-label">Hectáreas Totales</div>
+                <div class="kpi-value" id="kpi-hectareas-totales">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Hectáreas Afectadas</div>
+                <div class="kpi-value" id="kpi-hectareas-afectadas">-</div>
+            </div>
         </div>
     </div>
     
@@ -403,23 +492,50 @@
             </div>
         </div>
         
-        <!-- Tabla Entidades: Depto / Provincia -->
+        <!-- Tabla Entidades: Cajas/Financieras -->
         <div class="col-lg-6">
             <div class="tabla-card">
                 <div class="tabla-header">
-                    <h5 class="mb-0">🏢 Resumen por Entidades</h5>
+                    <h5 class="mb-0">🏦 Resumen por Entidades (Cajas/Financieras)</h5>
                 </div>
                 <table class="table table-sm tabla-entidades mb-0">
                     <thead>
                         <tr>
-                            <th>Departamento</th>
-                            <th>Afectados</th>
+                            <th>Entidad</th>
+                            <th>Agricultores</th>
                             <th>Hectáreas</th>
-                            <th>Póliza</th>
+                            <th>Monto Asegurado</th>
                             <th>% Daño</th>
                         </tr>
                     </thead>
                     <tbody id="tabla-entidades-body">
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">Cargando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLA: Cultivos más Afectados -->
+    <div class="row mt-5">
+        <div class="col-lg-12">
+            <div class="tabla-card">
+                <div class="tabla-header">
+                    <h5 class="mb-0">🌾 Top 5 Cultivos Más Afectados</h5>
+                </div>
+                <table class="table table-sm tabla-cultivos mb-0">
+                    <thead>
+                        <tr>
+                            <th>Cultivo</th>
+                            <th>Departamento</th>
+                            <th>Agricultores</th>
+                            <th>Hectáreas</th>
+                            <th>Monto Asegurado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-cultivos-body">
                         <tr>
                             <td colspan="5" class="text-center text-muted">Cargando...</td>
                         </tr>

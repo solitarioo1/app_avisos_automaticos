@@ -331,13 +331,18 @@ function cargarAviso() {
         console.log('📊 Stats:', stats);
         console.log('📈 Agregaciones:', agregacionesData);
         
-        // Actualizar KPIs y estadísticas
+        // Actualizar KPIs antiguos (compatibilidad)
         actualizarKPIs(stats, clientes);
+        
+        // ✅ CARGAR KPIs NUEVOS (PARTE SUPERIOR)
+        cargarKPIsNuevos(numero);
+        
         actualizarEstadisticas(stats);
         
         // Actualizar TABLAS
         actualizarTablaZonas();
         actualizarTablaEntidades();
+        actualizarTablaCultivos();
         
         // Poblar selector de departamentos con datos de agregaciones
         poblarSelectorDepartamentos();
@@ -383,6 +388,7 @@ function actualizarDatos() {
             // ACTUALIZAR TABLAS
             actualizarTablaZonas();
             actualizarTablaEntidades();
+            actualizarTablaCultivos();
         })
         .catch(e => console.error('Error actualizando datos:', e));
 }
@@ -440,6 +446,70 @@ function actualizarKPIs(stats, clientes) {
     if (elem('kpi-ha')) elem('kpi-ha').textContent = ha > 0 ? ha.toLocaleString('es-ES') : '0';
     
     console.log('✅ KPIs actualizados:', {critico, alto, agr, pol, ha});
+}
+
+function cargarKPIsNuevos(numero) {
+    /**
+     * Carga KPIs desde el nuevo endpoint /api/avisos/<numero>/kpis
+     * Actualiza la sección superior con los nuevos campos
+     */
+    console.log(`📊 Cargando KPIs para aviso ${numero}`);
+    
+    fetch(`/api/avisos/${numero}/kpis`)
+        .then(r => r.json())
+        .then(data => {
+            console.log('✅ KPIs recibidos:', data);
+            
+            const elem = (id) => document.getElementById(id);
+            
+            // Agricultores
+            if (elem('kpi-agr-totales')) {
+                elem('kpi-agr-totales').textContent = data.agricultores_totales.toLocaleString('es-ES');
+            }
+            if (elem('kpi-agr-afectados')) {
+                elem('kpi-agr-afectados').textContent = data.agricultores_afectados.toLocaleString('es-ES');
+            }
+            
+            // Porcentaje
+            if (elem('kpi-porcentaje-afectacion')) {
+                elem('kpi-porcentaje-afectacion').textContent = `${data.porcentaje_afectacion}%`;
+            }
+            
+            // Pólizas
+            if (elem('kpi-poliza-total')) {
+                const polizaTotal = `S/ ${(data.poliza_total).toLocaleString('es-ES', {maximumFractionDigits: 0})}`;
+                elem('kpi-poliza-total').textContent = polizaTotal;
+            }
+            if (elem('kpi-poliza-afectados')) {
+                const polizaAfectados = `S/ ${(data.poliza_afectados).toLocaleString('es-ES', {maximumFractionDigits: 0})}`;
+                elem('kpi-poliza-afectados').textContent = polizaAfectados;
+            }
+            
+            // Hectáreas
+            if (elem('kpi-hectareas-totales')) {
+                elem('kpi-hectareas-totales').textContent = `${data.hectareas_totales.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ha`;
+            }
+            if (elem('kpi-hectareas-afectadas')) {
+                elem('kpi-hectareas-afectadas').textContent = `${data.hectareas_afectadas.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ha`;
+            }
+            
+            // Guardar datos de zonas por color para usar en tablas
+            if (data.zonas_por_color) {
+                window.zonasColorData = data.zonas_por_color;
+            }
+            
+            console.log('✅ KPIs nuevos renderizados');
+        })
+        .catch(e => {
+            console.error('❌ Error cargando KPIs:', e);
+            // Mostrar valores por defecto
+            const elem = (id) => document.getElementById(id);
+            ['kpi-agr-totales', 'kpi-agr-afectados', 'kpi-porcentaje-afectacion', 
+             'kpi-poliza-total', 'kpi-poliza-afectados', 'kpi-hectareas-totales', 
+             'kpi-hectareas-afectadas'].forEach(id => {
+                if (elem(id)) elem(id).textContent = '-';
+            });
+        });
 }
 
 function actualizarEstadisticas(stats) {
@@ -542,7 +612,8 @@ function actualizarTablaZonas() {
     
     console.log('📊 Actualizando Tabla Zonas para aviso:', avisoActual);
     
-    fetch(`/api/avisos/${avisoActual}/resumen-zonas`)
+    // Usar los datos del endpoint KPI (más reciente y correcto)
+    fetch(`/api/avisos/${avisoActual}/kpis`)
         .then(r => r.json())
         .then(data => {
             if (data.error) {
@@ -554,33 +625,33 @@ function actualizarTablaZonas() {
             if (!tbody) return;
             
             let html = '';
-            const colores = ['roja', 'naranja', 'amarilla'];
-            const iconos = { 'roja': '🔴', 'naranja': '🟠', 'amarilla': '🟡' };
+            const zonas_por_color = data.zonas_por_color || {};
+            const iconos = { 'Rojo': '🔴', 'Naranja': '🟠', 'Amarillo': '🟡', 'Verde': '🟢' };
+            const colores = ['Rojo', 'Naranja', 'Amarillo', 'Verde'];
             
             for (const color of colores) {
-                const zona = data[color];
+                const zona = zonas_por_color[color];
                 if (!zona) continue;
                 
-                const agr_total = zona.agr_totales || 0;
-                const agr_afect = zona.agr_afectados || 0;
-                const ha_afect = zona.ha_afectadas || 0;
-                const monto_afect = zona.monto_afectado || 0;
+                const agr_total = zona.agricultores || 0;
+                const ha_total = zona.hectareas || 0;
+                const poliza_total = zona.poliza || 0;
                 
-                const fila_class = `zona-${color}`;
+                const fila_class = `zona-${color.toLowerCase()}`;
                 
                 html += `
                     <tr class="${fila_class}">
-                        <td>${iconos[color]} ${color.charAt(0).toUpperCase() + color.slice(1)}</td>
+                        <td>${iconos[color]} ${color}</td>
                         <td>${agr_total}</td>
-                        <td><strong>${agr_afect}</strong></td>
-                        <td>${ha_afect.toLocaleString('es-ES')}</td>
-                        <td>S/ ${monto_afect.toLocaleString('es-ES', {maximumFractionDigits: 0})}</td>
+                        <td><strong>${agr_total}</strong></td>
+                        <td>${ha_total.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td>S/ ${poliza_total.toLocaleString('es-ES', {maximumFractionDigits: 0})}</td>
                     </tr>
                 `;
             }
             
             tbody.innerHTML = html;
-            console.log('✅ Tabla Zonas actualizada');
+            console.log('✅ Tabla Zonas actualizada con datos KPI');
         })
         .catch(e => console.error('Error actualizando tabla zonas:', e));
 }
@@ -590,7 +661,8 @@ function actualizarTablaEntidades() {
     
     console.log('📊 Actualizando Tabla Entidades para aviso:', avisoActual);
     
-    fetch(`/api/avisos/${avisoActual}/resumen-entidades`)
+    // Usar el nuevo endpoint KPI Entidades
+    fetch(`/api/avisos/${avisoActual}/kpis-entidades`)
         .then(r => r.json())
         .then(data => {
             if (data.error) {
@@ -601,34 +673,82 @@ function actualizarTablaEntidades() {
             const tbody = document.getElementById('tabla-entidades-body');
             if (!tbody) return;
             
-            const departamentos = data.departamentos || [];
+            const entidades = data.entidades || [];
             
             let html = '';
-            for (const depto of departamentos) {
-                const agr_afect = depto.agr_afectados || 0;
-                const ha_afect = depto.ha_afectadas || 0;
-                const monto_afect = depto.monto_afectado || 0;
-                const pct = depto.pct_damage || '0%';
+            for (const ent of entidades) {
+                const agr_afect = ent.agricultores || 0;
+                const ha_afect = ent.hectareas || 0;
+                const monto_afect = ent.monto || 0;
+                const pct = ent.pct_damage || 0;
                 
                 html += `
                     <tr>
-                        <td><strong>${depto.nombre}</strong></td>
+                        <td><strong>${ent.nombre}</strong></td>
                         <td>${agr_afect}</td>
-                        <td>${ha_afect.toLocaleString('es-ES')}</td>
+                        <td>${ha_afect.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                         <td>S/ ${monto_afect.toLocaleString('es-ES', {maximumFractionDigits: 0})}</td>
-                        <td><span class="badge badge-danger">${pct}</span></td>
+                        <td><span class="badge badge-danger" style="color: black; background-color: #FF6B6B;">${pct}%</span></td>
                     </tr>
                 `;
             }
             
             if (html === '') {
-                html = '<tr><td colspan="5" class="text-center text-muted">Sin datos</td></tr>';
+                html = '<tr><td colspan="5" class="text-center text-muted">Sin datos de entidades afectadas</td></tr>';
             }
             
             tbody.innerHTML = html;
             console.log('✅ Tabla Entidades actualizada');
         })
         .catch(e => console.error('Error actualizando tabla entidades:', e));
+}
+
+function actualizarTablaCultivos() {
+    if (!avisoActual) return;
+    
+    console.log('🌾 Actualizando Tabla Cultivos para aviso:', avisoActual);
+    
+    // Usar el nuevo endpoint KPI Cultivos
+    fetch(`/api/avisos/${avisoActual}/kpis-cultivos`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Error:', data.error);
+                return;
+            }
+            
+            const tbody = document.getElementById('tabla-cultivos-body');
+            if (!tbody) return;
+            
+            const cultivos = data.cultivos || [];
+            
+            let html = '';
+            for (const cult of cultivos) {
+                const agr = cult.agricultores || 0;
+                const ha = cult.hectareas || 0;
+                const monto = cult.monto || 0;
+                const depto = cult.departamento || 'SIN DEPTO';
+                const cultivo = cult.cultivo_nombre || 'SIN CULTIVO';
+                
+                html += `
+                    <tr>
+                        <td><strong>${cultivo}</strong></td>
+                        <td>${depto}</td>
+                        <td>${agr}</td>
+                        <td>${ha.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td>S/ ${monto.toLocaleString('es-ES', {maximumFractionDigits: 0})}</td>
+                    </tr>
+                `;
+            }
+            
+            if (html === '') {
+                html = '<tr><td colspan="5" class="text-center text-muted">Sin datos de cultivos afectados</td></tr>';
+            }
+            
+            tbody.innerHTML = html;
+            console.log('✅ Tabla Cultivos actualizada con', cultivos.length, 'registros');
+        })
+        .catch(e => console.error('Error actualizando tabla cultivos:', e));
 }
 
 // ============================================================================
