@@ -29,7 +29,11 @@ function initializeDecisiones() {
 
 function inicializarMapa() {
     // Crear mapa centrado en Perú
-    mapa = L.map('mapa-leaflet').setView([-9.189, -75.0152], 5);
+    mapa = L.map('mapa-leaflet').setView([-9.189, -75.0152], 5.5);
+    
+    // Aumentar altura del contenedor para Perú (país largo)
+    document.getElementById('mapa-leaflet').style.height = '750px';
+    mapa.invalidateSize();
     
     // Capa base
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -82,6 +86,7 @@ function cargarCapaGeoJSON(numero) {
             
             if (geojsonLayer.getLayers().length > 0) {
                 mapa.fitBounds(geojsonLayer.getBounds());
+                geojsonLayer.bringToBack();  // Enviar al fondo para no bloquear clicks
             }
             console.log('✅ SHP renderizado');
         })
@@ -123,6 +128,9 @@ function cargarClientesMapa(numero) {
                 }
             }).addTo(mapa);
             
+            // Mantener puntos siempre arriba
+            clientesLayer.bringToFront();
+            
             console.log('✅ Clientes renderizados en mapa');
         })
         .catch(e => console.error('❌ Error clientes:', e));
@@ -152,6 +160,14 @@ function cargarCapasDelimitaciones() {
                     });
                     layer.on('mouseout', () => {
                         layer.setStyle({color: '#333', weight: 1.5});
+                    });
+                    layer.on('click', () => {
+                        // Seleccionar departamento en el filtro y aplicar zoom
+                        const selectorDepto = document.getElementById('filtro-depto');
+                        if (selectorDepto) {
+                            selectorDepto.value = depto;
+                            cambiarDepartamento();
+                        }
                     });
                 }
             }).addTo(mapa);
@@ -187,11 +203,24 @@ function cargarCapasDelimitaciones() {
                     const depto = (feature.properties.DEPARTAMEN || '').toUpperCase();
                     layer.provNombre = prov;
                     layer.deptoNombre = depto;
+                    layer.on('mouseover', () => {
+                        layer.setStyle({color: '#0066FF', weight: 2.5});
+                    });
+                    layer.on('mouseout', () => {
+                        layer.setStyle({color: '#888', weight: 1});
+                    });
+                    layer.on('click', () => {
+                        const selectorProv = document.getElementById('filtro-provincia');
+                        if (selectorProv) {
+                            selectorProv.value = prov;
+                            cambiarProvincia();
+                        }
+                    });
                 }
-            }).addTo(mapa);
+            });
             
             delimitacionesLayers['provincias'] = provLayer;
-            console.log('✅ Provincias cargadas y visibles:', geojson.features?.length || 0);
+            console.log('✅ Provincias cargadas (NO visibles por defecto):', geojson.features?.length || 0);
         })
         .catch(e => console.error('❌ Error provincias:', e));
     
@@ -310,7 +339,7 @@ function cargarAviso() {
         poblarSelectorDepartamentos();
         
         // Renderizar capas
-        cargarCapaGeoJSON(numero);
+        cargarCapaGeoJSON(numero);  // ✅ SHP visible + bringToBack() evita bloquear clicks
         cargarClientesMapa(numero);
         
         console.log('✅ Aviso cargado completamente');
@@ -399,7 +428,7 @@ function actualizarKPIs(stats, clientes) {
     if (elem('kpi-critico')) elem('kpi-critico').textContent = critico > 0 ? `${critico}` : '-';
     if (elem('kpi-alto')) elem('kpi-alto').textContent = alto > 0 ? `${alto}` : '-';
     if (elem('kpi-agr')) elem('kpi-agr').textContent = agr > 0 ? agr.toLocaleString('es-ES') : '0';
-    if (elem('kpi-pol')) elem('kpi-pol').textContent = pol > 0 ? `S/ ${(pol/1e6).toFixed(1)}M` : '-';
+    if (elem('kpi-pol')) elem('kpi-pol').textContent = pol > 0 ? `S/ ${(pol).toLocaleString('es-ES', {maximumFractionDigits: 0})}` : '-';
     if (elem('kpi-ha')) elem('kpi-ha').textContent = ha > 0 ? ha.toLocaleString('es-ES') : '0';
     
     console.log('✅ KPIs actualizados:', {critico, alto, agr, pol, ha});
@@ -437,7 +466,7 @@ function actualizarEstadisticas(stats) {
         elem('stat-agricultores').textContent = agr > 0 ? agr.toLocaleString('es-ES') : '0';
     }
     if (elem('stat-poliza')) {
-        elem('stat-poliza').textContent = pol > 0 ? (pol / 1e6).toFixed(2) : '0.00';
+        elem('stat-poliza').textContent = pol > 0 ? `S/ ${pol.toLocaleString('es-ES', {maximumFractionDigits: 0})}` : 'S/ 0';
     }
     if (elem('stat-hectareas')) {
         elem('stat-hectareas').textContent = ha > 0 ? ha.toLocaleString('es-ES') : '0';
@@ -458,12 +487,15 @@ function actualizarEstadisticasDinamicas(clientes) {
     const pol = clientes.total_monto_asegurado || 0;
     const ha = clientes.total_hectareas || 0;
     
+    // DEBUG: Ver valor exacto de póliza
+    console.log(`💰 Póliza RAW: ${pol}, Tipo: ${typeof pol}, Dividido entre 1M: ${pol/1e6}`);
+    
     // Solo actualizar panel derecho (estadísticas dinámicas)
     if (elem('stat-agricultores')) {
         elem('stat-agricultores').textContent = agr > 0 ? agr.toLocaleString('es-ES') : '0';
     }
     if (elem('stat-poliza')) {
-        elem('stat-poliza').textContent = pol > 0 ? (pol / 1e6).toFixed(2) : '0.00';
+        elem('stat-poliza').textContent = pol > 0 ? `S/ ${pol.toLocaleString('es-ES', {maximumFractionDigits: 2})}` : 'S/ 0';
     }
     if (elem('stat-hectareas')) {
         elem('stat-hectareas').textContent = ha > 0 ? ha.toLocaleString('es-ES') : '0';
@@ -495,6 +527,63 @@ function mostrarInfoHover(depto, provincia, distrito) {
 function ocultarInfoHover() {
     const infoDiv = document.getElementById('info-hover');
     infoDiv.style.display = 'none';
+}
+
+// ============================================================================
+// FUNCIONES DE VISUALIZACIÓN DE CAPAS
+// ============================================================================
+
+function mostrarDistritosDelimitacion(depto, provincia) {
+    console.log(`🗺️ Mostrando distritos de ${provincia}/${depto}`);
+    
+    const distritosData = delimitacionesLayers['distritosData'];
+    if (!distritosData) return;
+    
+    // Filtrar distritos de la provincia
+    const distritosFiltered = {
+        type: 'FeatureCollection',
+        features: distritosData.features.filter(f => 
+            (f.properties?.PROVINCIA || '').toUpperCase() === provincia.toUpperCase() &&
+            (f.properties?.DEPARTAMEN || '').toUpperCase() === depto.toUpperCase()
+        )
+    };
+    
+    // Limpiar distritos anteriores si existen
+    if (delimitacionesLayers['distritosDelimitacion']) {
+        mapa.removeLayer(delimitacionesLayers['distritosDelimitacion']);
+    }
+    
+    // Crear capa de distritos
+    const distritosLayer = L.geoJSON(distritosFiltered, {
+        style: {
+            fillColor: 'transparent',
+            fillOpacity: 0,
+            color: '#FFFFFF',
+            weight: 1.5,
+            opacity: 0.8
+        },
+        onEachFeature: (feature, layer) => {
+            const dist = (feature.properties.DISTRITO || '').toUpperCase();
+            layer.distNombre = dist;
+            
+            layer.on('mouseover', () => {
+                layer.setStyle({color: '#FFFFFF', weight: 2.5, fillOpacity: 0});
+            });
+            layer.on('mouseout', () => {
+                layer.setStyle({color: '#FFFFFF', weight: 1.5, fillOpacity: 0});
+            });
+            layer.on('click', () => {
+                const selectorDist = document.getElementById('filtro-distrito');
+                if (selectorDist) {
+                    selectorDist.value = dist;
+                    cambiarDistrito();
+                }
+            });
+        }
+    }).addTo(mapa);
+    
+    delimitacionesLayers['distritosDelimitacion'] = distritosLayer;
+    console.log(`✅ Distritos mostrados: ${distritosFiltered.features.length}`);
 }
 
 // ============================================================================
@@ -549,6 +638,38 @@ function cambiarDepartamento() {
     nivelSeleccionado = 'depto';
     console.log(`📍 Depto seleccionado: ${deptoSeleccionado}, ${provincias.length} provincias disponibles`);
     
+    // MANTENER departamentos VISIBLES pero resaltar el seleccionado
+    const deptoLayer = delimitacionesLayers['departamentos'];
+    if (deptoLayer) {
+        const buscado = deptoSeleccionado.toUpperCase().trim();
+        deptoLayer.eachLayer((layer) => {
+            const nombre = (layer.deptoNombre || '').toUpperCase().trim();
+            if (nombre === buscado) {
+                // Resaltar depto seleccionado - SIN RESTAURAR ANTES
+                layer.setStyle({color: '#FF0000', weight: 3, fillOpacity: 0.1});
+                delimitacionesLayers['deptoDestacado'] = layer;
+            } else {
+                // Deptos no seleccionados: muy tenue
+                layer.setStyle({color: '#CCCCCC', weight: 0.5, fillOpacity: 0});
+            }
+        });
+    }
+    
+    // MOSTRAR provincias
+    if (delimitacionesLayers['provincias']) {
+        mapa.addLayer(delimitacionesLayers['provincias']);
+    }
+    
+    // Asegurar SHP atrás
+    if (geojsonLayer) {
+        geojsonLayer.bringToBack();
+    }
+    
+    // MANTENER puntos GPS siempre arriba (después de agregar provincias)
+    if (clientesLayer) {
+        clientesLayer.bringToFront();
+    }
+    
     // Zoom al departamento en el mapa
     zoomADepartamento(deptoSeleccionado);
     
@@ -588,6 +709,58 @@ function cambiarProvincia() {
     nivelSeleccionado = 'provincia';
     console.log(`📍 Provincia seleccionada: ${provSeleccionada}, ${distritos.length} distritos disponibles`);
     
+    // MANTENER depto resaltado - OCULTAR otras provincias - MOSTRAR distritos
+    if (delimitacionesLayers['provincias']) {
+        const buscadoProv = provSeleccionada.toUpperCase().trim();
+        const buscadoDepto = deptoSeleccionado.toUpperCase().trim();
+        
+        delimitacionesLayers['provincias'].eachLayer((layer) => {
+            const nombreProv = (layer.provNombre || '').toUpperCase().trim();
+            const nombreDepto = (layer.deptoNombre || '').toUpperCase().trim();
+            
+            if (nombreProv === buscadoProv && nombreDepto === buscadoDepto) {
+                // Resaltar provincia seleccionada - SIN RELLENO
+                layer.setStyle({color: '#0066FF', weight: 3, fillOpacity: 0});
+                delimitacionesLayers['provinciaDestacada'] = layer;
+            } else {
+                // Otras provincias: muy tenue
+                layer.setStyle({color: '#DDDDDD', weight: 0.5, fillOpacity: 0});
+            }
+        });
+    }
+    
+    // Cargar y mostrar distritos de la provincia
+    if (!delimitacionesLayers['distritosData']) {
+        fetch('/api/delimitaciones/distritos')
+            .then(r => r.json())
+            .then(geojson => {
+                delimitacionesLayers['distritosData'] = geojson;
+                mostrarDistritosDelimitacion(deptoSeleccionado, provSeleccionada);
+                // Mantener puntos arriba después de cargar distritos
+                if (geojsonLayer) {
+                    geojsonLayer.bringToBack();
+                }
+                if (clientesLayer) {
+                    clientesLayer.bringToFront();
+                }
+            })
+            .catch(e => console.error('Error distritos:', e));
+    } else {
+        mostrarDistritosDelimitacion(deptoSeleccionado, provSeleccionada);
+        // Mantener puntos arriba después de mostrar distritos
+        if (geojsonLayer) {
+            geojsonLayer.bringToBack();
+        }
+        if (clientesLayer) {
+            clientesLayer.bringToFront();
+        }
+    }
+    
+    // Asegurar SHP atrás
+    if (geojsonLayer) {
+        geojsonLayer.bringToBack();
+    }
+    
     // Zoom a la provincia en el mapa
     zoomAProvincia(deptoSeleccionado, provSeleccionada);
     
@@ -605,9 +778,39 @@ function cambiarDistrito() {
     
     console.log(`📍 Distrito seleccionado: ${distSeleccionado || 'ninguno'}`);
     
-    // Zoom al distrito en el mapa
+    // MANTENER provincia resaltada - MOSTRAR/OCULTAR distritos
     if (distSeleccionado && filtroActual.depto && filtroActual.provincia) {
+        // Resaltar el distrito seleccionado
+        if (delimitacionesLayers['distritosDelimitacion']) {
+            const buscadoDist = distSeleccionado.toUpperCase().trim();
+            delimitacionesLayers['distritosDelimitacion'].eachLayer((layer) => {
+                const nombreDist = (layer.distNombre || '').toUpperCase().trim();
+                if (nombreDist === buscadoDist) {
+                    // Resaltar SOLO CON LÍNEA BLANCA - SIN RELLENO
+                    layer.setStyle({color: '#FFFFFF', weight: 2.5, fillOpacity: 0});
+                    delimitacionesLayers['distritoDestacado'] = layer;
+                } else {
+                    layer.setStyle({color: '#DDDDDD', weight: 0.5, fillOpacity: 0});
+                }
+            });
+        }
+        
+        // Asegurar SHP y puntos en orden correcto
+        if (geojsonLayer) {
+            geojsonLayer.bringToBack();
+        }
+        if (clientesLayer) {
+            clientesLayer.bringToFront();
+        }
+        
         zoomADistrito(filtroActual.depto, filtroActual.provincia, distSeleccionado);
+    } else {
+        // Resetear distritos a estilo normal
+        if (delimitacionesLayers['distritosDelimitacion']) {
+            delimitacionesLayers['distritosDelimitacion'].eachLayer((layer) => {
+                layer.setStyle({color: '#FFFFFF', weight: 1.5, fillOpacity: 0});
+            });
+        }
     }
     
     actualizarDatos();
@@ -617,6 +820,32 @@ function limpiarFiltros() {
     // Resetear filtros
     filtroActual = { depto: null, provincia: null, distrito: null };
     nivelSeleccionado = 'nacional';
+    
+    // Resetear estilos de delimitaciones
+    if (delimitacionesLayers['departamentos']) {
+        delimitacionesLayers['departamentos'].eachLayer(l => {
+            l.setStyle({color: '#333', weight: 1.5, fillOpacity: 0});
+        });
+        mapa.addLayer(delimitacionesLayers['departamentos']);
+    }
+    if (delimitacionesLayers['provincias']) {
+        delimitacionesLayers['provincias'].eachLayer(l => {
+            l.setStyle({color: '#888', weight: 1, fillOpacity: 0});
+        });
+        mapa.removeLayer(delimitacionesLayers['provincias']);
+    }
+    if (delimitacionesLayers['distritosDelimitacion']) {
+        mapa.removeLayer(delimitacionesLayers['distritosDelimitacion']);
+        delimitacionesLayers['distritosDelimitacion'] = null;
+    }
+    if (delimitacionesLayers['distritoActual']) {
+        mapa.removeLayer(delimitacionesLayers['distritoActual']);
+        delimitacionesLayers['distritoActual'] = null;
+    }
+    if (delimitacionesLayers['distritosDelimitacion']) {
+        mapa.removeLayer(delimitacionesLayers['distritosDelimitacion']);
+        delimitacionesLayers['distritosDelimitacion'] = null;
+    }
     
     // Resetear selectores
     const selectorDepto = document.getElementById('filtro-depto');
@@ -635,9 +864,17 @@ function limpiarFiltros() {
     
     console.log('🔄 Filtros limpiados');
     
+    // Asegurar orden correcto: SHP atrás, puntos arriba
+    if (geojsonLayer) {
+        geojsonLayer.bringToBack();
+    }
+    if (clientesLayer) {
+        clientesLayer.bringToFront();
+    }
+    
     // Volver a vista nacional
     if (mapa) {
-        mapa.setView([-9.189, -75.0152], 5);
+        mapa.setView([-9.189, -75.0152], 6);
     }
     
     actualizarDatos();
@@ -662,6 +899,11 @@ function zoomADepartamento(depto) {
     let encontrado = false;
     const buscado = depto.toUpperCase().trim();
     
+    // Restaurar TODOS los deptos a estilo normal primero
+    capas.forEach(l => {
+        l.setStyle({color: '#333', weight: 1.5, fillOpacity: 0});
+    });
+    
     capas.forEach((layer) => {
         const nombre = (layer.deptoNombre || '').toUpperCase().trim();
         
@@ -673,10 +915,10 @@ function zoomADepartamento(depto) {
             mapa.fitBounds(bounds, { padding: [30, 30], animate: true });
             
             // Resaltar
-            layer.setStyle({color: '#FF0000', weight: 4, fillOpacity: 0.2, fillColor: '#FF0000'});
-            setTimeout(() => {
-                layer.setStyle({color: '#333', weight: 1.5, fillOpacity: 0});
-            }, 2000);
+            layer.setStyle({color: '#FF0000', weight: 4, fillOpacity: 0.1, fillColor: '#FF0000'});
+            // setTimeout(() => {
+            //     layer.setStyle({color: '#333', weight: 1.5, fillOpacity: 0});
+            // }, 2000);
             
             encontrado = true;
         }
@@ -705,6 +947,11 @@ function zoomAProvincia(depto, provincia) {
     
     console.log(`📊 Buscando en ${provLayer.getLayers().length} provincias...`);
     
+    // Restaurar TODAS las provincias a estilo normal primero
+    provLayer.eachLayer(l => {
+        l.setStyle({color: '#888', weight: 1, fillOpacity: 0});
+    });
+    
     let encontrado = false;
     provLayer.eachLayer((layer) => {
         const nombreProv = (layer.provNombre || '').toUpperCase().trim();
@@ -718,10 +965,10 @@ function zoomAProvincia(depto, provincia) {
             mapa.fitBounds(layer.getBounds(), { padding: [40, 40], animate: true });
             
             // Resaltar
-            layer.setStyle({color: '#0066FF', weight: 3, fillOpacity: 0.2, fillColor: '#0066FF'});
-            setTimeout(() => {
-                layer.setStyle({color: '#888', weight: 1, fillOpacity: 0});
-            }, 2000);
+            layer.setStyle({color: '#0066FF', weight: 3, fillOpacity: 0.1, fillColor: '#0066FF'});
+            // setTimeout(() => {
+            //     layer.setStyle({color: '#888', weight: 1, fillOpacity: 0});
+            // }, 2000);
             
             encontrado = true;
         }
@@ -758,11 +1005,20 @@ async function zoomADistrito(depto, provincia, distrito) {
     
     if (feature) {
         const tempLayer = L.geoJSON(feature, {
-            style: { fillColor: '#28a745', fillOpacity: 0.25, color: '#28a745', weight: 2 }
+            style: { fillColor: 'transparent', fillOpacity: 0, color: '#FFFFFF', weight: 2 }
         }).addTo(mapa);
         
         mapa.fitBounds(tempLayer.getBounds(), { padding: [50, 50] });
-        setTimeout(() => mapa.removeLayer(tempLayer), 2000);
+        // Guardar referencia para poder limpiarla después
+        delimitacionesLayers['distritoActual'] = tempLayer;
+        
+        // Asegurar orden correcto
+        if (geojsonLayer) {
+            geojsonLayer.bringToBack();
+        }
+        if (clientesLayer) {
+            clientesLayer.bringToFront();
+        }
         
         console.log(`✅ Zoom completado: ${distrito}`);
     } else {
