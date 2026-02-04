@@ -618,33 +618,29 @@ def api_resumen_zonas(numero):
             'amarilla': {'agr_totales': 0, 'agr_afectados': 0, 'ha_totales': 0, 'ha_afectadas': 0, 'monto_total': 0, 'monto_afectado': 0}
         }
         
+        # Obtener IDs de clientes AFECTADOS (que están en deptos del aviso)
+        clientes_afectados_ids = set([c['id'] for c in clientes_afectados])
+        
         # Contar TODOS los clientes por color
+        # Cruzar con spatial join para asignar color
         for cliente in todos_clientes:
             cliente_id = cliente['id']
             ha = float(cliente['hectareas'] or 0)
             monto = float(cliente['monto_asegurado'] or 0)
             
-            # Asignar a zona según spatial join
+            # Asignar a zona según spatial join (qué cliente está en qué polígono SHP)
             color = mapa_cliente_color.get(cliente_id, 'sin_zona')
             
             if color in resultado:
                 resultado[color]['agr_totales'] += 1
                 resultado[color]['ha_totales'] += ha
                 resultado[color]['monto_total'] += monto
-        
-        # Contar AFECTADOS por color
-        clientes_afectados_ids = set([c['id'] for c in clientes_afectados])
-        for cliente in clientes_afectados:
-            cliente_id = cliente['id']
-            ha = float(cliente['hectareas'] or 0)
-            monto = float(cliente['monto_asegurado'] or 0)
-            
-            color = mapa_cliente_color.get(cliente_id, 'sin_zona')
-            
-            if color in resultado:
-                resultado[color]['agr_afectados'] += 1
-                resultado[color]['ha_afectadas'] += ha
-                resultado[color]['monto_afectado'] += monto
+                
+                # Si además está en los afectados (por depto), contar en afectados
+                if cliente_id in clientes_afectados_ids:
+                    resultado[color]['agr_afectados'] += 1
+                    resultado[color]['ha_afectadas'] += ha
+                    resultado[color]['monto_afectado'] += monto
         
         # Redondear valores
         for color in resultado:

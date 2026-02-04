@@ -335,6 +335,10 @@ function cargarAviso() {
         actualizarKPIs(stats, clientes);
         actualizarEstadisticas(stats);
         
+        // Actualizar TABLAS
+        actualizarTablaZonas();
+        actualizarTablaEntidades();
+        
         // Poblar selector de departamentos con datos de agregaciones
         poblarSelectorDepartamentos();
         
