@@ -1250,26 +1250,48 @@ def get_kpis_cultivos(numero):
 @decisiones_bp.route('/api/avisos/<int:numero>/kpis', methods=['GET'])
 def get_kpis(numero):
     """Calcula y retorna los KPIs principales para el Centro de Decisiones
-    Lee del CSV ya generado por areas.py (clientes_por_nivel_dia{dia}.csv)
+    Lee del CSV si existe, sino calcula desde BD + datos de avisos CSV
     """
     try:
-        # 1. Encontrar día crítico (el que tiene CSV)
-        # Buscar cuál CSV existe
+        # 1. Intentar leer CSV de clientes clasificados (generado por areas.py)
+        df_clientes = None
         dia_critico = None
+        
         for dia in [3, 2, 1]:  # Preferencia: 3, 2, 1
             csv_path = OUTPUT_DIR / f'aviso_{numero}' / f'clientes_por_nivel_dia{dia}.csv'
             if csv_path.exists():
+                df_clientes = pd.read_csv(csv_path)
                 dia_critico = dia
+                logger.info(f"CSV de clientes encontrado para aviso {numero}, día {dia}")
                 break
         
-        if dia_critico is None:
-            return jsonify({'error': f'No hay CSV para aviso {numero}'}), 404
+        # 2. Si no hay CSV, calcular desde BD (fallback)
+        if df_clientes is None:
+            logger.warning(f"No hay CSV para aviso {numero}. Usando datos de BD.")
+            conn = get_db_connection()
+            if not conn:
+                return jsonify({'error': 'No connection to DB'}), 500
+            
+            try:
+                cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                cursor.execute("""
+                    SELECT id, CONCAT(nombre, ' ', apellido) as nombre, 
+                           hectareas, monto_asegurado, departamento, cultivo_id
+                    FROM clientes
+                    WHERE estado = 'activo'
+                    ORDER BY id
+                """)
+                rows = cursor.fetchall()
+                df_clientes = pd.DataFrame(rows)
+                df_clientes['nivel'] = 'Verde'  # Sin CSV, asumir todos Verde
+                cursor.close()
+                conn.close()
+                logger.info(f"Datos de clientes cargados desde BD: {len(df_clientes)} registros")
+            except psycopg2.Error as e:
+                logger.error("Error consultando BD: %s", str(e))
+                return jsonify({'error': str(e)}), 500
         
-        # 2. Leer CSV de clientes ya clasificados (desde areas.py)
-        csv_path = OUTPUT_DIR / f'aviso_{numero}' / f'clientes_por_nivel_dia{dia_critico}.csv'
-        df_clientes = pd.read_csv(csv_path)
-        
-        # 3. Obtener BD para monto_asegurado
+        # 3. Obtener BD para monto_asegurado (si vino del CSV, complementar)
         conn = get_db_connection()
         if not conn:
             return jsonify({'error': 'No connection to DB'}), 500
