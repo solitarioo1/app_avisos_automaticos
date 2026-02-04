@@ -286,7 +286,30 @@ def procesar_aviso(numero_aviso, desde_db=False):
             guardar_imagen_aviso(numero_aviso, depto, ruta_relativa)
     
     print(f"\n✨ CREACIÓN FINALIZADA ✨\n", flush=True)
-    print(f"👋 ¡Hasta pronto! Esta pestaña se cerrará en 5 segundos...\n", flush=True)
+    
+    # 9. Generar CSV de clientes por nivel (necesario para endpoints KPI)
+    print(f"📊 Generando estadísticas de clientes...", flush=True)
+    try:
+        import requests
+        # Obtener el día crítico del SHP
+        from LAYOUT.utils import extraer_dia_critico
+        dia_critico_final = int(dia_critico.replace('dia', '')) if isinstance(dia_critico, str) and dia_critico.startswith('dia') else 3
+        
+        # Llamar al endpoint de cálculo de áreas (genera CSV)
+        api_url = f"http://localhost:5000/api/avisos/{numero_aviso}/calcular-areas/{dia_critico_final}"
+        response = requests.post(api_url)
+        
+        if response.status_code == 200:
+            print(f"  ✅ CSV de clientes generado correctamente", flush=True)
+            logger.info(f"✓ CSV clientes generado para aviso {numero_aviso}, día {dia_critico_final}")
+        else:
+            logger.warning(f"⚠ Advertencia al generar CSV: {response.status_code}")
+            print(f"  ⚠️  No se pudo generar CSV (código {response.status_code})", flush=True)
+    except Exception as e:
+        logger.warning(f"⚠ No se pudo generar CSV de clientes: {e}")
+        print(f"  ⚠️  No se pudo generar CSV: {str(e)}", flush=True)
+    
+    print(f"\n👋 ¡Hasta pronto! Esta pestaña se cerrará en 5 segundos...\n", flush=True)
     logger.info(f"\n✅ Procesamiento del aviso {numero_aviso} completado")
     logger.info(f"📁 Mapas guardados en: {output_dir}")
 
