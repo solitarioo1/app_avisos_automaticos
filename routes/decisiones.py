@@ -11,9 +11,11 @@ from pathlib import Path
 from collections import defaultdict, Counter
 
 import geopandas as gpd
+import pandas as pd
 import psycopg2
 import psycopg2.extras
 from flask import Blueprint, jsonify, render_template, request
+from shapely.geometry import Point
 
 # Definir BASE_DIR y OUTPUT_DIR
 BASE_DIR = Path(__file__).parent.parent
@@ -38,10 +40,163 @@ except ImportError:
 logger = logging.getLogger(__name__)
 decisiones_bp = Blueprint('decisiones', __name__, url_prefix='')
 
+# Definir TEMP_DIR para SHP
+TEMP_DIR = BASE_DIR / 'TEMP'
+
 
 # ============================================================================
 # FUNCIONES AUXILIARES
 # ============================================================================
+
+def get_clientes_por_color(numero_aviso):
+    """
+    Realiza spatial join: determina qué COLOR de SHP contiene cada cliente
+    
+    Returns:
+        {
+            'clientes_por_color': {
+                'roja': [id_cliente1, id_cliente2, ...],
+                'naranja': [...],
+                'amarilla': [...],
+                'sin_zona': [...]  # Clientes fuera del SHP
+            },
+            'mapa_cliente_color': {cliente_id: 'roja'}
+        }
+    """
+    try:
+        # 1. Obtener SHP del aviso (día crítico)
+        temp_base = TEMP_DIR / f'aviso_{numero_aviso}'
+        if not temp_base.exists():
+            logger.warning("No SHP para aviso %d", numero_aviso)
+            return {'clientes_por_color': {}, 'mapa_cliente_color': {}}
+        
+        dict_shps = {}
+        for dia in range(1, 4):
+            dia_dir = temp_base / f'dia{dia}'
+            shp_path = dia_dir / 'view_aviso.shp'
+            if shp_path.exists():
+                dict_shps[f'dia{dia}'] = str(shp_path)
+        
+        if not dict_shps:
+            logger.warning("No hay SHP para aviso %d", numero_aviso)
+            return {'clientes_por_color': {}, 'mapa_cliente_color': {}}
+        
+        # Seleccionar día crítico
+        dia_critico = 'dia1'
+        shp_critico = None
+        try:
+            if seleccionar_dia_critico:
+                dia_critico, shp_critico = seleccionar_dia_critico(dict_shps)
+            else:
+                shp_critico = dict_shps.get('dia1')
+        except (ValueError, AttributeError):
+            shp_critico = dict_shps.get('dia1')
+        
+        if not shp_critico:
+            logger.warning("No se pudo seleccionar SHP crítico para aviso %d", numero_aviso)
+            return {'clientes_por_color': {}, 'mapa_cliente_color': {}}
+        
+        # 2. Leer SHP y convertir CRS si es necesario
+        try:
+            gdf_shp = gpd.read_file(shp_critico)
+            if gdf_shp.crs and gdf_shp.crs != 'EPSG:4326':
+                gdf_shp = gdf_shp.to_crs('EPSG:4326')
+        except (OSError, ValueError) as e:
+            logger.error("Error leyendo SHP: %s", str(e))
+            return {'clientes_por_color': {}, 'mapa_cliente_color': {}}
+        
+        # 3. Mapear nivel a color
+        nivel_color = {
+            'Nivel 4': 'roja',
+            'Nivel 3': 'naranja',
+            'Nivel 2': 'amarilla',
+            'Nivel 1': 'amarilla'  # Nivel 1 tratado como amarilla
+        }
+        gdf_shp['color_zona'] = gdf_shp['nivel'].map(nivel_color).fillna('sin_zona')
+        
+        # 4. Obtener clientes de la BD
+        conn = get_db_connection()
+        if not conn:
+            logger.error("No connection to DB")
+            return {'clientes_por_color': {}, 'mapa_cliente_color': {}}
+        
+        try:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cursor.execute("""
+                SELECT id, latitud, longitud, departamento, provincia, distrito
+                FROM clientes
+                WHERE estado = 'activo'
+                ORDER BY id
+            """)
+            clientes_db = cursor.fetchall()
+            cursor.close()
+            conn.close()
+        except psycopg2.Error as e:
+            logger.error("Error consultando clientes: %s", str(e))
+            return {'clientes_por_color': {}, 'mapa_cliente_color': {}}
+        
+        # 5. Convertir clientes a GeoDataFrame
+        if not clientes_db:
+            logger.warning("No clientes en BD")
+            return {'clientes_por_color': {}, 'mapa_cliente_color': {}}
+        
+        clientes_geom = []
+        for c in clientes_db:
+            if c['latitud'] and c['longitud']:
+                clientes_geom.append({
+                    'id': c['id'],
+                    'geometry': Point(float(c['longitud']), float(c['latitud'])),
+                    'departamento': c.get('departamento', ''),
+                    'provincia': c.get('provincia', ''),
+                    'distrito': c.get('distrito', '')
+                })
+        
+        if not clientes_geom:
+            logger.warning("No clients con geometría")
+            return {'clientes_por_color': {}, 'mapa_cliente_color': {}}
+        
+        gdf_clientes = gpd.GeoDataFrame(clientes_geom, crs='EPSG:4326')
+        
+        # 6. Spatial join: determinar qué cliente está en qué polígono SHP
+        # Usar sjoin para encontrar qué cliente está dentro de qué polígono
+        try:
+            sjoin_result = gpd.sjoin(gdf_clientes, gdf_shp[['geometry', 'color_zona']], 
+                                     how='left', predicate='within')
+        except Exception as e:
+            logger.error("Error en spatial join: %s", str(e))
+            # Fallback: usar contains en lugar de within
+            try:
+                sjoin_result = gpd.sjoin(gdf_clientes, gdf_shp[['geometry', 'color_zona']], 
+                                         how='left', predicate='contains')
+            except Exception as e2:
+                logger.error("Fallback spatial join también falló: %s", str(e2))
+                return {'clientes_por_color': {}, 'mapa_cliente_color': {}}
+        
+        # 7. Agrupar clientes por color
+        clientes_por_color = defaultdict(list)
+        mapa_cliente_color = {}
+        
+        for _, row in sjoin_result.iterrows():
+            cliente_id = row['id']
+            color = row.get('color_zona', 'sin_zona')
+            if pd.isna(color):
+                color = 'sin_zona'
+            
+            clientes_por_color[color].append(cliente_id)
+            mapa_cliente_color[cliente_id] = color
+        
+        logger.info("Spatial join completado para aviso %d: %d clientes asignados",
+                    numero_aviso, len(mapa_cliente_color))
+        
+        return {
+            'clientes_por_color': dict(clientes_por_color),
+            'mapa_cliente_color': mapa_cliente_color
+        }
+    
+    except Exception as e:
+        logger.error("Error en get_clientes_por_color: %s", str(e))
+        return {'clientes_por_color': {}, 'mapa_cliente_color': {}}
+
 
 def get_db_connection():
     """
@@ -380,6 +535,250 @@ def api_agregaciones(numero):
     
     except Exception as e:
         logger.error("Error en agregaciones: %s", str(e))
+        return jsonify({'error': str(e)}), 500
+
+
+@decisiones_bp.route('/api/avisos/<int:numero>/resumen-zonas', methods=['GET'])
+def api_resumen_zonas(numero):
+    """
+    Endpoint: Resumen por ZONAS de color (Roja/Naranja/Amarilla)
+    Retorna: Agricultores totales vs afectados por color
+    
+    Returns:
+        {
+            'numero_aviso': numero,
+            'roja': {
+                'agr_totales': 100,
+                'agr_afectados': 45,
+                'ha_totales': 500.0,
+                'ha_afectadas': 320.5,
+                'monto_total': 2000000.00,
+                'monto_afectado': 1500000.00
+            },
+            'naranja': {...},
+            'amarilla': {...}
+        }
+    """
+    try:
+        # Obtener spatial join: cliente -> color
+        spatial_data = get_clientes_por_color(numero)
+        mapa_cliente_color = spatial_data.get('mapa_cliente_color', {})
+        
+        # Obtener TODOS los clientes
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Conexión BD fallida'}), 500
+        
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Query: TODOS los clientes con sus datos
+        cursor.execute("""
+            SELECT id, hectareas, monto_asegurado
+            FROM clientes
+            WHERE estado = 'activo'
+        """)
+        todos_clientes = cursor.fetchall()
+        
+        # Query: SOLO clientes afectados (en zonas del aviso)
+        zonas_afectadas = parse_csv_avisos(numero)
+        if not zonas_afectadas:
+            cursor.close()
+            conn.close()
+            return jsonify({'error': 'No hay zonas afectadas para este aviso'}), 404
+        
+        zonas_normalizadas = set()
+        for zona in zonas_afectadas:
+            zonas_normalizadas.add((
+                zona['departamento'].upper().strip(),
+                zona['provincia'].upper().strip(),
+                zona['distrito'].upper().strip()
+            ))
+        
+        deptos_unicos = list(set([zona[0] for zona in zonas_normalizadas]))
+        
+        if deptos_unicos:
+            placeholders = ','.join(['%s'] * len(deptos_unicos))
+            cursor.execute(f"""
+                SELECT id, hectareas, monto_asegurado
+                FROM clientes
+                WHERE estado = 'activo' AND UPPER(TRIM(departamento)) IN ({placeholders})
+            """, deptos_unicos)
+        else:
+            cursor.execute("SELECT id, hectareas, monto_asegurado FROM clientes WHERE 1=0")
+        
+        clientes_afectados = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        # Procesar datos
+        resultado = {
+            'numero_aviso': numero,
+            'roja': {'agr_totales': 0, 'agr_afectados': 0, 'ha_totales': 0, 'ha_afectadas': 0, 'monto_total': 0, 'monto_afectado': 0},
+            'naranja': {'agr_totales': 0, 'agr_afectados': 0, 'ha_totales': 0, 'ha_afectadas': 0, 'monto_total': 0, 'monto_afectado': 0},
+            'amarilla': {'agr_totales': 0, 'agr_afectados': 0, 'ha_totales': 0, 'ha_afectadas': 0, 'monto_total': 0, 'monto_afectado': 0}
+        }
+        
+        # Contar TODOS los clientes por color
+        for cliente in todos_clientes:
+            cliente_id = cliente['id']
+            ha = float(cliente['hectareas'] or 0)
+            monto = float(cliente['monto_asegurado'] or 0)
+            
+            # Asignar a zona según spatial join
+            color = mapa_cliente_color.get(cliente_id, 'sin_zona')
+            
+            if color in resultado:
+                resultado[color]['agr_totales'] += 1
+                resultado[color]['ha_totales'] += ha
+                resultado[color]['monto_total'] += monto
+        
+        # Contar AFECTADOS por color
+        clientes_afectados_ids = set([c['id'] for c in clientes_afectados])
+        for cliente in clientes_afectados:
+            cliente_id = cliente['id']
+            ha = float(cliente['hectareas'] or 0)
+            monto = float(cliente['monto_asegurado'] or 0)
+            
+            color = mapa_cliente_color.get(cliente_id, 'sin_zona')
+            
+            if color in resultado:
+                resultado[color]['agr_afectados'] += 1
+                resultado[color]['ha_afectadas'] += ha
+                resultado[color]['monto_afectado'] += monto
+        
+        # Redondear valores
+        for color in resultado:
+            resultado[color]['ha_totales'] = round(resultado[color]['ha_totales'], 2)
+            resultado[color]['ha_afectadas'] = round(resultado[color]['ha_afectadas'], 2)
+            resultado[color]['monto_total'] = round(resultado[color]['monto_total'], 2)
+            resultado[color]['monto_afectado'] = round(resultado[color]['monto_afectado'], 2)
+        
+        logger.info("Resumen zonas para aviso %d calculado", numero)
+        return jsonify(resultado)
+    
+    except Exception as e:
+        logger.error("Error en resumen-zonas: %s", str(e))
+        return jsonify({'error': str(e)}), 500
+
+
+@decisiones_bp.route('/api/avisos/<int:numero>/resumen-entidades', methods=['GET'])
+def api_resumen_entidades(numero):
+    """
+    Endpoint: Resumen por ENTIDADES (Depto/Provincia)
+    Retorna: Agricultores totales vs afectados, % damage
+    
+    Returns:
+        {
+            'numero_aviso': numero,
+            'departamentos': [
+                {
+                    'nombre': 'TACNA',
+                    'agr_totales': 100,
+                    'agr_afectados': 45,
+                    'ha_afectadas': 320.5,
+                    'monto_afectado': 1500000.00,
+                    'pct_damage': '45%'
+                },
+                ...
+            ]
+        }
+    """
+    try:
+        # Obtener TODOS los clientes y AFECTADOS
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Conexión BD fallida'}), 500
+        
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Query: TODOS
+        cursor.execute("""
+            SELECT departamento, provincia, COUNT(*) as agr_total, 
+                   SUM(COALESCE(hectareas, 0)) as ha_total,
+                   SUM(COALESCE(monto_asegurado, 0)) as monto_total
+            FROM clientes
+            WHERE estado = 'activo'
+            GROUP BY UPPER(TRIM(departamento)), UPPER(TRIM(provincia))
+            ORDER BY departamento, provincia
+        """)
+        todos_depto = cursor.fetchall()
+        
+        # Query: AFECTADOS (por zonas del aviso)
+        zonas_afectadas = parse_csv_avisos(numero)
+        deptos_unicos = list(set([zona['departamento'].upper().strip() for zona in zonas_afectadas]))
+        
+        if deptos_unicos:
+            placeholders = ','.join(['%s'] * len(deptos_unicos))
+            cursor.execute(f"""
+                SELECT departamento, provincia, COUNT(*) as agr_afectados, 
+                       SUM(COALESCE(hectareas, 0)) as ha_afectadas,
+                       SUM(COALESCE(monto_asegurado, 0)) as monto_afectado
+                FROM clientes
+                WHERE estado = 'activo' AND UPPER(TRIM(departamento)) IN ({placeholders})
+                GROUP BY UPPER(TRIM(departamento)), UPPER(TRIM(provincia))
+                ORDER BY departamento, provincia
+            """, deptos_unicos)
+        else:
+            cursor.execute("SELECT NULL LIMIT 0")
+        
+        afectados_depto = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        # Construir resultado: MERGE todos + afectados
+        resultado_deptos = {}
+        
+        # Agregar TODOS
+        for row in todos_depto:
+            depto = row['departamento'].upper().strip()
+            provincia = row['provincia'].upper().strip() if row.get('provincia') else 'SIN PROVINCIA'
+            
+            key = (depto, provincia)
+            resultado_deptos[key] = {
+                'nombre_depto': depto,
+                'nombre_provincia': provincia,
+                'agr_totales': row['agr_total'],
+                'agr_afectados': 0,
+                'ha_afectadas': 0,
+                'monto_afectado': 0
+            }
+        
+        # Actualizar AFECTADOS
+        for row in afectados_depto:
+            depto = row['departamento'].upper().strip()
+            provincia = row['provincia'].upper().strip() if row.get('provincia') else 'SIN PROVINCIA'
+            
+            key = (depto, provincia)
+            if key in resultado_deptos:
+                resultado_deptos[key]['agr_afectados'] = row['agr_afectados']
+                resultado_deptos[key]['ha_afectadas'] = float(row.get('ha_afectadas', 0))
+                resultado_deptos[key]['monto_afectado'] = float(row.get('monto_afectado', 0))
+        
+        # Calcular % damage
+        departamentos = []
+        for (depto, prov), data in resultado_deptos.items():
+            pct = 0
+            if data['agr_totales'] > 0:
+                pct = round((data['agr_afectados'] / data['agr_totales']) * 100, 1)
+            
+            departamentos.append({
+                'nombre': depto,
+                'provincia': prov,
+                'agr_totales': data['agr_totales'],
+                'agr_afectados': data['agr_afectados'],
+                'ha_afectadas': round(data['ha_afectadas'], 2),
+                'monto_afectado': round(data['monto_afectado'], 2),
+                'pct_damage': f"{pct}%"
+            })
+        
+        logger.info("Resumen entidades para aviso %d calculado: %d deptos", numero, len(departamentos))
+        return jsonify({
+            'numero_aviso': numero,
+            'departamentos': departamentos
+        })
+    
+    except Exception as e:
+        logger.error("Error en resumen-entidades: %s", str(e))
         return jsonify({'error': str(e)}), 500
 
 

@@ -375,6 +375,10 @@ function actualizarDatos() {
             // Los KPIs superiores son ESTÁTICOS (todo el aviso)
             actualizarEstadisticasDinamicas(data.clientes || {});
             actualizarTituloPanel();
+            
+            // ACTUALIZAR TABLAS
+            actualizarTablaZonas();
+            actualizarTablaEntidades();
         })
         .catch(e => console.error('Error actualizando datos:', e));
 }
@@ -527,6 +531,100 @@ function mostrarInfoHover(depto, provincia, distrito) {
 function ocultarInfoHover() {
     const infoDiv = document.getElementById('info-hover');
     infoDiv.style.display = 'none';
+}
+
+function actualizarTablaZonas() {
+    if (!avisoActual) return;
+    
+    console.log('📊 Actualizando Tabla Zonas para aviso:', avisoActual);
+    
+    fetch(`/api/avisos/${avisoActual}/resumen-zonas`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Error:', data.error);
+                return;
+            }
+            
+            const tbody = document.getElementById('tabla-zonas-body');
+            if (!tbody) return;
+            
+            let html = '';
+            const colores = ['roja', 'naranja', 'amarilla'];
+            const iconos = { 'roja': '🔴', 'naranja': '🟠', 'amarilla': '🟡' };
+            
+            for (const color of colores) {
+                const zona = data[color];
+                if (!zona) continue;
+                
+                const agr_total = zona.agr_totales || 0;
+                const agr_afect = zona.agr_afectados || 0;
+                const ha_afect = zona.ha_afectadas || 0;
+                const monto_afect = zona.monto_afectado || 0;
+                
+                const fila_class = `zona-${color}`;
+                
+                html += `
+                    <tr class="${fila_class}">
+                        <td>${iconos[color]} ${color.charAt(0).toUpperCase() + color.slice(1)}</td>
+                        <td>${agr_total}</td>
+                        <td><strong>${agr_afect}</strong></td>
+                        <td>${ha_afect.toLocaleString('es-ES')}</td>
+                        <td>S/ ${monto_afect.toLocaleString('es-ES', {maximumFractionDigits: 0})}</td>
+                    </tr>
+                `;
+            }
+            
+            tbody.innerHTML = html;
+            console.log('✅ Tabla Zonas actualizada');
+        })
+        .catch(e => console.error('Error actualizando tabla zonas:', e));
+}
+
+function actualizarTablaEntidades() {
+    if (!avisoActual) return;
+    
+    console.log('📊 Actualizando Tabla Entidades para aviso:', avisoActual);
+    
+    fetch(`/api/avisos/${avisoActual}/resumen-entidades`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Error:', data.error);
+                return;
+            }
+            
+            const tbody = document.getElementById('tabla-entidades-body');
+            if (!tbody) return;
+            
+            const departamentos = data.departamentos || [];
+            
+            let html = '';
+            for (const depto of departamentos) {
+                const agr_afect = depto.agr_afectados || 0;
+                const ha_afect = depto.ha_afectadas || 0;
+                const monto_afect = depto.monto_afectado || 0;
+                const pct = depto.pct_damage || '0%';
+                
+                html += `
+                    <tr>
+                        <td><strong>${depto.nombre}</strong></td>
+                        <td>${agr_afect}</td>
+                        <td>${ha_afect.toLocaleString('es-ES')}</td>
+                        <td>S/ ${monto_afect.toLocaleString('es-ES', {maximumFractionDigits: 0})}</td>
+                        <td><span class="badge badge-danger">${pct}</span></td>
+                    </tr>
+                `;
+            }
+            
+            if (html === '') {
+                html = '<tr><td colspan="5" class="text-center text-muted">Sin datos</td></tr>';
+            }
+            
+            tbody.innerHTML = html;
+            console.log('✅ Tabla Entidades actualizada');
+        })
+        .catch(e => console.error('Error actualizando tabla entidades:', e));
 }
 
 // ============================================================================

@@ -171,6 +171,92 @@
             height: 500px;
         }
     }
+    
+    /* ===== TABLAS: Zonas y Entidades ===== */
+    .tabla-card {
+        background: white;
+        border-radius: 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+    
+    .tabla-header {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        font-weight: 600;
+    }
+    
+    .tabla-header h5 {
+        color: white;
+        font-weight: 700;
+        font-size: 16px;
+    }
+    
+    .tabla-zonas,
+    .tabla-entidades {
+        font-size: 13px;
+    }
+    
+    .tabla-zonas thead,
+    .tabla-entidades thead {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .tabla-zonas tbody tr,
+    .tabla-entidades tbody tr {
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .tabla-zonas tbody tr:hover,
+    .tabla-entidades tbody tr:hover {
+        background: #f9f9f9;
+    }
+    
+    .tabla-zonas td:first-child {
+        font-weight: 600;
+        min-width: 80px;
+    }
+    
+    .zona-roja {
+        background: rgba(255, 0, 0, 0.1) !important;
+        border-left: 4px solid #FF0000;
+    }
+    
+    .zona-naranja {
+        background: rgba(255, 140, 0, 0.1) !important;
+        border-left: 4px solid #FF8C00;
+    }
+    
+    .zona-amarilla {
+        background: rgba(255, 255, 0, 0.15) !important;
+        border-left: 4px solid #FFFF00;
+    }
+    
+    .tabla-zonas td,
+    .tabla-entidades td {
+        vertical-align: middle;
+        padding: 0.75rem 0.5rem;
+    }
+    
+    .tabla-entidades tbody tr {
+        cursor: pointer;
+    }
+    
+    @media (max-width: 768px) {
+        .tabla-zonas,
+        .tabla-entidades {
+            font-size: 12px;
+        }
+        
+        .tabla-zonas tbody tr,
+        .tabla-entidades tbody tr {
+            padding: 0.5rem;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -286,6 +372,59 @@
             <div class="info-hover" id="info-hover" style="display: none;">
                 <strong>Datos de Zona Seleccionada</strong>
                 <div id="info-hover-content"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- TABLAS: Resumen por Zonas y Entidades -->
+    <div class="row mt-5">
+        <!-- Tabla Zonas: Roja / Naranja / Amarilla -->
+        <div class="col-lg-6">
+            <div class="tabla-card">
+                <div class="tabla-header">
+                    <h5 class="mb-0">📍 Resumen por Zonas de Riesgo</h5>
+                </div>
+                <table class="table table-sm tabla-zonas mb-0">
+                    <thead>
+                        <tr>
+                            <th>Zona</th>
+                            <th>Total</th>
+                            <th>Afectados</th>
+                            <th>Hectáreas</th>
+                            <th>Póliza</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-zonas-body">
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">Cargando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Tabla Entidades: Depto / Provincia -->
+        <div class="col-lg-6">
+            <div class="tabla-card">
+                <div class="tabla-header">
+                    <h5 class="mb-0">🏢 Resumen por Entidades</h5>
+                </div>
+                <table class="table table-sm tabla-entidades mb-0">
+                    <thead>
+                        <tr>
+                            <th>Departamento</th>
+                            <th>Afectados</th>
+                            <th>Hectáreas</th>
+                            <th>Póliza</th>
+                            <th>% Daño</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-entidades-body">
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">Cargando...</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
