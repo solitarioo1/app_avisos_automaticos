@@ -32,19 +32,19 @@
 }
 
 .aviso-card.color-amarillo {
-    background: rgba(255, 193, 7, 0.08);
+    background: rgba(255, 193, 7, 1);
 }
 
 .aviso-card.color-rojo {
-    background: rgba(220, 53, 69, 0.08);
+    background: rgba(220, 53, 69, 1);
 }
 
 .aviso-card.color-naranja {
-    background: rgba(255, 140, 0, 0.08);
+    background: rgba(255, 140, 0, 1);
 }
 
 .aviso-card.color-plomo {
-    background: rgba(108, 117, 125, 0.08);
+    background: rgba(108, 117, 125, 0.5);
 }
 
 .aviso-header {

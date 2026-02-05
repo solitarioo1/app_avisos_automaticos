@@ -22,7 +22,7 @@
 @import url('./mapas.css');
 @import url('./dashboard.css');
 @import url('./decisiones.css');
-@import url('./whatsapp.css');
+@import url('./whatsapp.css'); /* difusion.html usa estilos whatsapp.css */
 
 /* ============================================================================
    ESTILOS GLOBALES ADICIONALES

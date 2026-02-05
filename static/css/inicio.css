@@ -6,26 +6,41 @@
 .welcome-section {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 500px;
+    align-items: stretch;
+    justify-content: flex-start;
+    min-height: 50vh;
     text-align: center;
-    padding: 2rem;
+    padding: 0;
+    margin: 0;
+    margin-top: -90px;
 }
 
 .hero-image {
-    margin-bottom: 2rem;
-    max-width: 600px;
-    width: 100%;
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
+    flex-shrink: 0;
 }
 
 .hero-image img {
     width: 100%;
-    height: auto;
-    max-height: 300px;
+    height: 33rem;
+    /* height:50px; */
     object-fit: cover;
-    border-radius: var(--border-radius-lg);
-    box-shadow: var(--shadow-lg);
+    border-radius: 0;
+    box-shadow: none;
+    display: block;
+}
+
+.welcome-message {
+    padding: 3rem 2rem;
+    background: white;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 .welcome-message h1 {
@@ -43,8 +58,11 @@
 /* Responsive */
 @media (max-width: 768px) {
     .welcome-section {
-        min-height: 400px;
-        padding: 1rem;
+        margin-top: 130px;
+    }
+    
+    .welcome-message {
+        padding: 2rem 1rem;
     }
     
     .welcome-message h1 {

@@ -14,3 +14,4 @@ python-dotenv
 requests
 shapely
 pandas
+openpyxl

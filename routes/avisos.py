@@ -742,13 +742,13 @@ def api_avisos():
                     except (ValueError, OSError):
                         pass
 
-        avisos = sorted(avisos_dict.values(),
+        avisos_sorted = sorted(avisos_dict.values(),
                        key=lambda x: x['numero'],
                        reverse=True)
 
         return jsonify({
             'success': True,
-            'avisos': avisos
+            'avisos': avisos_sorted
         }), 200
 
     except OSError as e:

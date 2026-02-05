@@ -65,6 +65,9 @@
 
     .nivel-option input[type="radio"] {
         margin-right: 10px;
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
     }
 
     .modal-backdrop {
@@ -209,9 +212,6 @@
                             <label class="form-label">Filtrar por Entidad (Opcional)</label>
                             <select class="form-select" id="entidad-filtro">
                                 <option value="">Todas las entidades</option>
-                                <option value="caja-rural">Caja Rural</option>
-                                <option value="banco-pichincha">Banco Pichincha</option>
-                                <option value="financiera-autonoma">Financiera Autónoma</option>
                             </select>
                         </div>
 
@@ -308,6 +308,9 @@
                         <div class="d-flex gap-2">
                             <button type="button" class="btn btn-outline-info" onclick="mostrarPreview()">
                                 <i class="bi bi-eye"></i> Previsualizar
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="exportarCSV()">
+                                <i class="bi bi-download"></i> Exportar CSV
                             </button>
                             <button type="submit" class="btn btn-success">
                                 <i class="bi bi-whatsapp"></i> Enviar
@@ -450,6 +453,145 @@
 
 {% block scripts %}
 <script>
+// ============================================================================
+// CARGAR AVISOS EN SELECT
+// ============================================================================
+async function cargarAvisos() {
+    try {
+        const response = await fetch('/api/avisos');
+        const data = await response.json();
+        
+        if (data.success && data.avisos) {
+            const select = document.getElementById('aviso-seleccionado');
+            const defaultOption = select.querySelector('option[value=""]');
+            select.innerHTML = '';
+            
+            if (defaultOption) {
+                select.appendChild(defaultOption);
+            }
+            
+            data.avisos.forEach(aviso => {
+                const option = document.createElement('option');
+                option.value = aviso.numero;
+                option.textContent = `Aviso ${aviso.numero} - ${aviso.color}`;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error cargando avisos:', error);
+    }
+}
+
+// ============================================================================
+// ACTUALIZAR ESTADÍSTICAS DE CLIENTES
+// ============================================================================
+async function actualizarEstadisticas() {
+    const aviso = document.getElementById('aviso-seleccionado').value;
+    
+    if (!aviso) {
+        document.getElementById('stat-rojo').textContent = '-';
+        document.getElementById('stat-naranja').textContent = '-';
+        document.getElementById('stat-amarillo').textContent = '-';
+        document.getElementById('stat-total').textContent = '-';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/difusion/clientes/${aviso}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const stats = data.stats;
+            document.getElementById('stat-rojo').textContent = stats.rojo || 0;
+            document.getElementById('stat-naranja').textContent = stats.naranja || 0;
+            document.getElementById('stat-amarillo').textContent = stats.amarillo || 0;
+            document.getElementById('stat-total').textContent = stats.total || 0;
+        } else {
+            console.error('Error:', data.error);
+        }
+    } catch (error) {
+        console.error('Error actualizando estadísticas:', error);
+    }
+}
+
+// ============================================================================
+// EVENT LISTENERS
+// ============================================================================
+
+// ============================================================================
+// CARGAR ENTIDADES DESDE BD
+// ============================================================================
+async function cargarEntidades() {
+    try {
+        const response = await fetch('/api/entidades');
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+            const select = document.getElementById('entidad-filtro');
+            const defaultOption = select.querySelector('option[value=""]');
+            
+            // Limpiar opciones excepto la primera
+            while (select.children.length > 1) {
+                select.removeChild(select.lastChild);
+            }
+            
+            // Agregar entidades dinámicamente
+            data.data.forEach(entidad => {
+                const option = document.createElement('option');
+                option.value = entidad.id;
+                option.textContent = entidad.nombre;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error cargando entidades:', error);
+    }
+}
+
+// ============================================================================
+// EXPORTAR CSV DE CLIENTES
+// ============================================================================
+function exportarCSV() {
+    const aviso = document.getElementById('aviso-seleccionado').value;
+    
+    if (!aviso) {
+        alert('Por favor selecciona un aviso para exportar');
+        return;
+    }
+    
+    // Crear un link temporal para descargar el archivo
+    const url = `/api/difusion/clientes/export/${aviso}`;
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `clientes_aviso_${aviso}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// ============================================================================
+// EVENT LISTENERS
+// ============================================================================
+
+// Cargar avisos al abrir la página
+document.addEventListener('DOMContentLoaded', function() {
+    cargarAvisos();
+    cargarEntidades();
+});
+
+// Listener para cambios de aviso
+document.getElementById('aviso-seleccionado').addEventListener('change', function() {
+    actualizarEstadisticas();
+});
+
+// Listener para cambios de nivel
+document.querySelectorAll('input[name="nivel"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        // Aquí se actualiza la lógica si es necesario
+        console.log('Nivel seleccionado:', this.value);
+    });
+});
+
 // Seleccionar canales
 document.querySelectorAll('.canal-option').forEach(option => {
     option.addEventListener('click', function() {
@@ -470,7 +612,9 @@ document.getElementById('programar-envio').addEventListener('change', function()
     document.getElementById('programa-config').style.display = this.checked ? 'block' : 'none';
 });
 
-// Previsualización
+// ============================================================================
+// PREVISUALIZACIÓN
+// ============================================================================
 function mostrarPreview() {
     const aviso = document.getElementById('aviso-seleccionado').value;
     const nivel = document.querySelector('input[name="nivel"]:checked').value;
@@ -481,17 +625,19 @@ function mostrarPreview() {
         return;
     }
 
-    // Simular datos (luego vienen del backend)
-    const datos = {
-        rojo: 45, naranja: 120, amarillo: 280,
-        whatsapp: 380, sms: 45, email: 20
+    // Obtener datos de la tabla de estadísticas
+    const stats = {
+        rojo: parseInt(document.getElementById('stat-rojo').textContent) || 0,
+        naranja: parseInt(document.getElementById('stat-naranja').textContent) || 0,
+        amarillo: parseInt(document.getElementById('stat-amarillo').textContent) || 0,
+        total: parseInt(document.getElementById('stat-total').textContent) || 0
     };
 
     let total = 0;
-    if (nivel === 'todos') total = datos.rojo + datos.naranja + datos.amarillo;
-    else if (nivel === 'rojo') total = datos.rojo;
-    else if (nivel === 'naranja') total = datos.naranja;
-    else if (nivel === 'amarillo') total = datos.amarillo;
+    if (nivel === 'todos') total = stats.rojo + stats.naranja + stats.amarillo;
+    else if (nivel === 'rojo') total = stats.rojo;
+    else if (nivel === 'naranja') total = stats.naranja;
+    else if (nivel === 'amarillo') total = stats.amarillo;
 
     document.getElementById('prev-aviso').textContent = '#' + aviso;
     document.getElementById('prev-nivel').textContent = nivel.charAt(0).toUpperCase() + nivel.slice(1);
@@ -501,8 +647,16 @@ function mostrarPreview() {
     // Por canal
     if (canal === 'whatsapp') {
         document.getElementById('prev-whatsapp').textContent = Math.floor(total * 0.85);
-        document.getElementById('prev-sms').textContent = '0';
+        document.getElementById('prev-sms').textContent = Math.floor(total * 0.10);
+        document.getElementById('prev-email').textContent = Math.floor(total * 0.05);
+    } else if (canal === 'sms') {
+        document.getElementById('prev-whatsapp').textContent = '0';
+        document.getElementById('prev-sms').textContent = total;
         document.getElementById('prev-email').textContent = '0';
+    } else if (canal === 'email') {
+        document.getElementById('prev-whatsapp').textContent = '0';
+        document.getElementById('prev-sms').textContent = '0';
+        document.getElementById('prev-email').textContent = total;
     }
 
     const bloques = document.getElementById('envio-bloques').checked;

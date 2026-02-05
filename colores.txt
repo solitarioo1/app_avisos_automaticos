@@ -8,7 +8,7 @@
 #88e5e4 
 #04ccc4     
 #f5c0ab
-
+#FEEBE6
 
 nota para apertura de .venv
 # Eliminar venv corrupto

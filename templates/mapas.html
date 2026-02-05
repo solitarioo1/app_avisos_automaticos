@@ -59,6 +59,30 @@
     .status-ready { background: #d4edda; color: #155724; }
     .status-pending { background: #fff3cd; color: #856404; }
     
+    /* Botones personalizados naranja-blanco */
+    .btn-naranja-turquesa {
+        background-color: #ff8c00;
+        color: white;
+        border: none;
+        font-weight: 600;
+        padding: 10px 16px;
+        min-height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .btn-naranja-turquesa:hover {
+        background-color: #e67e00;
+        color: white;
+    }
+    
+    .btn-naranja-turquesa:disabled {
+        background-color: #ccc;
+        color: #999;
+        cursor: not-allowed;
+    }
+    
     .aviso-footer { padding: 1rem; border-top: 1px solid #e9ecef; display: flex; gap: 0.5rem; }
     .aviso-footer .btn-sm { flex: 1; padding: 6px 8px; font-size: 12px; }
     
@@ -67,7 +91,8 @@
     .carousel-nav:hover { background: #e0e0e0; }
     .carousel-nav:disabled { opacity: 0.5; cursor: not-allowed; }
     .carousel-container { flex: 1; position: relative; overflow: hidden; border-radius: 8px; }
-    .carousel-imagen { max-width: 100%; height: 300px; object-fit: contain; background: #f9f9f9; }
+    .carousel-imagen { max-width: 100%; height: 450px; object-fit: contain; background: #f9f9f9; cursor: zoom-in; transition: all 0.3s ease; }
+    .carousel-imagen.zoomed { cursor: zoom-out; }
 </style>
 
 <div class="container-fluid p-3 mapas-container">
@@ -115,9 +140,9 @@
 <div class="modal fade" id="mapaModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="mapaModalTitle">Mapas del Aviso</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header justify-content-center">
+                <h5 class="modal-title text-center" id="mapaModalTitle">Mapas del Aviso</h5>
+                <button type="button" class="btn-close position-absolute" style="right: 1rem;" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center">
                 <div id="carouselContent"></div>
@@ -219,15 +244,15 @@
                             </div>
                             <div class="aviso-footer">
                                 ${info.mapas_creados && mapas.mapas.length > 0 ? `
-                                    <button class="btn btn-sm btn-info" onclick="abrirCarruselModal(${aviso.numero})">
+                                    <button class="btn btn-sm btn-naranja-turquesa" onclick="abrirCarruselModal(${aviso.numero})">
                                         <i class="bi bi-eye"></i> Ver Todos
                                     </button>
-                                    <button class="btn btn-sm btn-warning" onclick="generarMapas(${aviso.numero})">
+                                    <button class="btn btn-sm btn-naranja-turquesa" onclick="generarMapas(${aviso.numero})">
                                         <i class="bi bi-arrow-repeat"></i> Regenerar
                                     </button>
-                                ` : `<button class="btn btn-sm btn-info" disabled><i class="bi bi-eye"></i> Ver Todos</button>
+                                ` : `<button class="btn btn-sm btn-naranja-turquesa" disabled><i class="bi bi-eye"></i> Ver Todos</button>
                                 ${['rojo', 'naranja'].includes(info.color.toLowerCase()) ? `
-                                    <button class="btn btn-sm btn-warning" onclick="generarMapas(${aviso.numero})">
+                                    <button class="btn btn-sm btn-naranja-turquesa" onclick="generarMapas(${aviso.numero})">
                                         <i class="bi bi-play-circle"></i> Generar
                                     </button>
                                 ` : ''}`}
@@ -276,25 +301,39 @@
     function mostrarCarrusel(numero) {
         const state = carousel_state[numero];
         const mapa = state.mapas[state.index];
+        const departamento = mapa.nombre.split('_')[0] || 'Departamento';
         
         let html = `
             <div class="carousel-mapas">
                 <button class="carousel-nav" onclick="carouselAnterior(${numero})" ${state.index === 0 ? 'disabled' : ''}>◀</button>
                 <div class="carousel-container">
-                    <img class="carousel-imagen" src="${mapa.url}" alt="${mapa.nombre}">
+                    <img class="carousel-imagen" src="${mapa.url}" alt="${mapa.nombre}" onclick="toggleZoom(this)" id="mapaImg-${numero}">
                 </div>
                 <button class="carousel-nav" onclick="carouselSiguiente(${numero})" ${state.index === state.mapas.length - 1 ? 'disabled' : ''}>▶</button>
             </div>
             <p style="text-align: center; margin: 0.5rem 0; font-size: 12px; color: #666;">
                 ${state.index + 1} de ${state.mapas.length}
             </p>
-            <a href="${mapa.url}" download class="btn btn-sm btn-primary w-100">
+            <a href="${mapa.url}" download class="btn btn-naranja-turquesa w-100">
                 <i class="bi bi-download"></i> Descargar ${mapa.nombre}
             </a>
         `;
         
-        document.getElementById('mapaModalTitle').textContent = `Aviso #${numero} - Mapas`;
+        document.getElementById('mapaModalTitle').textContent = `${departamento}`;
         document.getElementById('carouselContent').innerHTML = html;
+    }
+    
+    function toggleZoom(img) {
+        if (img.classList.contains('zoomed')) {
+            img.classList.remove('zoomed');
+            img.style.height = '450px';
+            img.style.cursor = 'zoom-in';
+        } else {
+            img.classList.add('zoomed');
+            img.style.height = 'auto';
+            img.style.maxHeight = '90vh';
+            img.style.cursor = 'zoom-out';
+        }
     }
     
     function carouselAnterior(numero) {

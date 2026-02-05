@@ -1,11 +1,15 @@
 """
 Rutas de Utilidades - Páginas principales, dashboard, estadísticas y configuración
 """
-from flask import Blueprint, render_template, request, jsonify, send_from_directory
+from flask import Blueprint, render_template, request, jsonify, send_from_directory, send_file, make_response
 from pathlib import Path
 import os
 import logging
+import csv
 from datetime import datetime, timedelta
+import psycopg2
+import psycopg2.extras
+from io import StringIO
 
 # Configuración
 BASE_DIR = Path(__file__).parent.parent
@@ -101,22 +105,6 @@ def inicio():
     return render_template('inicio.html')
 
 
-@utils_bp.route('/dashboard', methods=['GET'])
-def dashboard_page():
-    """Dashboard principal después del login"""
-    stats = {
-        'avisos_activos': 0,
-        'departamentos_afectados': 0,
-        'agricultores_afectados': 0,
-        'cultivos_riesgo': 0
-    }
-    evento_actual = None
-    avisos_recientes = []
-    mapas_recientes = []
-    return render_template('dashboard.html', stats=stats, evento_actual=evento_actual, 
-                         avisos_recientes=avisos_recientes, mapas_recientes=mapas_recientes)
-
-
 @utils_bp.route('/decisiones')
 def decisiones():
     """Página de toma de decisiones - Centro de comando"""
@@ -132,25 +120,35 @@ def decisiones():
         return render_template('decisiones.html', stats={}, evento_actual=None)
 
 
-@utils_bp.route('/whatsapp', methods=['GET'])
-def whatsapp():
-    """Página de WhatsApp masivo"""
+@utils_bp.route('/difusion', methods=['GET'])
+def difusion():
+    """Página de Difusión - Envío automático de avisos meteorológicos"""
     try:
         stats_wa = obtener_stats_whatsapp()
         avisos_disponibles = obtener_avisos_para_whatsapp()
         historial = obtener_historial_whatsapp()
         contactos = obtener_contactos_recientes()
         
-        return render_template('whatsapp.html', 
+        return render_template('difusion.html', 
                              stats=stats_wa,
                              avisos_disponibles=avisos_disponibles,
                              historial_envios=historial,
                              contactos_recientes=contactos)
     except Exception as e:
-        logger.error(f"Error en página whatsapp: {str(e)}")
-        return render_template('whatsapp.html', 
+        logger.error(f"Error en página difusion: {str(e)}")
+        return render_template('difusion.html', 
                              stats={}, avisos_disponibles=[], 
                              historial_envios=[], contactos_recientes=[])
+
+
+@utils_bp.route('/mensajeria', methods=['GET'])
+def mensajeria():
+    """Página de Mensajería - Envío general de mensajes (SMS, Email, WhatsApp)"""
+    try:
+        return render_template('mensajeria.html')
+    except Exception as e:
+        logger.error(f"Error en página mensajeria: {str(e)}")
+        return render_template('mensajeria.html')
 
 
 @utils_bp.route('/configuracion', methods=['GET'])
@@ -321,6 +319,237 @@ def obtener_aviso(numero_aviso):
 # ============================================================================
 # MANEJADORES DE ERRORES
 # ============================================================================
+
+
+# ============================================================================
+# RUTAS - API ENDPOINTS
+# ============================================================================
+
+@utils_bp.route('/api/difusion/clientes/<int:numero>', methods=['GET'])
+def api_clientes_afectados(numero):
+    """API para obtener estadísticas de clientes afectados por aviso y nivel"""
+    try:
+        aviso_dir = OUTPUT_DIR / f'aviso_{numero}'
+        
+        if not aviso_dir.exists():
+            return jsonify({
+                'success': False,
+                'error': f'Aviso {numero} no encontrado'
+            }), 404
+        
+        stats = {
+            'rojo': 0,
+            'naranja': 0,
+            'amarillo': 0,
+            'total': 0
+        }
+        
+        # Leer CSVs de los 3 días disponibles
+        for dia in range(1, 4):
+            csv_path = aviso_dir / f'clientes_por_nivel_dia{dia}.csv'
+            
+            if csv_path.exists():
+                try:
+                    with open(csv_path, 'r', encoding='utf-8') as f:
+                        reader = csv.DictReader(f)
+                        for row in reader:
+                            nivel = row.get('nivel', '').lower().strip()
+                            
+                            if nivel == 'rojo':
+                                stats['rojo'] += 1
+                            elif nivel == 'naranja':
+                                stats['naranja'] += 1
+                            elif nivel == 'amarillo':
+                                stats['amarillo'] += 1
+                
+                except Exception as e:
+                    logger.warning(f"Error leyendo CSV dia{dia}: {str(e)}")
+        
+        stats['total'] = stats['rojo'] + stats['naranja'] + stats['amarillo']
+        
+        return jsonify({
+            'success': True,
+            'numero': numero,
+            'stats': stats
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Error en API clientes afectados: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# ============================================================================
+# ENDPOINT: Obtener entidades de la BD
+# ============================================================================
+@utils_bp.route('/api/entidades', methods=['GET'])
+def api_entidades():
+    """Obtiene lista de entidades desde la BD"""
+    try:
+        conn = psycopg2.connect(
+            host=os.getenv('DB_HOST'),
+            database=os.getenv('DB_NAME'),
+            user=os.getenv('DB_USER'),
+            password=os.getenv('DB_PASSWORD')
+        )
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        cursor.execute("SELECT id, nombre FROM entidades ORDER BY nombre")
+        entidades = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'data': entidades
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Error obteniendo entidades: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# ============================================================================
+# ENDPOINT: Exportar CSV de clientes por aviso
+# ============================================================================
+@utils_bp.route('/api/difusion/clientes/export/<int:numero>', methods=['GET'])
+def api_export_clientes(numero):
+    """Exporta CSV con clientes afectados por un aviso - Cruza datos de CSV + BD"""
+    try:
+        output_path = OUTPUT_DIR / f'aviso_{numero}'
+        
+        # 1. Recopilar IDs y niveles de clientes del CSV
+        clientes_mapping = {}  # {id: {'nivel': 'Rojo', ...}}
+        
+        for dia in range(1, 4):
+            csv_path = output_path / f'clientes_por_nivel_dia{dia}.csv'
+            
+            if csv_path.exists():
+                try:
+                    with open(csv_path, 'r', encoding='utf-8') as f:
+                        reader = csv.DictReader(f)
+                        for row in reader:
+                            cliente_id = row.get('id')
+                            nivel = row.get('nivel', '').lower().strip()
+                            
+                            if cliente_id and cliente_id not in clientes_mapping:
+                                clientes_mapping[cliente_id] = {
+                                    'nivel': nivel,
+                                    'latitud': row.get('latitud', ''),
+                                    'longitud': row.get('longitud', '')
+                                }
+                
+                except Exception as e:
+                    logger.warning(f"Error leyendo CSV dia{dia}: {str(e)}")
+        
+        if not clientes_mapping:
+            return jsonify({
+                'success': False,
+                'error': f'No se encontraron datos para aviso {numero}'
+            }), 404
+        
+        # 2. Obtener datos completos de la BD
+        try:
+            conn = psycopg2.connect(
+                host=os.getenv('DB_HOST'),
+                database=os.getenv('DB_NAME'),
+                user=os.getenv('DB_USER'),
+                password=os.getenv('DB_PASSWORD')
+            )
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            
+            # Obtener todos los clientes de la BD con JOINs a entidades y cultivos
+            cliente_ids = tuple(clientes_mapping.keys())
+            placeholders = ','.join(['%s'] * len(cliente_ids))
+            
+            query = f"""
+                SELECT 
+                    c.id, 
+                    CONCAT(c.nombre, ' ', c.apellido) as nombre,
+                    c.telefono, 
+                    c.correo, 
+                    c.departamento, 
+                    c.provincia, 
+                    c.distrito,
+                    c.hectareas,
+                    tc.nombre as cultivo,
+                    c.monto_asegurado,
+                    c.fecha_registro as fecha,
+                    e.nombre as entidad
+                FROM clientes c
+                LEFT JOIN tabla_cultivos tc ON c.cultivo_id = tc.id
+                LEFT JOIN entidades e ON c.entidad_id = e.id
+                WHERE c.id IN ({placeholders})
+                ORDER BY c.id
+            """
+            
+            cursor.execute(query, cliente_ids)
+            clientes_bd = cursor.fetchall()
+            
+            cursor.close()
+            conn.close()
+            
+        except Exception as e:
+            logger.error(f"Error consultando BD: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': f'Error en BD: {str(e)}'
+            }), 500
+        
+        # 3. Combinar datos CSV + BD
+        clientes_completos = []
+        
+        for cliente in clientes_bd:
+            cliente_id = str(cliente['id'])
+            
+            if cliente_id in clientes_mapping:
+                cliente_data = dict(cliente)
+                cliente_data['nivel'] = clientes_mapping[cliente_id]['nivel']
+                clientes_completos.append(cliente_data)
+        
+        if not clientes_completos:
+            return jsonify({
+                'success': False,
+                'error': 'No se encontraron clientes con datos completos'
+            }), 404
+        
+        # 4. Crear CSV en memoria
+        output = StringIO()
+        
+        # Definir campos para exportación (en orden específico)
+        fields = ['id', 'nombre', 'telefono', 'correo', 'departamento', 'provincia', 'distrito', 
+                  'hectareas', 'cultivo', 'nivel', 'entidad', 'monto_asegurado', 'fecha']
+        
+        writer = csv.DictWriter(output, fieldnames=fields, extrasaction='ignore')
+        writer.writeheader()
+        writer.writerows(clientes_completos)
+        
+        # 5. Preparar respuesta
+        csv_string = output.getvalue()
+        filename = f'clientes_aviso_{numero}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+        
+        # Retornar como descarga
+        response = make_response(csv_string)
+        response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+        response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+        
+        logger.info(f"✓ CSV exportado: {filename} ({len(clientes_completos)} registros)")
+        
+        return response, 200
+    
+    except Exception as e:
+        logger.error(f"Error exportando CSV: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 
 @utils_bp.errorhandler(404)
 def not_found(error):

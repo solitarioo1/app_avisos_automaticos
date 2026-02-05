@@ -81,3 +81,7 @@ Thumbs.db
 
 #================= opcional============
 resumen.md
+*.sql
+*.txt
+*.sh
+
