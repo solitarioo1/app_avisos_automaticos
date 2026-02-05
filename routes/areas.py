@@ -250,3 +250,109 @@ def descargar_csv(numero, dia):
     except (IOError, ValueError) as e:
         logger.error("Error descargando CSV: %s", str(e))
         return jsonify({'error': str(e)}), 500
+
+
+# ============= HELPER FUNCTION (NO FLASK) =============
+def generar_csv_clientes_por_nivel(numero, dia, shp_path=None):
+    """
+    Función helper para generar CSV de clientes por nivel SIN dependencias Flask.
+    Llamada desde procesar_aviso.py durante pipeline.
+    
+    Args:
+        numero: ID del aviso
+        dia: Día (1, 2, 3)
+        shp_path: Ruta al shapefile (si no está en TEMP/aviso_{numero}/dia{dia}/view_aviso.shp)
+    
+    Returns:
+        Cantidad de registros guardados o None si error
+    """
+    try:
+        if shp_path is None:
+            shp_path = TEMP_DIR / f'aviso_{numero}' / f'dia{dia}' / 'view_aviso.shp'
+        else:
+            shp_path = Path(shp_path)
+        
+        aviso_output = OUTPUT_DIR / f'aviso_{numero}'
+        aviso_output.mkdir(parents=True, exist_ok=True)
+        
+        if not shp_path.exists():
+            logger.error(f"SHP no encontrado: {shp_path}")
+            return None
+        
+        # Leer SHP
+        shp_alerta = gpd.read_file(str(shp_path))
+        
+        # Encontrar columna de nivel
+        columna_color = None
+        for col in ['nivel', 'color', 'NIVEL', 'COLOR', 'Nivel', 'Color']:
+            if col in shp_alerta.columns:
+                columna_color = col
+                break
+        
+        if not columna_color:
+            logger.error(f"No se encontró columna de nivel. Disponibles: {list(shp_alerta.columns)}")
+            return None
+        
+        # Obtener clientes de BD
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, CONCAT(nombre, ' ', apellido) as nombre_cliente, latitud, longitud, hectareas
+                FROM clientes 
+                WHERE latitud IS NOT NULL AND longitud IS NOT NULL
+                ORDER BY id
+            """)
+            clientes_data = cursor.fetchall()
+            cursor.close()
+            conn.close()
+        except psycopg2.Error as e:
+            logger.error(f"Error consultando BD: {e}")
+            return None
+        
+        if not clientes_data:
+            logger.warning("No hay clientes con coordenadas")
+            return None
+        
+        # Crear GeoDataFrame
+        clientes_df = pd.DataFrame(clientes_data, columns=['id', 'nombre_cliente', 'latitud', 'longitud', 'hectareas'])
+        clientes_geo = gpd.GeoDataFrame(
+            clientes_df,
+            geometry=gpd.points_from_xy(clientes_df['longitud'], clientes_df['latitud']),
+            crs="EPSG:4326"
+        )
+        
+        # Igualar CRS
+        if clientes_geo.crs != shp_alerta.crs:
+            clientes_geo = clientes_geo.to_crs(shp_alerta.crs)
+        
+        # Spatial join
+        resultado = gpd.sjoin(
+            clientes_geo,
+            shp_alerta[[columna_color, 'geometry']],
+            how='left',
+            predicate='within'
+        )
+        
+        resultado_csv = resultado.drop(columns=['geometry', 'index_right']).copy()
+        resultado_csv = resultado_csv.rename(columns={columna_color: 'nivel'})
+        
+        # Mapear niveles
+        mapeo_nivel_color = {
+            'Nivel 4': 'Rojo', 'Nivel 3': 'Naranja', 'Nivel 2': 'Amarillo', 'Nivel 1': 'Verde',
+            4: 'Rojo', 3: 'Naranja', 2: 'Amarillo', 1: 'Verde',
+            'Rojo': 'Rojo', 'Naranja': 'Naranja', 'Amarillo': 'Amarillo', 'Verde': 'Verde'
+        }
+        resultado_csv['nivel'] = resultado_csv['nivel'].map(mapeo_nivel_color).fillna('Verde')
+        
+        # Guardar CSV
+        csv_path = aviso_output / f'clientes_por_nivel_dia{dia}.csv'
+        resultado_csv.to_csv(csv_path, index=False, encoding='utf-8')
+        
+        cantidad = len(resultado_csv)
+        logger.info(f"✓ CSV guardado: {csv_path} ({cantidad} registros)")
+        return cantidad
+        
+    except Exception as e:
+        logger.error(f"Error en generar_csv_clientes_por_nivel: {e}")
+        return None
