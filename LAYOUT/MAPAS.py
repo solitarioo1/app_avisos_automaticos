@@ -117,7 +117,48 @@ LEYENDA_Y1 = BLOQUE_MAPA_Y1 + 60
 # FUNCIONES AUXILIARES
 # ============================================================================
 
-def texto_multilinea(ax, x, y, texto, max_ancho_chars, fontsize, **kwargs):
+from datetime import datetime
+
+def convertir_fecha_legible(fecha_str):
+    """Convierte fecha a formato: LUNES 29 ENERO DEL 2025"""
+    try:
+        # Limpiar strings con 'T' (ISO format)
+        fecha_str = fecha_str.replace('T', ' ').strip()
+        
+        # Intentar diferentes formatos
+        if ' ' in fecha_str:
+            fecha_obj = datetime.strptime(fecha_str.split(' ')[0], '%Y-%m-%d')
+        else:
+            fecha_obj = datetime.strptime(fecha_str[:10], '%Y-%m-%d')
+        
+        dias = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO']
+        meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 
+                 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE']
+        dia_nombre = dias[fecha_obj.weekday()]
+        mes_nombre = meses[fecha_obj.month - 1]
+        return f"{dia_nombre} {fecha_obj.day} {mes_nombre} DEL {fecha_obj.year}"
+    except Exception as e:
+        print(f"Error en convertir_fecha_legible: {fecha_str} - {e}")
+        return fecha_str
+
+def convertir_hora(fecha_str):
+    """Extrae hora: 18:00 → 6:00PM"""
+    try:
+        fecha_obj = datetime.strptime(fecha_str, '%Y-%m-%d %H:%M:%S')
+        return fecha_obj.strftime('%I:%M%p').lstrip('0')
+    except:
+        return ''
+
+def calcular_duracion_horas(fecha_inicio_str, fecha_fin_str):
+    """Calcula duración en horas"""
+    try:
+        f_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d %H:%M:%S')
+        f_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d %H:%M:%S')
+        return int((f_fin - f_inicio).total_seconds() / 3600)
+    except:
+        return 0
+
+def texto_multilinea(ax, x, y, texto, max_ancho_chars, fontsize, max_lineas=None, **kwargs):
     """
     Divide texto largo en múltiples líneas
     
@@ -341,14 +382,15 @@ else:
     fecha_fin = "2025-12-18 23:59:00"
     descripcion = "Descripción de prueba para el aviso."
 
-# Título principal (centrado, más grande y elegante)
+# Título principal (máx 3 líneas)
 texto_multilinea(
     ax,
     MARCO_X1 + MARCO_ANCHO/2,
-    BLOQUE_HEADER_Y1 + BLOQUE_HEADER_ALTURA - 30,
+    BLOQUE_HEADER_Y1 + BLOQUE_HEADER_ALTURA - 25,
     titulo,
-    max_ancho_chars=50,
-    fontsize=20,  # más grande
+    max_ancho_chars=45,
+    max_lineas=3,
+    fontsize=18,
     fontweight='bold',
     va='top',
     ha='center',
@@ -356,24 +398,25 @@ texto_multilinea(
     fontfamily=Estilos.FUENTE_ELEGANTE
 )
 
-# Subtítulo: solo el nombre del departamento (más grande y elegante)
+# Departamento
 ax.text(
     MARCO_X1 + MARCO_ANCHO/2,
-    BLOQUE_HEADER_Y1 + 90,
+    BLOQUE_HEADER_Y1 + 75,
     DEPARTAMENTO_OBJETIVO,
-    fontsize=16,  # más grande
+    fontsize=14,
     ha='center', va='center',
     fontweight='bold',
     color=Estilos.COLOR_TEXTO_PRINCIPAL,
     fontfamily=Estilos.FUENTE_ELEGANTE
 )
 
-# Fecha del evento (inicio y fin, más grande y elegante)
+# Día del evento (formato legible)
+fecha_evento_legible = convertir_fecha_legible(fecha_inicio)
 ax.text(
     MARCO_X1 + MARCO_ANCHO/2,
     BLOQUE_HEADER_Y1 + 30,
-    f'Evento: {fecha_inicio} a {fecha_fin}',
-    fontsize=14,  # más grande
+    f'{fecha_evento_legible}',
+    fontsize=13,
     ha='center', va='center',
     style='italic',
     color=Estilos.COLOR_TEXTO_ITALICO,
@@ -398,7 +441,7 @@ shp_deptos = gpd.read_file('DELIMITACIONES/DEPARTAMENTOS/DEPARTAMENTOS.shp')
 shp_provincias = gpd.read_file('DELIMITACIONES/PROVINCIAS/PROVINCIAS.shp')
 
 # Cargar SHP de riesgo desde variable de entorno o parámetro
-shp_riesgo_path = os.getenv('SHP_RIESGO_PATH', 'DESCARGADOS_DB/aviso_452_3/view_aviso.shp')
+shp_riesgo_path = os.getenv('SHP_RIESGO_PATH', f'DESCARGADOS_DB/aviso_{numero_aviso}_3/view_aviso.shp')
 if not os.path.exists(shp_riesgo_path):
     print(f"❌ Error: SHP de riesgo no encontrado en {shp_riesgo_path}")
     sys.exit(1)
@@ -596,18 +639,28 @@ cargar_logo(ax, Estilos.RUTA_LOGO,
         MARCO_X1, FILA1_Y1, LOGO_ANCHO, FILA1_ALTURA)
 
 
-# Fechas (INFO, más grande y elegante)
-padding_info = 15
-fechas_texto = f"""fecha de elaboración: {fecha_emision}\nInicio del evento: {fecha_inicio}\nFin del evento: {fecha_fin}"""
+# Fechas e información (formato legible)
+fecha_emision_legible = convertir_fecha_legible(fecha_emision)
+fecha_inicio_legible = convertir_fecha_legible(fecha_inicio)
+fecha_fin_legible = convertir_fecha_legible(fecha_fin)
+hora_inicio = convertir_hora(fecha_inicio)
+hora_fin = convertir_hora(fecha_fin)
+duracion_evento = int(duracion_horas)
+
+fechas_texto = f"""ELABORACIÓN DEL MAPA: {fecha_emision_legible}
+INICIO DEL EVENTO: {fecha_inicio_legible} {hora_inicio}
+FIN DEL EVENTO: {fecha_fin_legible} {hora_fin}
+DURACIÓN DEL EVENTO: {duracion_evento} HORAS"""
+
 ax.text(
-    SEP_VERTICAL_X + (MARCO_X2 - SEP_VERTICAL_X)/2,
+    SEP_VERTICAL_X + 20,
     FILA1_Y1 + FILA1_ALTURA/2,
     fechas_texto,
-    fontsize=14,  # más grande
-    va='center', ha='center',
-    style='italic',
+    fontsize=13,
+    va='center', ha='left',
     color=Estilos.COLOR_TEXTO_ITALICO,
-    linespacing=1.6,
+    linespacing=1.8,
+    fontweight='bold',
     fontfamily=Estilos.FUENTE_ELEGANTE
 )
 
@@ -634,16 +687,16 @@ ax.text(
     fontfamily=Estilos.FUENTE_ELEGANTE
 )
 
-# RECOMENDACIONES (usa la descripción del aviso, más grande, centrado y elegante)
+# RECOMENDACIONES (justificado, sin salirse del recuadro)
 texto_multilinea(
     ax,
-    MARCO_X1 + MARCO_ANCHO/2,
-    FILA3_Y1 + FILA3_ALTURA/2 + 20,
+    MARCO_X1 + 30,
+    FILA3_Y2 - 15,
     descripcion,
     max_ancho_chars=80,
-    fontsize=14,  # más grande
-    va='center',
-    ha='center',
+    fontsize=13,
+    va='top',
+    ha='left',
     color=Estilos.COLOR_TEXTO_PRINCIPAL,
     fontfamily=Estilos.FUENTE_ELEGANTE
 )
