@@ -647,16 +647,16 @@ hora_inicio = convertir_hora(fecha_inicio)
 hora_fin = convertir_hora(fecha_fin)
 duracion_evento = int(duracion_horas)
 
-fechas_texto = f"""ELABORACIÓN DEL MAPA: {fecha_emision_legible}
-INICIO DEL EVENTO: {fecha_inicio_legible} {hora_inicio}
+fechas_texto = f"""INICIO DEL EVENTO: {fecha_inicio_legible} {hora_inicio}
 FIN DEL EVENTO: {fecha_fin_legible} {hora_fin}
-DURACIÓN DEL EVENTO: {duracion_evento} HORAS"""
+DURACIÓN DEL EVENTO: {duracion_evento} HORAS
+ELABORACIÓN DEL MAPA: {fecha_emision_legible}"""
 
 ax.text(
     SEP_VERTICAL_X + 20,
     FILA1_Y1 + FILA1_ALTURA/2,
     fechas_texto,
-    fontsize=13,
+    fontsize=12,
     va='center', ha='left',
     color=Estilos.COLOR_TEXTO_ITALICO,
     linespacing=1.8,
