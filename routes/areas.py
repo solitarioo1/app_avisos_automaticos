@@ -253,27 +253,25 @@ def descargar_csv(numero, dia):
 
 
 # ============= HELPER FUNCTION (NO FLASK) =============
-def generar_csv_clientes_por_nivel(numero, dia, shp_path=None):
+def obtener_clientes_por_nivel(numero, dia, shp_path=None):
     """
-    Función helper para generar CSV de clientes por nivel SIN dependencias Flask.
-    Llamada desde procesar_aviso.py durante pipeline.
+    Obtiene clasificación de clientes por nivel/color (retorna DataFrame, no guarda CSV).
+    Versión sin I/O para usarse en pipeline de mapas.
     
     Args:
         numero: ID del aviso
         dia: Día (1, 2, 3)
-        shp_path: Ruta al shapefile (si no está en TEMP/aviso_{numero}/dia{dia}/view_aviso.shp)
+        shp_path: Ruta al shapefile
     
     Returns:
-        Cantidad de registros guardados o None si error
+        pd.DataFrame con columnas: id, nombre_cliente, latitud, longitud, hectareas, nivel
+        o None si error
     """
     try:
         if shp_path is None:
             shp_path = TEMP_DIR / f'aviso_{numero}' / f'dia{dia}' / 'view_aviso.shp'
         else:
             shp_path = Path(shp_path)
-        
-        aviso_output = OUTPUT_DIR / f'aviso_{numero}'
-        aviso_output.mkdir(parents=True, exist_ok=True)
         
         if not shp_path.exists():
             logger.error(f"SHP no encontrado: {shp_path}")
@@ -334,8 +332,8 @@ def generar_csv_clientes_por_nivel(numero, dia, shp_path=None):
             predicate='within'
         )
         
-        resultado_csv = resultado.drop(columns=['geometry', 'index_right']).copy()
-        resultado_csv = resultado_csv.rename(columns={columna_color: 'nivel'})
+        resultado_df = resultado.drop(columns=['geometry', 'index_right']).copy()
+        resultado_df = resultado_df.rename(columns={columna_color: 'nivel'})
         
         # Mapear niveles
         mapeo_nivel_color = {
@@ -343,13 +341,44 @@ def generar_csv_clientes_por_nivel(numero, dia, shp_path=None):
             4: 'Rojo', 3: 'Naranja', 2: 'Amarillo', 1: 'Verde',
             'Rojo': 'Rojo', 'Naranja': 'Naranja', 'Amarillo': 'Amarillo', 'Verde': 'Verde'
         }
-        resultado_csv['nivel'] = resultado_csv['nivel'].map(mapeo_nivel_color).fillna('Verde')
+        resultado_df['nivel'] = resultado_df['nivel'].map(mapeo_nivel_color).fillna('Verde')
+        
+        logger.info(f"✓ Clientes procesados para aviso {numero}: {len(resultado_df)} registros")
+        return resultado_df
+        
+    except Exception as e:
+        logger.error(f"Error en obtener_clientes_por_nivel: {e}")
+        return None
+
+
+def generar_csv_clientes_por_nivel(numero, dia, shp_path=None):
+    """
+    Función helper para generar CSV de clientes por nivel SIN dependencias Flask.
+    Llamada desde procesar_aviso.py durante pipeline.
+    
+    Args:
+        numero: ID del aviso
+        dia: Día (1, 2, 3)
+        shp_path: Ruta al shapefile (si no está en TEMP/aviso_{numero}/dia{dia}/view_aviso.shp)
+    
+    Returns:
+        Cantidad de registros guardados o None si error
+    """
+    try:
+        # Usar la nueva función para obtener datos
+        resultado_df = obtener_clientes_por_nivel(numero, dia, shp_path)
+        
+        if resultado_df is None:
+            return None
+        
+        aviso_output = OUTPUT_DIR / f'aviso_{numero}'
+        aviso_output.mkdir(parents=True, exist_ok=True)
         
         # Guardar CSV
         csv_path = aviso_output / f'clientes_por_nivel_dia{dia}.csv'
-        resultado_csv.to_csv(csv_path, index=False, encoding='utf-8')
+        resultado_df.to_csv(csv_path, index=False, encoding='utf-8')
         
-        cantidad = len(resultado_csv)
+        cantidad = len(resultado_df)
         logger.info(f"✓ CSV guardado: {csv_path} ({cantidad} registros)")
         return cantidad
         

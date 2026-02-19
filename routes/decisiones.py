@@ -26,10 +26,16 @@ sys.path.insert(0, str(BASE_DIR / 'LAYOUT'))
 
 # Importar funciones locales
 try:
-    from CONFIG.db import get_connection
+    from CONFIG.db import (
+        get_connection,
+        obtener_clientes_por_nivel_desde_bd,
+        obtener_zonas_afectadas
+    )
 except ImportError:
     # Fallback: usar conexión directa
     get_connection = None
+    obtener_clientes_por_nivel_desde_bd = None
+    obtener_zonas_afectadas = None
 
 try:
     from utils import seleccionar_dia_critico, calcular_area_riesgo_alto
@@ -219,11 +225,40 @@ def get_db_connection():
 
 def parse_csv_avisos(numero_aviso):
     """
-    Lee CSV de avisos afectados (distritos_afectados.csv)
-    Retorna lista de dicts: {departamento, provincia, distrito}
+    Lee zonas afectadas: primero intenta BD, luego fallback a CSV
     """
+    def normalize_zona(z):
+        """Normaliza zona de cualquier formato"""
+        return {
+            'departamento': (z.get('departamento') or '').upper().strip(),
+            'provincia': (z.get('provincia') or '').upper().strip(),
+            'distrito': (z.get('distrito') or '').upper().strip()
+        }
+    
+    # Intentar desde BD primero
+    try:
+        conn = get_db_connection()
+        if conn:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cursor.execute(
+                "SELECT DISTINCT departamento, provincia, distrito FROM aviso_zonas_afectadas WHERE numero_aviso = %s",
+                (numero_aviso,)
+            )
+            zonas_rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            if zonas_rows:
+                result = [normalize_zona(z) for z in zonas_rows]
+                logger.info("Zonas desde BD: %d zonas", len(result))
+                return result
+    except Exception as e:
+        logger.warning("Error leyendo zonas desde BD: %s", str(e))
+        import traceback
+        traceback.print_exc()
+    
+    # Fallback: leer CSV
     csv_path = OUTPUT_DIR / f'aviso_{numero_aviso}' / 'distritos_afectados.csv'
-
     if not csv_path.exists():
         logger.warning("CSV no encontrado: %s", csv_path)
         return []
@@ -234,11 +269,7 @@ def parse_csv_avisos(numero_aviso):
             reader = csv.DictReader(f)
             for row in reader:
                 if row:
-                    distritos.append({
-                        'departamento': row.get('DEPARTAMEN', '').strip().upper(),
-                        'provincia': row.get('PROVINCIA', '').strip().upper(),
-                        'distrito': row.get('DISTRITO', '').strip().upper()
-                    })
+                    distritos.append(normalize_zona(row))
         logger.info("CSV parseado: %d distritos para aviso %d", len(distritos), numero_aviso)
         return distritos
     except OSError as e:
@@ -248,32 +279,15 @@ def parse_csv_avisos(numero_aviso):
 
 def get_clientes_afectados(numero_aviso, depto=None, provincia=None, distrito=None):
     """
-    Consulta BD clientes y filtra por zona afectada del aviso
-
-    Args:
-        numero_aviso: Número del aviso
-        depto: Filtro opcional por departamento
-        provincia: Filtro opcional por provincia
-        distrito: Filtro opcional por distrito
-
-    Returns:
-        {
-            'total_agricultores': int,
-            'agricultores': [list of cliente objects],
-            'cultivos': {cultivo: count},
-            'total_hectareas': float,
-            'total_monto_asegurado': float,
-            'financieras': {financiera: count}
-        }
+    Consulta BD clientes desde vista y filtra por aviso + zona afectada
+    
+    Retorna los clientes clasificados por nivel (vista v_clientes_por_aviso_completo)
     """
-    conn = get_db_connection()
-    if not conn:
-        return {}
-
     try:
-        # Leer CSV de avisos para obtener zonas afectadas
-        zonas_afectadas = parse_csv_avisos(numero_aviso)
-        if not zonas_afectadas:
+        # Obtener clientes clasificados desde BD (vista con nivel de riesgo)
+        df_clientes = obtener_clientes_por_nivel_desde_bd(numero_aviso)
+        
+        if df_clientes is None or len(df_clientes) == 0:
             return {
                 'total_agricultores': 0,
                 'agricultores': [],
@@ -282,8 +296,12 @@ def get_clientes_afectados(numero_aviso, depto=None, provincia=None, distrito=No
                 'total_monto_asegurado': 0,
                 'financieras': {}
             }
-
-        # Normalizar CSV data
+        
+        # Obtener zonas afectadas del CSV
+        zonas_afectadas = parse_csv_avisos(numero_aviso)
+        deptos_afectados = list(set([zona['departamento'].upper().strip() for zona in zonas_afectadas]))
+        
+        # Normalizar datos para filtrado
         zonas_normalizadas = set()
         for zona in zonas_afectadas:
             zonas_normalizadas.add((
@@ -291,101 +309,81 @@ def get_clientes_afectados(numero_aviso, depto=None, provincia=None, distrito=No
                 zona['provincia'].upper().strip(),
                 zona['distrito'].upper().strip()
             ))
-
-        # Construir query OPTIMIZADA - filtrar por departamentos afectados
-        # NOTA: La BD tiene datos de prueba con provincias/distritos genéricos,
-        # por lo que el cruce se hace solo por DEPARTAMENTO
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
-        # Extraer departamentos únicos de las zonas afectadas
-        deptos_unicos = set([zona[0] for zona in zonas_normalizadas])
         
-        # Construir query simple con IN por departamentos
-        where_parts = []
-        all_params = []
+        # Filtrar DataFrame por zonas afectadas
+        agricultores = []
+        for _, row in df_clientes.iterrows():
+            depto_row = (str(row.get('departamento') or '')).upper().strip()
+            
+            # Filtro 1: Solo departamentos afectados
+            if depto_row not in deptos_afectados:
+                continue
+            
+            # Filtro 2: Filtros opcionales (si se proporcionan)
+            if depto and depto.upper().strip() != depto_row:
+                continue
+            if provincia:
+                prov_row = (str(row.get('provincia') or '')).upper().strip()
+                if provincia.upper().strip() != prov_row:
+                    continue
+            if distrito:
+                dist_row = (str(row.get('distrito') or '')).upper().strip()
+                if distrito.upper().strip() != dist_row:
+                    continue
+            
+            # Convertir row a dict
+            agr_dict = {
+                'id': row.get('cliente_id'),
+                'nombre': row.get('nombre', ''),
+                'apellido': row.get('apellido', ''),
+                'dni_ruc': row.get('dni_ruc', ''),
+                'latitud': row.get('latitud'),
+                'longitud': row.get('longitud'),
+                'cultivo_id': row.get('cultivo_id'),
+                'cultivo': row.get('cultivo', ''),
+                'hectareas': float(row.get('hectareas') or 0),
+                'monto_asegurado': float(row.get('monto_asegurado') or 0),
+                'distrito': row.get('distrito', ''),
+                'provincia': row.get('provincia', ''),
+                'departamento': depto_row,
+                'nivel': row.get('nivel', ''),
+                'entidad_nombre': row.get('entidad_nombre', '')
+            }
+            agricultores.append(agr_dict)
         
-        # Filtro por departamentos afectados
-        if deptos_unicos:
-            placeholders = ', '.join(['%s'] * len(deptos_unicos))
-            where_parts.append(f"UPPER(TRIM(departamento)) IN ({placeholders})")
-            all_params.extend(list(deptos_unicos))
-        
-        # Agregar filtros opcionales con AND
-        if depto:
-            where_parts.append("UPPER(TRIM(departamento)) = %s")
-            all_params.append(depto.upper().strip())
-        if provincia:
-            where_parts.append("UPPER(TRIM(provincia)) = %s")
-            all_params.append(provincia.upper().strip())
-        if distrito:
-            where_parts.append("UPPER(TRIM(distrito)) = %s")
-            all_params.append(distrito.upper().strip())
-
-        # Construir query final
-        where_clause = " AND ".join(where_parts) if where_parts else "1=1"
-        query = f"SELECT * FROM clientes WHERE {where_clause}"
-
-        cursor.execute(query, all_params)
-        
-        # Obtener clientes de departamentos afectados
-        # (El cruce exacto por prov/dist se omite porque la BD tiene datos de prueba)
-        agricultores = cursor.fetchall()
-
-        # Log de consulta
-        logger.info("Clientes en departamentos afectados: %d (deptos: %s)",
-                    len(agricultores), list(deptos_unicos)[:5])
-
-        # Procesar datos
+        # Calcular agregaciones
         cultivos_counter = Counter()
-        financieras_counter = Counter()
         total_hectareas = 0
         total_monto = 0
-
+        
         for agr in agricultores:
-            # Cultivos
             if agr.get('cultivo_id'):
-                cultivos_counter[str(agr['cultivo_id'])] += 1
-            # Hectáreas
-            if agr.get('hectareas'):
-                total_hectareas += float(agr['hectareas']) if agr['hectareas'] else 0
-            # Monto asegurado
-            if agr.get('monto_asegurado'):
-                total_monto += float(agr['monto_asegurado']) if agr['monto_asegurado'] else 0
-
-        cursor.close()
-        conn.close()
-
-        # Convertir agricultores a list de dicts JSON-serializable
-        agricultores_list = []
-        for agr in agricultores:
-            agr_dict = dict(agr)
-            # Convertir tipos especiales
-            for key, value in agr_dict.items():
-                if hasattr(value, 'isoformat'):
-                    agr_dict[key] = value.isoformat()
-                elif isinstance(value, float):
-                    agr_dict[key] = round(value, 2)
-            agricultores_list.append(agr_dict)
-
-        result = {
-            'total_agricultores': len(agricultores_list),
-            'agricultores': agricultores_list,
+                cultivos_counter[str(agr.get('cultivo', 'N/A'))] += 1
+            total_hectareas += agr.get('hectareas', 0)
+            total_monto += agr.get('monto_asegurado', 0)
+        
+        logger.info("Clientes afectados para aviso %d: %d (deptos: %s)",
+                    numero_aviso, len(agricultores), deptos_afectados[:3])
+        
+        return {
+            'total_agricultores': len(agricultores),
+            'agricultores': agricultores,
             'cultivos': dict(cultivos_counter),
             'total_hectareas': round(total_hectareas, 2),
             'total_monto_asegurado': round(total_monto, 2),
-            'financieras': dict(financieras_counter)
+            'financieras': {}
         }
-
-        logger.info("Clientes obtenidos para aviso %d: %d registros",
-                    numero_aviso, len(agricultores_list))
-        return result
-
-    except psycopg2.Error as e:
-        logger.error("Error consultando clientes: %s", str(e))
-        return {}
-    finally:
-        if conn:
-            conn.close()
+    
+    except Exception as e:
+        logger.error("Error en get_clientes_afectados: %s", str(e))
+        return {
+            'total_agricultores': 0,
+            'agricultores': [],
+            'cultivos': {},
+            'total_hectareas': 0,
+            'total_monto_asegurado': 0,
+            'financieras': {}
+        }
 
 
 def get_estadisticas_aviso(numero_aviso):
@@ -1032,73 +1030,39 @@ def get_kpis_entidades(numero):
     Retorna: Agricultores afectados, hectáreas, monto por entidad
     """
     try:
-        # 1. Encontrar día crítico
-        dia_critico = None
-        for dia in [3, 2, 1]:
-            csv_path = OUTPUT_DIR / f'aviso_{numero}' / f'clientes_por_nivel_dia{dia}.csv'
-            if csv_path.exists():
-                dia_critico = dia
-                break
+        # 1. Obtener clientes desde BD (reemplaza CSV completamente)
+        df_clientes = obtener_clientes_por_nivel_desde_bd(numero)
         
-        if dia_critico is None:
-            return jsonify({'error': f'No hay CSV para aviso {numero}'}), 404
+        if df_clientes is None or len(df_clientes) == 0:
+            return jsonify({'error': f'No hay clientes para aviso {numero}'}), 404
         
-        # 2. Leer CSV de clientes
-        csv_path = OUTPUT_DIR / f'aviso_{numero}' / f'clientes_por_nivel_dia{dia_critico}.csv'
-        df_clientes = pd.read_csv(csv_path)
-        
-        # 3. Obtener deptos afectados
+        # 2. Obtener deptos afectados
         zonas_afectadas = parse_csv_avisos(numero)
         deptos_afectados = list(set([zona['departamento'].upper().strip() for zona in zonas_afectadas]))
         
-        # 4. Conectar BD para obtener entidad_id, monto_asegurado, departamento
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'error': 'No connection to DB'}), 500
-        
-        try:
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            cursor.execute("""
-                SELECT c.id, c.monto_asegurado, c.departamento, c.entidad_id, e.nombre as entidad_nombre
-                FROM clientes c
-                LEFT JOIN entidades e ON c.entidad_id = e.id
-                WHERE c.estado = 'activo'
-            """)
-            clientes_bd = {row['id']: row for row in cursor.fetchall()}
-            cursor.close()
-            conn.close()
-        except psycopg2.Error as e:
-            logger.error("Error consultando BD: %s", str(e))
-            return jsonify({'error': str(e)}), 500
-        
-        # 5. Procesar: iterar CSV y agrupar por entidad
+        # 3. Procesar: iterar DF y agrupar por entidad
         estadisticas_entidad = {}
         
         for _, row in df_clientes.iterrows():
-            cliente_id = row['id']
-            ha = float(row['hectareas'] or 0)
-            nivel = row['nivel'].strip()
+            nivel = str(row['nivel']).strip()
             
             # Solo AFECTADOS: (Rojo + Naranja + Amarillo) Y (en depto afectado)
             if nivel not in ['Rojo', 'Naranja', 'Amarillo']:
                 continue  # Omitir Verde
             
-            if cliente_id not in clientes_bd:
-                continue
-            
-            cliente_info = clientes_bd[cliente_id]
-            depto = (cliente_info.get('departamento') or '').upper().strip()
-            
-            # Verificar que esté en departamento afectado
+            depto = (str(row['departamento'] or '')).upper().strip()
             if depto not in deptos_afectados:
                 continue
             
-            monto = float(cliente_info.get('monto_asegurado', 0) or 0)
-            entidad_id = cliente_info.get('entidad_id')
-            entidad_nombre = cliente_info.get('entidad_nombre', 'SIN ENTIDAD')
+            # Extraer datos de la vista
+            entidad_id = row.get('entidad_id')
+            entidad_nombre = row.get('entidad_nombre', f'Entidad {entidad_id}')
+            ha = float(row.get('hectareas') or 0)
+            monto = float(row.get('monto_asegurado') or 0)
             
             if entidad_id not in estadisticas_entidad:
                 estadisticas_entidad[entidad_id] = {
+                    'entidad_id': entidad_id,
                     'nombre': entidad_nombre,
                     'agricultores': 0,
                     'hectareas': 0.0,
@@ -1109,33 +1073,24 @@ def get_kpis_entidades(numero):
             estadisticas_entidad[entidad_id]['hectareas'] += ha
             estadisticas_entidad[entidad_id]['monto'] += monto
         
-        # 6. Calcular % daño y formatear respuesta
-        entidades_list = []
-        total_agricultores_afectados = sum([e['agricultores'] for e in estadisticas_entidad.values()])
+        # 4. Convertir a lista, ordenar por agricultores DESC, tomar TOP 5
+        entidades_list = sorted(
+            estadisticas_entidad.values(),
+            key=lambda x: x['agricultores'],
+            reverse=True
+        )[:5]
         
-        for entidad_id, stats in estadisticas_entidad.items():
-            pct = (stats['agricultores'] / total_agricultores_afectados * 100) if total_agricultores_afectados > 0 else 0
-            
-            entidades_list.append({
-                'entidad_id': entidad_id,
-                'nombre': stats['nombre'],
-                'agricultores': stats['agricultores'],
-                'hectareas': round(stats['hectareas'], 2),
-                'monto': round(stats['monto'], 2),
-                'pct_damage': round(pct, 1)
-            })
+        # 5. Formatear respuesta
+        for entidad in entidades_list:
+            entidad['hectareas'] = round(entidad['hectareas'], 2)
+            entidad['monto'] = round(entidad['monto'], 2)
+            total_poly = sum(e['monto'] for e in entidades_list)
+            pct = (entidad['monto'] / total_poly * 100) if total_poly > 0 else 0
+            entidad['pct_damage'] = round(pct, 1)
         
-        # Ordenar por agricultores afectados (descendente)
-        entidades_list.sort(key=lambda x: x['agricultores'], reverse=True)
-        
-        logger.info("Estadísticas entidades para aviso %d calculadas: %d entidades", numero, len(entidades_list))
-        return jsonify({
-            'numero_aviso': numero,
-            'entidades': entidades_list
-        })
-        
+        return jsonify({'numero_aviso': numero, 'entidades': entidades_list})
     except Exception as e:
-        logger.error("Error calculando KPIs entidades: %s", str(e))
+        logger.error("Error SQL entidades: %s", str(e))
         return jsonify({'error': str(e)}), 500
 
 
@@ -1145,70 +1100,35 @@ def get_kpis_cultivos(numero):
     Incluye: cultivo, departamento, agricultores, hectáreas, monto
     """
     try:
-        # 1. Encontrar día crítico
-        dia_critico = None
-        for dia in [3, 2, 1]:
-            csv_path = OUTPUT_DIR / f'aviso_{numero}' / f'clientes_por_nivel_dia{dia}.csv'
-            if csv_path.exists():
-                dia_critico = dia
-                break
+        # 1. Obtener clientes desde BD (reemplaza CSV completamente)
+        df_clientes = obtener_clientes_por_nivel_desde_bd(numero)
         
-        if dia_critico is None:
-            return jsonify({'error': f'No hay CSV para aviso {numero}'}), 404
+        if df_clientes is None or len(df_clientes) == 0:
+            return jsonify({'error': f'No hay clientes para aviso {numero}'}), 404
         
-        # 2. Leer CSV de clientes
-        csv_path = OUTPUT_DIR / f'aviso_{numero}' / f'clientes_por_nivel_dia{dia_critico}.csv'
-        df_clientes = pd.read_csv(csv_path)
-        
-        # 3. Obtener deptos afectados
+        # 2. Obtener deptos afectados
         zonas_afectadas = parse_csv_avisos(numero)
         deptos_afectados = list(set([zona['departamento'].upper().strip() for zona in zonas_afectadas]))
         
-        # 4. Conectar BD para obtener cultivo_id, monto_asegurado, departamento
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'error': 'No connection to DB'}), 500
-        
-        try:
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            cursor.execute("""
-                SELECT c.id, c.monto_asegurado, c.departamento, c.cultivo_id, tc.nombre as cultivo_nombre
-                FROM clientes c
-                LEFT JOIN tabla_cultivos tc ON c.cultivo_id = tc.id
-                WHERE c.estado = 'activo'
-            """)
-            clientes_bd = {row['id']: row for row in cursor.fetchall()}
-            cursor.close()
-            conn.close()
-        except psycopg2.Error as e:
-            logger.error("Error consultando BD: %s", str(e))
-            return jsonify({'error': str(e)}), 500
-        
-        # 5. Procesar: iterar CSV y agrupar por (cultivo_id, departamento)
+        # 3. Procesar: iterar DF y agrupar por (cultivo, departamento)
         estadisticas_cultivo = {}
         
         for _, row in df_clientes.iterrows():
-            cliente_id = row['id']
-            ha = float(row['hectareas'] or 0)
-            nivel = row['nivel'].strip()
+            nivel = str(row['nivel']).strip()
             
             # Solo AFECTADOS: (Rojo + Naranja + Amarillo) Y (en depto afectado)
             if nivel not in ['Rojo', 'Naranja', 'Amarillo']:
                 continue
             
-            if cliente_id not in clientes_bd:
-                continue
-            
-            cliente_info = clientes_bd[cliente_id]
-            depto = (cliente_info.get('departamento') or '').upper().strip()
-            
-            # Verificar que esté en departamento afectado
+            depto = (str(row['departamento'] or '')).upper().strip()
             if depto not in deptos_afectados:
                 continue
             
-            monto = float(cliente_info.get('monto_asegurado', 0) or 0)
-            cultivo_id = cliente_info.get('cultivo_id')
-            cultivo_nombre = cliente_info.get('cultivo_nombre', f'Cultivo {cultivo_id}')
+            # Extraer datos de la vista
+            cultivo_id = row.get('cultivo_id')
+            cultivo_nombre = row.get('cultivo', f'Cultivo {cultivo_id}')
+            ha = float(row.get('hectareas') or 0)
+            monto = float(row.get('monto_asegurado') or 0)
             
             key = (cultivo_id, depto)
             
@@ -1226,12 +1146,12 @@ def get_kpis_cultivos(numero):
             estadisticas_cultivo[key]['hectareas'] += ha
             estadisticas_cultivo[key]['monto'] += monto
         
-        # 6. Convertir a lista y ordenar por agricultores DESC, tomar TOP 5
+        # 4. Convertir a lista y ordenar por agricultores DESC, tomar TOP 5
         cultivos_list = list(estadisticas_cultivo.values())
         cultivos_list.sort(key=lambda x: x['agricultores'], reverse=True)
         cultivos_top5 = cultivos_list[:5]
         
-        # 7. Formatear respuesta
+        # 5. Formatear respuesta
         for cultivo in cultivos_top5:
             cultivo['hectareas'] = round(cultivo['hectareas'], 2)
             cultivo['monto'] = round(cultivo['monto'], 2)
@@ -1250,78 +1170,26 @@ def get_kpis_cultivos(numero):
 @decisiones_bp.route('/api/avisos/<int:numero>/kpis', methods=['GET'])
 def get_kpis(numero):
     """Calcula y retorna los KPIs principales para el Centro de Decisiones
-    Lee del CSV si existe, sino calcula desde BD + datos de avisos CSV
+    Lee todos los datos desde la BD (vista con clientes clasificados por nivel)
     """
     try:
-        # 1. Intentar leer CSV de clientes clasificados (generado por areas.py)
-        df_clientes = None
-        dia_critico = None
+        # 1. Obtener clientes desde BD (reemplaza CSV completamente)
+        df_clientes = obtener_clientes_por_nivel_desde_bd(numero)
         
-        for dia in [3, 2, 1]:  # Preferencia: 3, 2, 1
-            csv_path = OUTPUT_DIR / f'aviso_{numero}' / f'clientes_por_nivel_dia{dia}.csv'
-            if csv_path.exists():
-                df_clientes = pd.read_csv(csv_path)
-                dia_critico = dia
-                logger.info(f"CSV de clientes encontrado para aviso {numero}, día {dia}")
-                break
+        if df_clientes is None or len(df_clientes) == 0:
+            return jsonify({'error': f'No hay clientes para aviso {numero}'}), 404
         
-        # 2. Si no hay CSV, calcular desde BD (fallback)
-        if df_clientes is None:
-            logger.warning(f"No hay CSV para aviso {numero}. Usando datos de BD.")
-            conn = get_db_connection()
-            if not conn:
-                return jsonify({'error': 'No connection to DB'}), 500
-            
-            try:
-                cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-                cursor.execute("""
-                    SELECT id, CONCAT(nombre, ' ', apellido) as nombre, 
-                           hectareas, monto_asegurado, departamento, cultivo_id
-                    FROM clientes
-                    WHERE estado = 'activo'
-                    ORDER BY id
-                """)
-                rows = cursor.fetchall()
-                df_clientes = pd.DataFrame(rows)
-                df_clientes['nivel'] = 'Verde'  # Sin CSV, asumir todos Verde
-                cursor.close()
-                conn.close()
-                logger.info(f"Datos de clientes cargados desde BD: {len(df_clientes)} registros")
-            except psycopg2.Error as e:
-                logger.error("Error consultando BD: %s", str(e))
-                return jsonify({'error': str(e)}), 500
-        
-        # 3. Obtener BD para monto_asegurado (si vino del CSV, complementar)
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'error': 'No connection to DB'}), 500
-        
-        try:
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            cursor.execute("""
-                SELECT id, monto_asegurado, departamento
-                FROM clientes
-                WHERE estado = 'activo'
-            """)
-            clientes_bd = {row['id']: row for row in cursor.fetchall()}
-            cursor.close()
-            conn.close()
-        except psycopg2.Error as e:
-            logger.error("Error consultando BD: %s", str(e))
-            return jsonify({'error': str(e)}), 500
-        
-        # 4. Obtener deptos afectados
+        # 2. Obtener deptos afectados desde BD
         zonas_afectadas = parse_csv_avisos(numero)
         deptos_afectados = list(set([zona['departamento'].upper().strip() for zona in zonas_afectadas]))
         
-        # 5. Procesar datos del CSV
+        # 3. Inicializar contadores
         agricultores_totales = len(df_clientes)
-        hectareas_totales = 0
-        poliza_total = 0
-        
+        hectareas_totales = 0.0
+        poliza_total = 0.0
         agricultores_afectados = 0
-        hectareas_afectadas = 0
-        poliza_afectados = 0
+        hectareas_afectadas = 0.0
+        poliza_afectados = 0.0
         
         estadisticas_color = {
             'Rojo': {'agricultores': 0, 'hectareas': 0.0, 'poliza': 0.0},
@@ -1330,18 +1198,12 @@ def get_kpis(numero):
             'Verde': {'agricultores': 0, 'hectareas': 0.0, 'poliza': 0.0}
         }
         
-        # Iterar sobre CSV
+        # 4. Procesar datos de la vista
         for _, row in df_clientes.iterrows():
-            cliente_id = row['id']
-            ha = float(row['hectareas'] or 0)
-            nivel = row['nivel'].strip()
-            
-            # Obtener monto de BD
-            monto = 0.0
-            depto = ''
-            if cliente_id in clientes_bd:
-                monto = float(clientes_bd[cliente_id].get('monto_asegurado', 0) or 0)
-                depto = (clientes_bd[cliente_id].get('departamento') or '').upper().strip()
+            nivel = str(row.get('nivel', '')).strip()
+            ha = float(row.get('hectareas') or 0)
+            monto = float(row.get('monto_asegurado') or 0)
+            depto = (str(row.get('departamento') or '')).upper().strip()
             
             # Contar TOTALES
             hectareas_totales += ha
@@ -1359,7 +1221,7 @@ def get_kpis(numero):
                 hectareas_afectadas += ha
                 poliza_afectados += monto
         
-        # 6. Redondear valores
+        # 5. Redondear valores
         for color in estadisticas_color:
             estadisticas_color[color]['hectareas'] = round(estadisticas_color[color]['hectareas'], 2)
             estadisticas_color[color]['poliza'] = round(estadisticas_color[color]['poliza'], 2)
@@ -1369,7 +1231,7 @@ def get_kpis(numero):
             if agricultores_totales > 0 else 0
         )
         
-        # 7. Retornar KPIs
+        # 6. Retornar KPIs
         return jsonify({
             'agricultores_totales': agricultores_totales,
             'agricultores_afectados': agricultores_afectados,

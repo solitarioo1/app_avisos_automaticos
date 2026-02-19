@@ -48,7 +48,11 @@ from LAYOUT.utils import (
 )
 
 # Importar funciones de BD
-from CONFIG.db import obtener_aviso_por_numero, guardar_aviso_json, limpiar_imagenes_aviso, guardar_imagen_aviso, guardar_csv_aviso
+from CONFIG.db import (
+    obtener_aviso_por_numero, guardar_aviso_json, limpiar_imagenes_aviso, 
+    guardar_imagen_aviso, guardar_csv_aviso, limpiar_datos_aviso,
+    insertar_zonas_afectadas, insertar_clientes_por_aviso
+)
 
 def obtener_json_aviso(numero_aviso, desde_db=False):
     """
@@ -132,6 +136,7 @@ def procesar_aviso(numero_aviso, desde_db=False):
     
     # 0. Limpiar datos viejos de BD antes de regenerar
     limpiar_imagenes_aviso(numero_aviso)
+    limpiar_datos_aviso(numero_aviso)  # DELETE de clientes_por_aviso y aviso_zonas_afectadas
     logger.info(f"Datos viejos limpiados para aviso {numero_aviso}")
     
     # 1. Obtener datos del JSON o BD
@@ -220,33 +225,55 @@ def procesar_aviso(numero_aviso, desde_db=False):
     print(f"  🏢 Provincias: {num_provincias}", flush=True)
     print(f"  🏘️  Distritos: {num_distritos}", flush=True)
     
-    if provincias is not None:
-        provincias.to_csv(f"{output_dir}/provincias_afectadas.csv", index=False)
-        guardar_csv_aviso(numero_aviso, 'provincias', f"/static/output/aviso_{numero_aviso}/provincias_afectadas.csv")
-    if distritos is not None:
-        distritos.to_csv(f"{output_dir}/distritos_afectados.csv", index=False)
-        guardar_csv_aviso(numero_aviso, 'distritos', f"/static/output/aviso_{numero_aviso}/distritos_afectados.csv")
+    # 7. INSERTAR ZONAS AFECTADAS EN BD (antes: eran CSVs)
+    print(f"\n💾 Guardando zonas en base de datos...", flush=True)
+    if provincias is not None and len(provincias) > 0:
+        # Mapear nombres de columnas correctos (DEPARTAMEN en BD, typo original)
+        provincias_bd = provincias.copy()
+        provincias_bd.columns = ['departamento', 'provincia']
+        provincias_bd['distrito'] = None
+        provincias_bd['area_km2'] = 0
+        
+        insertadas_prov = insertar_zonas_afectadas(numero_aviso, provincias_bd)
+        print(f"  ✅ Pegadas {insertadas_prov} provincias en BD", flush=True)
     
-    # 7.5. GENERAR CSV DE CLIENTES ANTES DE LOS MAPAS (para endpoints KPI)
-    print(f"\n📊 Generando CSV de clientes clasificados...", flush=True)
+    if distritos is not None and len(distritos) > 0:
+        # Mapear nombres de columnas correctos
+        distritos_bd = distritos.copy()
+        distritos_bd.columns = ['departamento', 'provincia', 'distrito']
+        distritos_bd['area_km2'] = 0
+        
+        insertados_dist = insertar_zonas_afectadas(numero_aviso, distritos_bd)
+        print(f"  ✅ Pegados {insertados_dist} distritos en BD", flush=True)
+    
+    # 7.5. GENERAR CLIENTES CLASIFICADOS (antes: CSV; ahora: BD)
+    print(f"\n📊 Procesando clientes para este aviso...", flush=True)
     try:
-        # Llamar la función de spatial join desde areas.py (ejecuta directamente sin HTTP)
-        from routes.areas import generar_csv_clientes_por_nivel
+        # Obtener DataFrame de clientes clasificados por spatial join
+        from routes.areas import obtener_clientes_por_nivel
         
         dia_critico_num = int(dia_critico.replace('dia', '')) if isinstance(dia_critico, str) and dia_critico.startswith('dia') else 3
         
-        # Ejecutar spatial join: SHP + clientes BD → CSV
-        resultado = generar_csv_clientes_por_nivel(numero_aviso, dia_critico_num, shp_critico)
+        # Obtener DataFrame (sin guardar CSV)
+        df_clientes = obtener_clientes_por_nivel(numero_aviso, dia_critico_num, shp_critico)
         
-        if resultado:
-            print(f"  ✅ CSV generado: {resultado}", flush=True)
-            logger.info(f"✓ CSV creado con {resultado} clientes")
+        if df_clientes is not None and len(df_clientes) > 0:
+            # Insertar en BD
+            insertados = insertar_clientes_por_aviso(numero_aviso, df_clientes)
+            print(f"  ✅ {insertados} clientes guardados en BD", flush=True)
+            
+            # Estadísticas por nivel
+            stats = df_clientes['nivel'].value_counts().to_dict()
+            for nivel, cantidad in sorted(stats.items()):
+                print(f"      • {nivel}: {cantidad} clientes", flush=True)
+            
+            logger.info(f"✓ Procesados {len(df_clientes)} clientes para aviso {numero_aviso}")
         else:
-            logger.warning("No se pudo generar CSV de clientes")
-            print(f"  ⚠️  No se generó CSV", flush=True)
+            logger.warning("No se pudieron procesar clientes")
+            print(f"  ⚠️  Sin clientes clasificados para este aviso", flush=True)
             
     except Exception as e:
-        logger.warning(f"Error generando CSV: {e}")
+        logger.warning(f"Error procesando clientes: {e}")
         print(f"  ⚠️  {str(e)}", flush=True)
     
     # 8. Generar mapas para cada departamento

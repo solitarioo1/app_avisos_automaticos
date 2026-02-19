@@ -5,6 +5,7 @@ Maneja consultas de avisos SENAMHI
 
 import psycopg2
 import psycopg2.extras
+import pandas as pd
 import json
 import os
 import logging
@@ -186,6 +187,258 @@ def guardar_csv_aviso(numero_aviso: int, tipo: str, ruta_csv: str) -> bool:
     except Exception as e:
         logger.error(f"Error guardando CSV: {str(e)}")
         return False
+
+
+def limpiar_datos_aviso(numero_aviso: int) -> bool:
+    """
+    Limpia registros viejos de un aviso antes de regenerar
+    
+    Args:
+        numero_aviso: Número de aviso a limpiar
+    
+    Returns:
+        bool: True si se limpió exitosamente
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # Limpiar clientes_por_aviso (la FK en clientes_envios se mantiene)
+        cursor.execute("DELETE FROM clientes_por_aviso WHERE numero_aviso = %s", (numero_aviso,))
+        # Limpiar aviso_zonas_afectadas
+        cursor.execute("DELETE FROM aviso_zonas_afectadas WHERE numero_aviso = %s", (numero_aviso,))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        logger.info(f"Datos limpios para aviso {numero_aviso}")
+        return True
+    except Exception as e:
+        logger.error(f"Error limpiando datos del aviso {numero_aviso}: {str(e)}")
+        return False
+
+
+def insertar_zonas_afectadas(numero_aviso: int, df_zonas) -> int:
+    """
+    Inserta provincias y distritos en aviso_zonas_afectadas
+    
+    Args:
+        numero_aviso: Número de aviso
+        df_zonas: DataFrame con columnas: 'departamento', 'provincia', 'distrito', 'area_km2'
+    
+    Returns:
+        int: Cantidad de registros insertados
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        insertados = 0
+        
+        for _, row in df_zonas.iterrows():
+            cursor.execute(
+                """INSERT INTO aviso_zonas_afectadas 
+                   (numero_aviso, departamento, provincia, distrito, area_km2)
+                   VALUES (%s, %s, %s, %s, %s)
+                   ON CONFLICT (numero_aviso, departamento, provincia, distrito) DO NOTHING""",
+                (numero_aviso, row.get('departamento'), row.get('provincia'), row.get('distrito'),
+                 row.get('area_km2', 0))
+            )
+            insertados += cursor.rowcount
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        logger.info(f"Insertadas {insertados} zonas para aviso {numero_aviso}")
+        return insertados
+    except Exception as e:
+        logger.error(f"Error insertando zonas: {str(e)}")
+        return 0
+
+
+def insertar_clientes_por_aviso(numero_aviso: int, df_clientes) -> int:
+    """
+    Inserta clientes en clientes_por_aviso
+    
+    Args:
+        numero_aviso: Número de aviso
+        df_clientes: DataFrame con columnas: 'id' (o 'cliente_id'), 'nivel'
+    
+    Returns:
+        int: Cantidad de registros insertados
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        insertados = 0
+        
+        # Determinar nombre correcto de columna de cliente
+        cliente_col = 'cliente_id' if 'cliente_id' in df_clientes.columns else 'id'
+        
+        for _, row in df_clientes.iterrows():
+            cliente_id = int(row.get(cliente_col, 0))
+            if cliente_id > 0:
+                cursor.execute(
+                    """INSERT INTO clientes_por_aviso 
+                       (cliente_id, numero_aviso, nivel)
+                       VALUES (%s, %s, %s)
+                       ON CONFLICT (cliente_id, numero_aviso) DO NOTHING""",
+                    (cliente_id, numero_aviso, row.get('nivel', 'N/A'))
+                )
+                insertados += cursor.rowcount
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        logger.info(f"Insertados {insertados} clientes para aviso {numero_aviso}")
+        return insertados
+    except Exception as e:
+        logger.error(f"Error insertando clientes: {str(e)}")
+        return 0
+
+
+# ============================================================================
+# HELPERS PARA LEER DESDE VISTAS (reemplaza CSVs)
+# ============================================================================
+
+def obtener_clientes_por_aviso(numero_aviso: int) -> Optional[pd.DataFrame]:
+    """
+    Obtiene clientes clasificados por aviso desde vista v_clientes_por_aviso_completo
+    Reemplaza: lectura de clientes_por_nivel_dia{X}.csv
+    
+    Args:
+        numero_aviso: Número de aviso
+    
+    Returns:
+        pd.DataFrame con columnas: cliente_id, nombre, nivel, hectareas, etc.
+    """
+    try:
+        conn = get_connection()
+        df = pd.read_sql_query(
+            "SELECT * FROM v_clientes_por_aviso_completo WHERE numero_aviso = %s",
+            conn,
+            params=(numero_aviso,)
+        )
+        conn.close()
+        
+        if df.empty:
+            logger.warning(f"No hay clientes para aviso {numero_aviso}")
+            return None
+        
+        logger.info(f"Obtenidos {len(df)} clientes para aviso {numero_aviso}")
+        return df
+    except Exception as e:
+        logger.error(f"Error obteniendo clientes por aviso: {str(e)}")
+        return None
+
+
+def obtener_zonas_afectadas(numero_aviso: int) -> Optional[pd.DataFrame]:
+    """
+    Obtiene zonas afectadas desde vista v_zonas_por_aviso_completo
+    Reemplaza: lectura de provincias_afectadas.csv + distritos_afectados.csv
+    
+    Args:
+        numero_aviso: Número de aviso
+    
+    Returns:
+        pd.DataFrame con columnas: departamento, provincia, distrito, etc.
+    """
+    try:
+        conn = get_connection()
+        df = pd.read_sql_query(
+            "SELECT * FROM v_zonas_por_aviso_completo WHERE numero_aviso = %s",
+            conn,
+            params=(numero_aviso,)
+        )
+        conn.close()
+        
+        if df.empty:
+            logger.warning(f"No hay zonas afectadas para aviso {numero_aviso}")
+            return None
+        
+        logger.info(f"Obtenidas {len(df)} zonas afectadas para aviso {numero_aviso}")
+        return df
+    except Exception as e:
+        logger.error(f"Error obteniendo zonas afectadas: {str(e)}")
+        return None
+
+
+def obtener_estadisticas_aviso(numero_aviso: int) -> Optional[Dict[str, Any]]:
+    """
+    Obtiene estadísticas consolidadas desde vista v_estadisticas_aviso
+    
+    Args:
+        numero_aviso: Número de aviso
+    
+    Returns:
+        Dict con: total_clientes, clientes_por_nivel, hectareas_por_nivel, etc.
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM v_estadisticas_aviso WHERE numero_aviso = %s",
+            (numero_aviso,)
+        )
+        row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if not row:
+            logger.warning(f"No hay estadísticas para aviso {numero_aviso}")
+            return None
+        
+        cols = [desc[0] for desc in cursor.description]
+        stats_dict = dict(zip(cols, row))
+        
+        logger.info(f"Estadísticas obtenidas para aviso {numero_aviso}")
+        return stats_dict
+    except Exception as e:
+        logger.error(f"Error obteniendo estadísticas: {str(e)}")
+        return None
+
+
+def obtener_clientes_por_nivel_desde_bd(numero_aviso: int) -> Optional[pd.DataFrame]:
+    """
+    Obtiene clientes por aviso con nivel como único resultado
+    Similar a: lectura de clientes_por_nivel_dia{X}.csv
+    
+    Args:
+        numero_aviso: Número de aviso
+    
+    Returns:
+        pd.DataFrame con TODAS las columnas de v_clientes_por_aviso_completo
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        cursor.execute(
+            "SELECT * FROM v_clientes_por_aviso_completo WHERE numero_aviso = %s",
+            (numero_aviso,)
+        )
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        if not rows:
+            logger.warning(f"No hay clientes para aviso {numero_aviso}")
+            return None
+        
+        # Convertir RealDictRows a DataFrame
+        df = pd.DataFrame([dict(row) for row in rows])
+        
+        logger.info(f"Obtenidos {len(df)} clientes desde BD para aviso {numero_aviso}")
+        return df
+    except Exception as e:
+        logger.error(f"Error obteniendo clientes desde BD: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return None
 
 
 if __name__ == "__main__":
