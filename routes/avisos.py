@@ -1,7 +1,6 @@
 """
 Rutas de Avisos - API endpoints para gestión de avisos meteorológicos
 """
-import csv
 import json
 import logging
 import os
@@ -10,8 +9,10 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from flask import (Blueprint, Response, jsonify, render_template, request,
-                   stream_with_context)
+import psycopg2
+import psycopg2.extras
+from flask import (Blueprint, Response, jsonify, render_template, request,stream_with_context)
+from CONFIG.db import get_connection
 
 BASE_DIR = Path(__file__).parent.parent
 OUTPUT_DIR = BASE_DIR / 'OUTPUT'
@@ -29,16 +30,7 @@ def avisos():
     filtro_numero = int(aviso_param) if aviso_param else None
 
     try:
-        import psycopg2
-        import psycopg2.extras
-
-        conn = psycopg2.connect(
-            host=os.getenv("DB_HOST", "localhost"),
-            port=int(os.getenv("DB_PORT", "5432")),
-            database=os.getenv("DB_NAME"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD")
-        )
+        conn = get_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
         query = (
@@ -312,13 +304,11 @@ def api_procesar_aviso(numero):
         if result.returncode == 0:
             img_files = (list(output_path.glob('*.webp')) +
                         list(output_path.glob('*.png')))
-            csv_files = list(output_path.glob('*.csv'))
 
             return jsonify({
                 'success': True,
                 'message': 'Mapas generados correctamente',
                 'mapas': len(img_files),
-                'csvs': len(csv_files),
                 'path': str(output_path)
             }), 200
 
@@ -378,99 +368,6 @@ def api_cancel_aviso(numero):
         }), 500
 
 
-@avisos_bp.route('/api/avisos/<int:numero>/exportar-excel',
-                  methods=['POST'])
-def api_exportar_excel(numero):
-    """API para generar Excel con datos de departamentos/provincias"""
-    try:
-        from openpyxl import Workbook
-        from openpyxl.styles import Alignment, Font, PatternFill
-
-        output_path = OUTPUT_DIR / 'aviso_{}'.format(numero)
-        excel_path = output_path / 'aviso_{}_reporte.xlsx'.format(numero)
-
-        if excel_path.exists():
-            return jsonify({
-                'success': True,
-                'message': 'Excel ya existe',
-                'file': str(excel_path)
-            }), 200
-
-        wb = Workbook()
-
-        if (output_path / 'distritos_afectados.csv').exists():
-            ws_distritos = wb.active
-            ws_distritos.title = 'Distritos'
-
-            with open(output_path / 'distritos_afectados.csv', 'r',
-                     encoding='utf-8') as f:
-                reader = csv.reader(f)
-                for row_idx, row in enumerate(reader, 1):
-                    for col_idx, value in enumerate(row, 1):
-                        cell = ws_distritos.cell(row=row_idx,
-                                               column=col_idx,
-                                               value=value)
-                        if row_idx == 1:
-                            cell.font = Font(bold=True, color="FFFFFF")
-                            fill = PatternFill(start_color="0070C0",
-                                             end_color="0070C0",
-                                             fill_type="solid")
-                            cell.fill = fill
-                        cell.alignment = Alignment(horizontal="left",
-                                                  vertical="center")
-
-        if (output_path / 'provincias_afectadas.csv').exists():
-            ws_provincias = wb.create_sheet('Provincias')
-
-            with open(output_path / 'provincias_afectadas.csv', 'r',
-                     encoding='utf-8') as f:
-                reader = csv.reader(f)
-                for row_idx, row in enumerate(reader, 1):
-                    for col_idx, value in enumerate(row, 1):
-                        cell = ws_provincias.cell(row=row_idx,
-                                                column=col_idx,
-                                                value=value)
-                        if row_idx == 1:
-                            cell.font = Font(bold=True, color="FFFFFF")
-                            fill = PatternFill(start_color="00B050",
-                                             end_color="00B050",
-                                             fill_type="solid")
-                            cell.fill = fill
-                        cell.alignment = Alignment(horizontal="left",
-                                                  vertical="center")
-
-        for ws_name in wb.sheetnames:
-            ws_obj = wb[ws_name]
-            for column in ws_obj.columns:
-                max_length = 0
-                column_letter = column[0].column_letter
-                for cell in column:
-                    try:
-                        cell_len = len(str(cell.value))
-                        if cell_len > max_length:
-                            max_length = cell_len
-                    except (ValueError, TypeError):
-                        pass
-                ws_obj.column_dimensions[column_letter].width = (
-                    min(max_length + 2, 50))
-
-        wb.save(str(excel_path))
-
-        return jsonify({
-            'success': True,
-            'message': 'Excel generado correctamente',
-            'file': str(excel_path)
-        }), 200
-
-    except OSError as e:
-        logger.error("Error generando Excel para aviso %d: %s", numero,
-                    str(e))
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-
 @avisos_bp.route('/api/mapas/aviso/<int:numero>', methods=['GET'])
 def api_mapas_por_aviso(numero):
     """API para obtener lista de mapas de un aviso"""
@@ -509,13 +406,11 @@ def api_mapas_por_aviso(numero):
 def api_info_aviso(numero):
     """API para obtener info del aviso (nivel, departamentos afectados)"""
     try:
-        import psycopg2
-        import psycopg2.extras
-
-        json_path = BASE_DIR / 'JSON' / 'aviso_{}.json'.format(numero)
         datos = None
         color = 'plomo'
 
+        # 1) Intentar leer JSON local (tiene más campos como color)
+        json_path = BASE_DIR / 'JSON' / 'aviso_{}.json'.format(numero)
         if json_path.exists():
             try:
                 with open(json_path, 'r', encoding='utf-8') as f:
@@ -525,34 +420,24 @@ def api_info_aviso(numero):
             except (ValueError, json.JSONDecodeError, OSError):
                 pass
 
+        # 2) Si no hay JSON, leer desde BD
         if not datos:
             try:
-                conn = psycopg2.connect(
-                    host=os.getenv("DB_HOST", "localhost"),
-                    port=int(os.getenv("DB_PORT", "5432")),
-                    database=os.getenv("DB_NAME"),
-                    user=os.getenv("DB_USER"),
-                    password=os.getenv("DB_PASSWORD")
-                )
+                conn = get_connection()
                 cursor = conn.cursor(
                     cursor_factory=psycopg2.extras.RealDictCursor)
-
-                query = (
-                    "SELECT numero_aviso, titulo, nivel FROM "
-                    "avisos_completos WHERE numero_aviso = %s LIMIT 1"
+                cursor.execute(
+                    "SELECT numero_aviso, titulo, nivel, color "
+                    "FROM avisos_completos WHERE numero_aviso = %s LIMIT 1",
+                    (numero,)
                 )
-                cursor.execute(query, (numero,))
                 result = cursor.fetchone()
                 cursor.close()
                 conn.close()
-
                 if result:
-                    datos = {
-                        'numero_aviso': result['numero_aviso'],
-                        'titulo': result['titulo'],
-                        'nivel': result['nivel']
-                    }
-            except (psycopg2.Error, ImportError):
+                    color = result.get('color', 'plomo') or 'plomo'
+                    datos = dict(result)
+            except psycopg2.Error:
                 pass
 
         if not datos:
@@ -561,16 +446,27 @@ def api_info_aviso(numero):
                 'error': 'Aviso no encontrado'
             }), 404
 
-        deptos = set()
-        for dia in range(1, 4):
-            key = 'dep_afectados_dia{}'.format(dia)
-            if key in datos and datos[key]:
-                deptos.update([d.strip() for d in datos[key].split(',')])
+        # 3) Departamentos siempre desde BD (aviso_zonas_afectadas)
+        deptos = []
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT DISTINCT departamento FROM aviso_zonas_afectadas "
+                "WHERE numero_aviso = %s AND departamento IS NOT NULL "
+                "ORDER BY departamento",
+                (numero,)
+            )
+            deptos = [row[0] for row in cursor.fetchall()]
+            cursor.close()
+            conn.close()
+        except psycopg2.Error:
+            pass
 
         output_path = OUTPUT_DIR / 'aviso_{}'.format(numero)
         mapas_creados = (output_path.exists() and
-                        (any(output_path.glob('*.webp')) or
-                         any(output_path.glob('*.png'))))
+                         (any(output_path.glob('*.webp')) or
+                          any(output_path.glob('*.png'))))
 
         return jsonify({
             'success': True,
@@ -578,9 +474,9 @@ def api_info_aviso(numero):
             'titulo': datos.get('titulo', ''),
             'nivel': datos.get('nivel', ''),
             'color': color,
-            'departamentos': list(deptos) if deptos else [],
+            'departamentos': deptos,
             'mapas_creados': mapas_creados,
-            'fecha_emision': datos.get('fecha_emision', '')
+            'fecha_emision': str(datos.get('fecha_emision', ''))
         }), 200
 
     except OSError as e:
@@ -594,40 +490,34 @@ def api_info_aviso(numero):
 @avisos_bp.route('/api/avisos/<int:numero>/departamentos',
                   methods=['GET'])
 def api_departamentos_aviso(numero):
-    """API para obtener departamentos afectados del CSV"""
+    """API para obtener departamentos afectados desde BD"""
     try:
         output_path = OUTPUT_DIR / 'aviso_{}'.format(numero)
-        csv_path = output_path / 'distritos_afectados.csv'
-
         mapas_creados = (output_path.exists() and
-                        (any(output_path.glob('*.webp')) or
-                         any(output_path.glob('*.png'))))
+                         (any(output_path.glob('*.webp')) or
+                          any(output_path.glob('*.png'))))
 
-        if not mapas_creados:
-            return jsonify({
-                'success': True,
-                'departamentos': [],
-                'mapas_creados': False,
-                'message': 'Mapas no creados'
-            }), 200
-
-        departamentos = set()
-        if csv_path.exists():
-            try:
-                with open(csv_path, 'r', encoding='utf-8') as f:
-                    reader = csv.DictReader(f)
-                    for row in reader:
-                        depto = row.get('DEPARTAMEN', '').strip()
-                        if depto:
-                            departamentos.add(depto)
-            except (OSError, ValueError):
-                pass
+        departamentos = []
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT DISTINCT departamento FROM aviso_zonas_afectadas "
+                "WHERE numero_aviso = %s AND departamento IS NOT NULL "
+                "ORDER BY departamento",
+                (numero,)
+            )
+            departamentos = [row[0] for row in cursor.fetchall()]
+            cursor.close()
+            conn.close()
+        except psycopg2.Error as db_err:
+            logger.warning("BD no disponible para departamentos aviso %d: %s",
+                           numero, str(db_err))
 
         return jsonify({
             'success': True,
-            'departamentos': sorted(list(departamentos)),
-            'mapas_creados': mapas_creados,
-            'csv_path': str(csv_path)
+            'departamentos': departamentos,
+            'mapas_creados': mapas_creados
         }), 200
 
     except OSError as e:
@@ -643,19 +533,10 @@ def api_departamentos_aviso(numero):
 def api_avisos():
     """API para obtener lista de avisos desde BD y OUTPUT/"""
     try:
-        import psycopg2
-        import psycopg2.extras
-
         avisos_dict = {}
 
         try:
-            conn = psycopg2.connect(
-                host=os.getenv("DB_HOST", "localhost"),
-                port=int(os.getenv("DB_PORT", "5432")),
-                database=os.getenv("DB_NAME"),
-                user=os.getenv("DB_USER"),
-                password=os.getenv("DB_PASSWORD")
-            )
+            conn = get_connection()
             cursor = conn.cursor(
                 cursor_factory=psycopg2.extras.RealDictCursor)
 
@@ -763,17 +644,7 @@ def api_avisos():
 def api_avisos_nuevos():
     """API para obtener avisos nuevos en las últimas 24 horas"""
     try:
-        import psycopg2
-        import psycopg2.extras
-
-        conn = psycopg2.connect(
-            host=os.getenv("DB_HOST", "localhost"),
-            port=int(os.getenv("DB_PORT", "5432")),
-            database=os.getenv("DB_NAME"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            connect_timeout=5
-        )
+        conn = get_connection()
         cursor = conn.cursor(
             cursor_factory=psycopg2.extras.RealDictCursor)
 

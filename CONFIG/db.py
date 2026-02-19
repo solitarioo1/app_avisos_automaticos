@@ -338,28 +338,33 @@ def obtener_clientes_por_aviso(numero_aviso: int) -> Optional[pd.DataFrame]:
 
 def obtener_zonas_afectadas(numero_aviso: int) -> Optional[pd.DataFrame]:
     """
-    Obtiene zonas afectadas desde vista v_zonas_por_aviso_completo
+    Obtiene zonas afectadas desde tabla aviso_zonas_afectadas
     Reemplaza: lectura de provincias_afectadas.csv + distritos_afectados.csv
-    
+
     Args:
         numero_aviso: Número de aviso
-    
+
     Returns:
-        pd.DataFrame con columnas: departamento, provincia, distrito, etc.
+        pd.DataFrame con columnas: departamento, provincia, distrito, area_km2
     """
     try:
         conn = get_connection()
-        df = pd.read_sql_query(
-            "SELECT * FROM v_zonas_por_aviso_completo WHERE numero_aviso = %s",
-            conn,
-            params=(numero_aviso,)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute(
+            "SELECT departamento, provincia, distrito, area_km2 "
+            "FROM aviso_zonas_afectadas WHERE numero_aviso = %s "
+            "ORDER BY departamento, provincia, distrito",
+            (numero_aviso,)
         )
+        rows = cursor.fetchall()
+        cursor.close()
         conn.close()
-        
-        if df.empty:
+
+        if not rows:
             logger.warning(f"No hay zonas afectadas para aviso {numero_aviso}")
             return None
-        
+
+        df = pd.DataFrame([dict(row) for row in rows])
         logger.info(f"Obtenidas {len(df)} zonas afectadas para aviso {numero_aviso}")
         return df
     except Exception as e:

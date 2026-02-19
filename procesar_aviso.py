@@ -11,12 +11,13 @@ Ejemplo:
     python procesar_aviso.py 447 --from-db
 """
 
-import os
-import sys
+import io
 import json
+import logging
+import os
 import shutil
 import subprocess
-import logging
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -32,7 +33,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Asegurar que stdout se flush inmediatamente
-import io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True)
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', line_buffering=True)
 
@@ -47,10 +47,13 @@ from LAYOUT.utils import (
     limpiar_temp
 )
 
+# Importar funciones de áreas (helper sin Flask)
+from routes.areas import obtener_clientes_por_nivel
+
 # Importar funciones de BD
 from CONFIG.db import (
     obtener_aviso_por_numero, guardar_aviso_json, limpiar_imagenes_aviso, 
-    guardar_imagen_aviso, guardar_csv_aviso, limpiar_datos_aviso,
+    guardar_imagen_aviso, limpiar_datos_aviso,
     insertar_zonas_afectadas, insertar_clientes_por_aviso
 )
 
@@ -143,7 +146,6 @@ def procesar_aviso(numero_aviso, desde_db=False):
     print(f"⏳ Iniciando la descarga de información...", flush=True)
     datos_aviso = obtener_json_aviso(numero_aviso, desde_db)
     duracion_horas = datos_aviso.get('duracion_horas', 72)
-    nivel = datos_aviso.get('nivel', 'NARANJA')
     color = datos_aviso.get('color', 'naranja').lower()
     
     # Validar que solo se generen mapas para ROJO y NARANJA (usando color como indicador)
@@ -250,8 +252,6 @@ def procesar_aviso(numero_aviso, desde_db=False):
     print(f"\n📊 Procesando clientes para este aviso...", flush=True)
     try:
         # Obtener DataFrame de clientes clasificados por spatial join
-        from routes.areas import obtener_clientes_por_nivel
-        
         dia_critico_num = int(dia_critico.replace('dia', '')) if isinstance(dia_critico, str) and dia_critico.startswith('dia') else 3
         
         # Obtener DataFrame (sin guardar CSV)
@@ -264,8 +264,8 @@ def procesar_aviso(numero_aviso, desde_db=False):
             
             # Estadísticas por nivel
             stats = df_clientes['nivel'].value_counts().to_dict()
-            for nivel, cantidad in sorted(stats.items()):
-                print(f"      • {nivel}: {cantidad} clientes", flush=True)
+            for nivel_str, cantidad in sorted(stats.items()):
+                print(f"      • {nivel_str}: {cantidad} clientes", flush=True)
             
             logger.info(f"✓ Procesados {len(df_clientes)} clientes para aviso {numero_aviso}")
         else:
@@ -334,6 +334,18 @@ def procesar_aviso(numero_aviso, desde_db=False):
             ruta_relativa = f"/static/output/aviso_{numero_aviso}/{depto}.png"
             guardar_imagen_aviso(numero_aviso, depto, ruta_relativa)
     
+    # 10. Copiar SHPs a carpeta permanente SHP/ y limpiar TEMP
+    shp_dest = Path('SHP') / f'aviso_{numero_aviso}'
+    if shp_dest.exists():
+        shutil.rmtree(shp_dest)
+    shp_dest.mkdir(parents=True, exist_ok=True)
+    for dia in range(1, dias_evento + 1):
+        dia_src = Path(temp_dir) / f'dia{dia}'
+        if dia_src.exists():
+            shutil.copytree(str(dia_src), str(shp_dest / f'dia{dia}'))
+    limpiar_temp(numero_aviso)
+    print(f"♻️  TEMP limpiado → SHP permanente en: SHP/aviso_{numero_aviso}/", flush=True)
+
     print(f"\n✨ CREACIÓN FINALIZADA ✨\n", flush=True)
     print(f"👋 ¡Hasta pronto! Esta pestaña se cerrará en 5 segundos...\n", flush=True)
     logger.info(f"\n✅ Procesamiento del aviso {numero_aviso} completado")

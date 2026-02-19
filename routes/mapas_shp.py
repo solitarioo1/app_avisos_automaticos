@@ -16,7 +16,7 @@ except ImportError:
     seleccionar_dia_critico = None
 
 BASE_DIR = Path(__file__).parent.parent
-TEMP_DIR = BASE_DIR / 'TEMP'
+SHP_DIR = BASE_DIR / 'SHP'
 DELIMITACIONES_DIR = BASE_DIR / 'DELIMITACIONES'
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ def obtener_shp_geojson(numero):
     Colores: Rojo (#FF0000) = Nivel 4, Naranja (#FF8C00) = Nivel 3, Gris = otros
     """
     try:
-        temp_base = TEMP_DIR / f'aviso_{numero}'
+        temp_base = SHP_DIR / f'aviso_{numero}'
 
         if not temp_base.exists():
             return jsonify({'error': f'Aviso {numero} no encontrado'}), 404

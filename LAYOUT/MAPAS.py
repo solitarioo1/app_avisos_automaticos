@@ -441,7 +441,7 @@ shp_deptos = gpd.read_file('DELIMITACIONES/DEPARTAMENTOS/DEPARTAMENTOS.shp')
 shp_provincias = gpd.read_file('DELIMITACIONES/PROVINCIAS/PROVINCIAS.shp')
 
 # Cargar SHP de riesgo desde variable de entorno o parámetro
-shp_riesgo_path = os.getenv('SHP_RIESGO_PATH', f'DESCARGADOS_DB/aviso_{numero_aviso}_3/view_aviso.shp')
+shp_riesgo_path = os.getenv('SHP_RIESGO_PATH', f'TEMP/aviso_{numero_aviso}/dia3/view_aviso.shp')
 if not os.path.exists(shp_riesgo_path):
     print(f"❌ Error: SHP de riesgo no encontrado en {shp_riesgo_path}")
     sys.exit(1)
