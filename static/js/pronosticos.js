@@ -1,9 +1,10 @@
 /* ============================================================================
-   AVISOS.JS - Página de Avisos
-   Lógica de filtrado y gestión de avisos
+   PRONOSTICOS.JS - Página de Pronósticos
+   Lógica de filtrado y gestión de pronósticos
    ============================================================================ */
 
 const AVISOS_ORIGINALES = [];
+const AVISOS_FRESCOS = new Set();
 
 function guardarAvisosOriginales() {
     const filas = document.querySelectorAll('#tabla-avisos tr');
@@ -18,6 +19,10 @@ function guardarAvisosOriginales() {
             html: fila.outerHTML
         });
     });
+
+    // Identificar los 4 más recientes por fecha
+    const porFecha = [...AVISOS_ORIGINALES].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    porFecha.slice(0, 4).forEach(a => AVISOS_FRESCOS.add(a.numero));
 }
 
 function aplicarFiltros() {
@@ -41,38 +46,15 @@ function aplicarFiltros() {
     
     const tbody = document.getElementById('tabla-avisos');
     tbody.innerHTML = avisosFiltrados.map(a => a.html).join('');
+
+    // Marcar los 4 pronósticos más recientes con fondo suave
+    document.querySelectorAll('#tabla-avisos tr').forEach(fila => {
+        if (AVISOS_FRESCOS.has(fila.getAttribute('data-numero'))) {
+            fila.classList.add('aviso-fresco');
+        }
+    });
 }
 
-async function consultarNuevos() {
-    const btn = document.getElementById('btnConsultarNuevos');
-    const originalHTML = btn.innerHTML;
-    
-    try {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="bi bi-hourglass-split spin"></i> Consultando...';
-        
-        const response = await fetch('/api/avisos/nuevos');
-        const data = await response.json();
-        
-        if (data.status === 'success') {
-            const total = data.total_nuevos;
-            
-            if (total > 0) {
-                mostrarModal('✅ Avisos Nuevos Encontrados', `Se encontraron <strong>${total}</strong> aviso(s) nuevo(s) en las últimas 24 horas.`, 'success', true);
-            } else {
-                mostrarModal('ℹ️ Sin Avisos Nuevos', 'Por el momento no contamos con avisos nuevos', 'info');
-            }
-        } else {
-            mostrarModal('❌ Error', data.message, 'danger');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        mostrarModal('❌ Error', 'Error al consultar: ' + error.message, 'danger');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalHTML;
-    }
-}
 
 document.addEventListener('DOMContentLoaded', function() {
     guardarAvisosOriginales();
@@ -136,9 +118,4 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Evento para botón Consultar Nuevos
-    const btnConsultar = document.getElementById('btnConsultarNuevos');
-    if (btnConsultar) {
-        btnConsultar.addEventListener('click', consultarNuevos);
-    }
 });

@@ -3,7 +3,6 @@ Rutas de Utilidades - Páginas principales, dashboard, estadísticas y configura
 """
 from flask import Blueprint, render_template, request, jsonify, send_from_directory, send_file, make_response
 from pathlib import Path
-import os
 import logging
 import csv
 from datetime import datetime, timedelta
@@ -15,6 +14,11 @@ from io import StringIO
 BASE_DIR = Path(__file__).parent.parent
 OUTPUT_DIR = BASE_DIR / 'OUTPUT'
 logger = logging.getLogger(__name__)
+
+try:
+    from CONFIG.db import get_connection
+except ImportError:
+    get_connection = None
 
 # Crear blueprint
 utils_bp = Blueprint('utils', __name__, url_prefix='')
@@ -329,56 +333,41 @@ def obtener_aviso(numero_aviso):
 def api_clientes_afectados(numero):
     """API para obtener estadísticas de clientes afectados por aviso y nivel"""
     try:
-        aviso_dir = OUTPUT_DIR / f'aviso_{numero}'
-        
-        if not aviso_dir.exists():
-            return jsonify({
-                'success': False,
-                'error': f'Aviso {numero} no encontrado'
-            }), 404
-        
-        stats = {
-            'rojo': 0,
-            'naranja': 0,
-            'amarillo': 0,
-            'total': 0
-        }
-        
-        # Leer CSVs de los 3 días disponibles
-        for dia in range(1, 4):
-            csv_path = aviso_dir / f'clientes_por_nivel_dia{dia}.csv'
-            
-            if csv_path.exists():
-                try:
-                    with open(csv_path, 'r', encoding='utf-8') as f:
-                        reader = csv.DictReader(f)
-                        for row in reader:
-                            nivel = row.get('nivel', '').lower().strip()
-                            
-                            if nivel == 'rojo':
-                                stats['rojo'] += 1
-                            elif nivel == 'naranja':
-                                stats['naranja'] += 1
-                            elif nivel == 'amarillo':
-                                stats['amarillo'] += 1
-                
-                except Exception as e:
-                    logger.warning(f"Error leyendo CSV dia{dia}: {str(e)}")
-        
-        stats['total'] = stats['rojo'] + stats['naranja'] + stats['amarillo']
-        
+        if not get_connection:
+            return jsonify({'success': False, 'error': 'BD no disponible'}), 500
+
+        conn = get_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute("""
+            SELECT
+                COUNT(*) FILTER (WHERE nivel = 'Rojo')    AS rojo,
+                COUNT(*) FILTER (WHERE nivel = 'Naranja') AS naranja,
+                COUNT(*) FILTER (WHERE nivel = 'Amarillo') AS amarillo,
+                COUNT(*) AS total
+            FROM v_clientes_por_aviso_completo
+            WHERE numero_aviso = %s
+        """, (numero,))
+        row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+
+        if not row or int(row['total'] or 0) == 0:
+            return jsonify({'success': False, 'error': f'Aviso {numero} no encontrado'}), 404
+
         return jsonify({
             'success': True,
             'numero': numero,
-            'stats': stats
+            'stats': {
+                'rojo':     int(row['rojo']     or 0),
+                'naranja':  int(row['naranja']  or 0),
+                'amarillo': int(row['amarillo'] or 0),
+                'total':    int(row['total']    or 0)
+            }
         }), 200
-    
+
     except Exception as e:
         logger.error(f"Error en API clientes afectados: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ============================================================================
@@ -388,12 +377,7 @@ def api_clientes_afectados(numero):
 def api_entidades():
     """Obtiene lista de entidades desde la BD"""
     try:
-        conn = psycopg2.connect(
-            host=os.getenv('DB_HOST'),
-            database=os.getenv('DB_NAME'),
-            user=os.getenv('DB_USER'),
-            password=os.getenv('DB_PASSWORD')
-        )
+        conn = get_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
         cursor.execute("SELECT id, nombre FROM entidades ORDER BY nombre")
@@ -420,135 +404,58 @@ def api_entidades():
 # ============================================================================
 @utils_bp.route('/api/difusion/clientes/export/<int:numero>', methods=['GET'])
 def api_export_clientes(numero):
-    """Exporta CSV con clientes afectados por un aviso - Cruza datos de CSV + BD"""
+    """Exporta CSV con clientes afectados por un aviso desde BD"""
     try:
-        output_path = OUTPUT_DIR / f'aviso_{numero}'
-        
-        # 1. Recopilar IDs y niveles de clientes del CSV
-        clientes_mapping = {}  # {id: {'nivel': 'Rojo', ...}}
-        
-        for dia in range(1, 4):
-            csv_path = output_path / f'clientes_por_nivel_dia{dia}.csv'
-            
-            if csv_path.exists():
-                try:
-                    with open(csv_path, 'r', encoding='utf-8') as f:
-                        reader = csv.DictReader(f)
-                        for row in reader:
-                            cliente_id = row.get('id')
-                            nivel = row.get('nivel', '').lower().strip()
-                            
-                            if cliente_id and cliente_id not in clientes_mapping:
-                                clientes_mapping[cliente_id] = {
-                                    'nivel': nivel,
-                                    'latitud': row.get('latitud', ''),
-                                    'longitud': row.get('longitud', '')
-                                }
-                
-                except Exception as e:
-                    logger.warning(f"Error leyendo CSV dia{dia}: {str(e)}")
-        
-        if not clientes_mapping:
-            return jsonify({
-                'success': False,
-                'error': f'No se encontraron datos para aviso {numero}'
-            }), 404
-        
-        # 2. Obtener datos completos de la BD
-        try:
-            conn = psycopg2.connect(
-                host=os.getenv('DB_HOST'),
-                database=os.getenv('DB_NAME'),
-                user=os.getenv('DB_USER'),
-                password=os.getenv('DB_PASSWORD')
-            )
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            
-            # Obtener todos los clientes de la BD con JOINs a entidades y cultivos
-            cliente_ids = tuple(clientes_mapping.keys())
-            placeholders = ','.join(['%s'] * len(cliente_ids))
-            
-            query = f"""
-                SELECT 
-                    c.id, 
-                    CONCAT(c.nombre, ' ', c.apellido) as nombre,
-                    c.telefono, 
-                    c.correo, 
-                    c.departamento, 
-                    c.provincia, 
-                    c.distrito,
-                    c.hectareas,
-                    tc.nombre as cultivo,
-                    c.monto_asegurado,
-                    c.fecha_registro as fecha,
-                    e.nombre as entidad
-                FROM clientes c
-                LEFT JOIN tabla_cultivos tc ON c.cultivo_id = tc.id
-                LEFT JOIN entidades e ON c.entidad_id = e.id
-                WHERE c.id IN ({placeholders})
-                ORDER BY c.id
-            """
-            
-            cursor.execute(query, cliente_ids)
-            clientes_bd = cursor.fetchall()
-            
-            cursor.close()
-            conn.close()
-            
-        except Exception as e:
-            logger.error(f"Error consultando BD: {str(e)}")
-            return jsonify({
-                'success': False,
-                'error': f'Error en BD: {str(e)}'
-            }), 500
-        
-        # 3. Combinar datos CSV + BD
-        clientes_completos = []
-        
-        for cliente in clientes_bd:
-            cliente_id = str(cliente['id'])
-            
-            if cliente_id in clientes_mapping:
-                cliente_data = dict(cliente)
-                cliente_data['nivel'] = clientes_mapping[cliente_id]['nivel']
-                clientes_completos.append(cliente_data)
-        
-        if not clientes_completos:
-            return jsonify({
-                'success': False,
-                'error': 'No se encontraron clientes con datos completos'
-            }), 404
-        
-        # 4. Crear CSV en memoria
+        if not get_connection:
+            return jsonify({'success': False, 'error': 'BD no disponible'}), 500
+
+        conn = get_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute("""
+            SELECT
+                cliente_id                              AS id,
+                CONCAT(nombre, ' ', apellido)           AS nombre,
+                telefono,
+                correo,
+                departamento,
+                provincia,
+                distrito,
+                hectareas,
+                cultivo,
+                nivel,
+                entidad_nombre                          AS entidad,
+                monto_asegurado,
+                fecha_generacion                        AS fecha
+            FROM v_clientes_por_aviso_completo
+            WHERE numero_aviso = %s
+            ORDER BY nivel, cliente_id
+        """, (numero,))
+        clientes = cursor.fetchall()
+        cursor.close()
+        conn.close()
+
+        if not clientes:
+            return jsonify({'success': False, 'error': f'No hay datos para aviso {numero}'}), 404
+
+        # Crear CSV en memoria
         output = StringIO()
-        
-        # Definir campos para exportación (en orden específico)
-        fields = ['id', 'nombre', 'telefono', 'correo', 'departamento', 'provincia', 'distrito', 
+        fields = ['id', 'nombre', 'telefono', 'correo', 'departamento', 'provincia', 'distrito',
                   'hectareas', 'cultivo', 'nivel', 'entidad', 'monto_asegurado', 'fecha']
-        
         writer = csv.DictWriter(output, fieldnames=fields, extrasaction='ignore')
         writer.writeheader()
-        writer.writerows(clientes_completos)
-        
-        # 5. Preparar respuesta
-        csv_string = output.getvalue()
+        writer.writerows([dict(r) for r in clientes])
+
         filename = f'clientes_aviso_{numero}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
-        
-        # Retornar como descarga
-        response = make_response(csv_string)
+        response = make_response(output.getvalue())
         response.headers['Content-Disposition'] = f'attachment; filename={filename}'
         response.headers['Content-Type'] = 'text/csv; charset=utf-8'
-        
-        logger.info(f"✓ CSV exportado: {filename} ({len(clientes_completos)} registros)")
-        
+
+        logger.info(f"✓ CSV exportado: {filename} ({len(clientes)} registros)")
         return response, 200
-    
+
     except Exception as e:
         logger.error(f"Error exportando CSV: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @utils_bp.errorhandler(404)

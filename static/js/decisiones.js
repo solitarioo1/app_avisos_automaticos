@@ -642,7 +642,6 @@ function actualizarTablaZonas() {
                 html += `
                     <tr class="${fila_class}">
                         <td>${iconos[color]} ${color}</td>
-                        <td>${agr_total}</td>
                         <td><strong>${agr_total}</strong></td>
                         <td>${ha_total.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                         <td>S/ ${poliza_total.toLocaleString('es-ES', {maximumFractionDigits: 0})}</td>

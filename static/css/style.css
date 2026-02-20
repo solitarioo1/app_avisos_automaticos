@@ -1570,3 +1570,87 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--text-secondary);
 }
+
+/* ============================================================================
+   MAPAS - TARJETAS DE AVISOS
+   ============================================================================ */
+.mapas-container { max-width: 1200px; }
+
+.avisos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.aviso-card {
+    background: white;
+    border-radius: 0;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+}
+
+.aviso-card.color-rojo { background: rgba(250, 111, 74, 0.12); border-left: 4px solid #fa6f4a; }
+.aviso-card.color-naranja { background: rgba(251, 156, 132, 0.12); border-left: 4px solid #fb9c84; }
+.aviso-card.color-plomo { background: rgba(108, 117, 125, 0.08); border-left: 4px solid #6c757d; }
+
+.aviso-header {
+    background: linear-gradient(135deg, #0070C0 0%, #00A4EF 100%);
+    color: white;
+    padding: 1rem;
+}
+
+.aviso-header.color-rojo { background: linear-gradient(135deg, #fa6f4a 0%, #e05a38 100%); }
+.aviso-header.color-naranja { background: linear-gradient(135deg, #fb9c84 0%, #fa6f4a 100%); }
+.aviso-header.color-plomo { background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); }
+
+.aviso-titulo { font-size: 14px; font-weight: 700; margin: 0; color: inherit; }
+.aviso-numero-small { font-size: 11px; margin: 0.25rem 0 0 0; opacity: 0.8; }
+
+.aviso-body { padding: 1rem; flex: 1; }
+.info-row { margin-bottom: 0.75rem; }
+.info-label { font-size: 11px; color: #6c757d; font-weight: 600; }
+
+.nivel-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 20px; font-weight: 600; font-size: 12px; color: white; }
+.nivel-rojo { background: #fa6f4a; }
+.nivel-naranja { background: #fb9c84; }
+
+.departamentos-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.depto-tag { background: #e9ecef; color: #333; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 11px; font-weight: 500; }
+
+.status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+.status-ready { background: #d4edda; color: #155724; }
+.status-pending { background: #fff3cd; color: #856404; }
+
+.btn-naranja-turquesa {
+    background-color: #ff8c00;
+    color: white;
+    border: none;
+    font-weight: 600;
+    padding: 10px 16px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.btn-naranja-turquesa:hover { background-color: #e67e00; color: white; }
+.btn-naranja-turquesa:disabled { background-color: #ccc; color: #999; cursor: not-allowed; }
+
+.aviso-footer { padding: 1rem; border-top: 1px solid #e9ecef; display: flex; gap: 0.5rem; }
+.aviso-footer .btn-sm { flex: 1; padding: 6px 8px; font-size: 12px; }
+
+.carousel-mapas { display: flex; align-items: center; gap: 1rem; margin: 1rem 0; }
+.carousel-nav { cursor: pointer; padding: 8px 12px; background: #f0f0f0; border: none; border-radius: 4px; font-size: 18px; }
+.carousel-nav:hover { background: #e0e0e0; }
+.carousel-nav:disabled { opacity: 0.5; cursor: not-allowed; }
+.carousel-container { flex: 1; position: relative; overflow: hidden; border-radius: 8px; }
+.carousel-imagen { max-width: 100%; height: 450px; object-fit: contain; background: #f9f9f9; cursor: zoom-in; transition: all 0.3s ease; }
+.carousel-imagen.zoomed { cursor: zoom-out; }
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+.spin { display: inline-block; animation: spin 1s linear infinite; }

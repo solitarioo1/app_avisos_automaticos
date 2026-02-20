@@ -10,13 +10,8 @@
 <div class="container-fluid p-3 avisos-container">
     <!-- Encabezado -->
     <div class="row mb-4">
-        <div class="col-md-6">
-            <h1 class="h2">Avisos</h1>
-        </div>
-        <div class="col-md-6 text-end">
-            <button id="btnConsultarNuevos" class="btn btn-success">
-                <i class="bi bi-cloud-download"></i> Consultar Nuevos
-            </button>
+        <div class="col-12">
+            <h1 class="h2">Pronósticos</h1>
         </div>
     </div>
 
@@ -59,7 +54,7 @@
     <!-- Tabla -->
     <div class="card">
         <div class="card-header bg-primary text-white">
-            <h5 class="mb-0" id="tabla-titulo">Lista de Avisos</h5>
+            <h5 class="mb-0" id="tabla-titulo">Lista de Pronósticos</h5>
         </div>
         <div class="table-responsive">
             <table class="table table-hover mb-0 table-sm">
@@ -77,7 +72,7 @@
                 <tbody id="tabla-avisos">
                     {% for aviso in avisos %}
                     <tr data-numero="{{ aviso.numero }}" data-nivel="{{ aviso.nivel }}" data-descargado="{{ aviso.descargado }}" data-procesado="{{ aviso.mapa_creado }}" data-fecha="{{ aviso.fecha_emision }}" data-color="{{ aviso.color }}">
-                        <td><strong>#{{ aviso.numero }}</strong></td>
+                        <td>{{ aviso.numero }}</td>
                         <td style="text-align: left;">{{ aviso.titulo }}</td>
                         <td>
                             {% if aviso.color == 'rojo' %}
@@ -92,14 +87,14 @@
                                 <span class="nivel-badge nivel-gris">{{ aviso.nivel }}</span>
                             {% endif %}
                         </td>
-                        <td><small>{{ aviso.fecha_emision }}</small></td>
-                        <td style="text-align: center;">{{ aviso.descargado }}</td>
-                        <td style="text-align: center;">{{ aviso.mapa_creado }}</td>
+                        <td style="font-size: 0.9rem;">{{ aviso.fecha_emision }}</td>
+                        <td style="text-align: center; font-size: 1rem;">{{ aviso.descargado }}</td>
+                        <td style="text-align: center; font-size: 1rem;">{{ aviso.mapa_creado }}</td>
                         <td>
-                            <div class="acciones-col" style="display: flex; gap: 0.5rem;">
-                                <button class="btn btn-sm btn-outline-primary btn-descargar" title="Descargar JSON" data-numero="{{ aviso.numero }}"><i class="bi bi-download"></i></button>
-                                <a href="/mapas?aviso={{ aviso.numero }}" class="btn btn-sm btn-outline-secondary" title="Ver Mapas"><i class="bi bi-eye"></i></a>
-                                <a href="/decisiones?aviso={{ aviso.numero }}" class="btn btn-sm btn-outline-warning" title="Decisiones"><i class="bi bi-geo"></i></a>
+                            <div class="acciones-col" style="display: flex; gap: 0.4rem; align-items: center;">
+                                <button class="btn btn-accion btn-accion-descargar btn-descargar" title="Descargar JSON" data-numero="{{ aviso.numero }}"><i class="bi bi-download"></i></button>
+                                <a href="/mapas?aviso={{ aviso.numero }}" class="btn btn-accion btn-accion-mapas" title="Ver Mapas"><i class="bi bi-eye"></i></a>
+                                <a href="/decisiones?aviso={{ aviso.numero }}" class="btn btn-accion btn-accion-decisiones" title="Decisiones"><i class="bi bi-geo"></i></a>
                             </div>
                         </td>
                     </tr>
@@ -120,8 +115,19 @@
     .nivel-rojo { background-color: #dc3545; color: white; }
     .nivel-naranja { background-color: #fd7e14; color: white; }
     .nivel-amarillo { background-color: #ffc107; color: black; }
-    /* .nivel-verde { background-color: #198754; color: white; } */
+    .nivel-verde { background-color: #198754; color: white; }
     .nivel-gris { background-color: #6c757d; color: white; }
+
+    /* Últimos 4 pronósticos más recientes */
+    .aviso-fresco td {
+        background-color: #FEEBE6 !important;
+        --bs-table-bg: #FEEBE6;
+        --bs-table-accent-bg: #FEEBE6;
+    }
+    .aviso-fresco:hover td {
+        background-color: #fdd8cc !important;
+        --bs-table-bg: #fdd8cc;
+    }
     
     .spin { 
         display: inline-block; 
@@ -131,7 +137,23 @@
         from { transform: rotate(0deg); } 
         to { transform: rotate(360deg); } 
     }
+
+    /* Botones de acción */
+    .btn-accion {
+        padding: 0.3rem 0.55rem;
+        font-size: 0.9rem;
+        line-height: 1;
+        border-radius: 0.35rem;
+        border: none;
+        color: white;
+    }
+    .btn-accion-descargar { background-color: #04ccc4; }
+    .btn-accion-descargar:hover { background-color: #03aaa3; color: white; }
+    .btn-accion-mapas { background-color: #64d3ce; }
+    .btn-accion-mapas:hover { background-color: #3fbfb9; color: white; }
+    .btn-accion-decisiones { background-color: #fa6f4a; }
+    .btn-accion-decisiones:hover { background-color: #e05535; color: white; }
 </style>
 
-<script src="{{ url_for('static', filename='js/avisos.js') }}"></script>
+<script src="{{ url_for('static', filename='js/pronosticos.js') }}"></script>
 {% endblock %}

@@ -204,7 +204,16 @@ def procesar_aviso(numero_aviso, desde_db=False):
     print(f"\n🔍 Analizando zonas de riesgo...", flush=True)
     dia_critico, shp_critico = seleccionar_dia_critico(shp_paths)
     print(f"  ✅ Día seleccionado: {dia_critico}", flush=True)
-    
+
+    # 5b. Guardar SHP del día crítico en carpeta permanente SHP/aviso_{n}/
+    shp_dest = Path('SHP') / f'aviso_{numero_aviso}'
+    if shp_dest.exists():
+        shutil.rmtree(shp_dest)
+    shp_dest.mkdir(parents=True, exist_ok=True)
+    for archivo in Path(shp_critico).parent.iterdir():
+        shutil.copy2(str(archivo), str(shp_dest / archivo.name))
+    print(f"  💾 SHP guardado en: SHP/aviso_{numero_aviso}/", flush=True)
+
     # 6. Extraer departamentos afectados
     print(f"\n🗺️  Identificando zonas afectadas...", flush=True)
     deptos_afectados = extraer_departamentos_afectados(shp_critico)
@@ -334,17 +343,9 @@ def procesar_aviso(numero_aviso, desde_db=False):
             ruta_relativa = f"/static/output/aviso_{numero_aviso}/{depto}.png"
             guardar_imagen_aviso(numero_aviso, depto, ruta_relativa)
     
-    # 10. Copiar SHPs a carpeta permanente SHP/ y limpiar TEMP
-    shp_dest = Path('SHP') / f'aviso_{numero_aviso}'
-    if shp_dest.exists():
-        shutil.rmtree(shp_dest)
-    shp_dest.mkdir(parents=True, exist_ok=True)
-    for dia in range(1, dias_evento + 1):
-        dia_src = Path(temp_dir) / f'dia{dia}'
-        if dia_src.exists():
-            shutil.copytree(str(dia_src), str(shp_dest / f'dia{dia}'))
+    # 10. Limpiar TEMP
     limpiar_temp(numero_aviso)
-    print(f"♻️  TEMP limpiado → SHP permanente en: SHP/aviso_{numero_aviso}/", flush=True)
+    print(f"♻️  TEMP limpiado", flush=True)
 
     print(f"\n✨ CREACIÓN FINALIZADA ✨\n", flush=True)
     print(f"👋 ¡Hasta pronto! Esta pestaña se cerrará en 5 segundos...\n", flush=True)

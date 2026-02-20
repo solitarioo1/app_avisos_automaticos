@@ -234,14 +234,16 @@ def insertar_zonas_afectadas(numero_aviso: int, df_zonas) -> int:
         conn = get_connection()
         cursor = conn.cursor()
         
+        # Eliminar registros previos del aviso para evitar duplicados (especialmente con distrito=NULL)
+        cursor.execute("DELETE FROM aviso_zonas_afectadas WHERE numero_aviso = %s", (numero_aviso,))
+
         insertados = 0
         
         for _, row in df_zonas.iterrows():
             cursor.execute(
                 """INSERT INTO aviso_zonas_afectadas 
                    (numero_aviso, departamento, provincia, distrito, area_km2)
-                   VALUES (%s, %s, %s, %s, %s)
-                   ON CONFLICT (numero_aviso, departamento, provincia, distrito) DO NOTHING""",
+                   VALUES (%s, %s, %s, %s, %s)""",
                 (numero_aviso, row.get('departamento'), row.get('provincia'), row.get('distrito'),
                  row.get('area_km2', 0))
             )

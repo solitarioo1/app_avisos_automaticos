@@ -111,7 +111,7 @@ def avisos():
                        OSError):
                     pass
 
-    return render_template('avisos.html', avisos=avisos_lista)
+    return render_template('pronosticos.html', avisos=avisos_lista)
 
 
 @avisos_bp.route('/api/avisos/<int:numero>/descargar', methods=['POST'])
@@ -552,14 +552,20 @@ def api_avisos():
 
             for aviso in avisos_bd:
                 numero = aviso['numero_aviso']
+                json_path = BASE_DIR / 'JSON' / 'aviso_{}.json'.format(numero)
+                output_path = OUTPUT_DIR / 'aviso_{}'.format(numero)
+                tiene_json = json_path.exists()
+                tiene_mapas = (output_path.exists() and
+                               (any(output_path.glob('*.webp')) or
+                                any(output_path.glob('*.png'))))
                 avisos_dict[numero] = {
                     'numero': numero,
                     'titulo': aviso['titulo'],
                     'nivel': aviso['nivel'],
                     'color': aviso.get('color', 'plomo'),
                     'fecha_emision': str(aviso.get('fecha_emision', '')),
-                    'descargado': '✅',
-                    'mapa_creado': '⏳',
+                    'descargado': '\u2705' if tiene_json else '\u23f3',
+                    'mapa_creado': '\u2705' if tiene_mapas else '\u23f3',
                     'fuente': 'bd'
                 }
         except (psycopg2.Error, ImportError):
