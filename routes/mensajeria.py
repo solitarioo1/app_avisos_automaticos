@@ -57,11 +57,12 @@ def get_worksheet(tipo):
 @mensajeria_bp.route('/')
 def index():
     """Renderiza la página de mensajería con los webhooks configurados."""
+    # Pasar solo booleanos al frontend (no exponer URLs de webhook)
     config = {
-        'afiliaciones':    WEBHOOKS['afiliaciones'],
-        'resultados':      WEBHOOKS['resultados'],
-        'indemnizaciones': WEBHOOKS['indemnizaciones'],
-        'alertas':         WEBHOOKS['alertas'],
+        'afiliaciones':    bool(WEBHOOKS.get('afiliaciones')),
+        'resultados':      bool(WEBHOOKS.get('resultados')),
+        'indemnizaciones': bool(WEBHOOKS.get('indemnizaciones')),
+        'alertas':         bool(WEBHOOKS.get('alertas')),
     }
     return render_template('mensajeria.html', config=config)
 

@@ -145,14 +145,7 @@ def difusion():
                              historial_envios=[], contactos_recientes=[])
 
 
-@utils_bp.route('/mensajeria', methods=['GET'])
-def mensajeria():
-    """Página de Mensajería - Envío general de mensajes (SMS, Email, WhatsApp)"""
-    try:
-        return render_template('mensajeria.html')
-    except Exception as e:
-        logger.error(f"Error en página mensajeria: {str(e)}")
-        return render_template('mensajeria.html')
+# Ruta /mensajeria eliminada — ahora la maneja mensajeria_bp (routes/mensajeria.py)
 
 
 @utils_bp.route('/configuracion', methods=['GET'])

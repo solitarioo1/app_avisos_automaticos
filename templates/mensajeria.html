@@ -225,5 +225,9 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    // Inyectar configuración de webhooks desde Flask (solo booleanos)
+    window.MENSAJERIA_CONFIG = {{ config | tojson | safe }};
+</script>
 <script src="{{ url_for('static', filename='js/mensajeria.js') }}"></script>
 {% endblock %}
