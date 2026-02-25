@@ -3,17 +3,227 @@
 {% block title %}Mensajería - La Positiva Avisos Meteorológicos{% endblock %}
 
 {% block content %}
-<div class="container-fluid p-4">
-    <div class="row">
-        <div class="col-12">
-            <h1><i class="bi bi-chat-dots"></i> Mensajería</h1>
-            <p class="text-muted">Envío de mensajes generales a clientes (SMS, Email, WhatsApp)</p>
+<div class="mensajeria-container">
+
+    <!-- Header de sección -->
+    <div class="mensajeria-header">
+        <div class="mensajeria-header-info">
+            <h1><i class="bi bi-whatsapp"></i> Mensajería WhatsApp</h1>
+            <p>Envío masivo de mensajes a clientes asegurados · Solo registros <span class="badge-pendiente">pendiente</span></p>
+        </div>
+        <button class="btn-ver-historial" onclick="cargarHistorial()">
+            <i class="bi bi-clock-history"></i> Historial de Envíos
+        </button>
+    </div>
+
+    <!-- KPI Strip (aparece después de enviar) -->
+    <div class="kpi-strip" id="kpiStrip" style="display:none;">
+        <div class="kpi-item">
+            <i class="bi bi-check-circle-fill" style="color:var(--success)"></i>
+            <span class="kpi-num" id="kpiEnviados">0</span>
+            <span class="kpi-lbl">Enviados</span>
+        </div>
+        <div class="kpi-divider"></div>
+        <div class="kpi-item">
+            <i class="bi bi-x-circle-fill" style="color:var(--danger)"></i>
+            <span class="kpi-num" id="kpiFallidos">0</span>
+            <span class="kpi-lbl">Fallidos</span>
+        </div>
+        <div class="kpi-divider"></div>
+        <div class="kpi-item">
+            <i class="bi bi-hourglass-split" style="color:var(--warning)"></i>
+            <span class="kpi-num" id="kpiPendientes">0</span>
+            <span class="kpi-lbl">Pendientes</span>
+        </div>
+        <div class="kpi-divider"></div>
+        <div class="kpi-item">
+            <i class="bi bi-people-fill" style="color:var(--primary-color)"></i>
+            <span class="kpi-num" id="kpiTotal">0</span>
+            <span class="kpi-lbl">Total</span>
+        </div>
+        <div class="kpi-divider"></div>
+        <div class="kpi-item">
+            <i class="bi bi-clock" style="color:var(--gray)"></i>
+            <span class="kpi-num kpi-hora" id="kpiHora">--:--</span>
+            <span class="kpi-lbl">Último envío</span>
         </div>
     </div>
-    
-    <!-- Contenido será agregado aquí -->
-    <div class="alert alert-info" role="alert">
-        Sección de mensajería en desarrollo...
+
+    <!-- Botones de Envío -->
+    <div class="envio-section">
+        <h2 class="section-title"><i class="bi bi-send-fill"></i> Seleccionar Tipo de Mensaje</h2>
+        <div class="cards-grid">
+
+            <!-- Afiliaciones -->
+            <div class="msg-card" id="card-afiliaciones">
+                <div class="msg-card-stripe stripe-turquesa"></div>
+                <div class="msg-card-content">
+                    <div class="msg-card-icon icon-turquesa">
+                        <i class="bi bi-person-check-fill"></i>
+                    </div>
+                    <div class="msg-card-info">
+                        <h3>Afiliaciones</h3>
+                        <p>Bienvenida al seguro agrícola y número de contacto para reportar afectaciones.</p>
+                        <div class="msg-preview">
+                            <i class="bi bi-chat-quote"></i>
+                            "Felicitaciones por asegurar tu cultivo contra riesgos climáticos con La Positiva Seguros..."
+                        </div>
+                    </div>
+                    <button class="btn-enviar" id="btn-afiliaciones" onclick="enviarMensaje('afiliaciones', this)">
+                        <i class="bi bi-whatsapp"></i>
+                        <span class="btn-label">Enviar</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Resultados -->
+            <div class="msg-card" id="card-resultados">
+                <div class="msg-card-stripe stripe-naranja"></div>
+                <div class="msg-card-content">
+                    <div class="msg-card-icon icon-naranja">
+                        <i class="bi bi-clipboard-data-fill"></i>
+                    </div>
+                    <div class="msg-card-info">
+                        <h3>Resultados de Evaluación</h3>
+                        <p>Notificación que el resultado del cultivo fue enviado a la entidad financiera.</p>
+                        <div class="msg-preview">
+                            <i class="bi bi-chat-quote"></i>
+                            "La Positiva Seguros le informa que el resultado de la evaluación de su cultivo ya fue enviado..."
+                        </div>
+                    </div>
+                    <button class="btn-enviar" id="btn-resultados" onclick="enviarMensaje('resultados', this)">
+                        <i class="bi bi-whatsapp"></i>
+                        <span class="btn-label">Enviar</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Indemnizaciones -->
+            <div class="msg-card" id="card-indemnizaciones">
+                <div class="msg-card-stripe stripe-verde"></div>
+                <div class="msg-card-content">
+                    <div class="msg-card-icon icon-verde">
+                        <i class="bi bi-cash-coin"></i>
+                    </div>
+                    <div class="msg-card-info">
+                        <h3>Indemnizaciones Pagadas</h3>
+                        <p>Aviso de que la indemnización fue depositada en la cuenta de la entidad financiera.</p>
+                        <div class="msg-preview">
+                            <i class="bi bi-chat-quote"></i>
+                            "La Positiva Seguros le informa que su indemnización ya fue depositada a la cuenta..."
+                        </div>
+                    </div>
+                    <button class="btn-enviar" id="btn-indemnizaciones" onclick="enviarMensaje('indemnizaciones', this)">
+                        <i class="bi bi-whatsapp"></i>
+                        <span class="btn-label">Enviar</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Alertas SENAMHI -->
+            <div class="msg-card" id="card-alertas">
+                <div class="msg-card-stripe stripe-amarillo"></div>
+                <div class="msg-card-content">
+                    <div class="msg-card-icon icon-amarillo">
+                        <i class="bi bi-cloud-lightning-rain-fill"></i>
+                    </div>
+                    <div class="msg-card-info">
+                        <h3>Alertas SENAMHI</h3>
+                        <p>Alertas meteorológicas con pronóstico de descensos de temperatura o eventos climáticos.</p>
+                        <div class="msg-preview">
+                            <i class="bi bi-chat-quote"></i>
+                            "La Positiva Seguros le informa que se pronostican descensos de temperatura los días..."
+                        </div>
+                    </div>
+                    <button class="btn-enviar" id="btn-alertas" onclick="enviarMensaje('alertas', this)">
+                        <i class="bi bi-whatsapp"></i>
+                        <span class="btn-label">Enviar</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
     </div>
+
+    <!-- Sección Historial -->
+    <div class="historial-section" id="historialSection" style="display:none;">
+        <div class="historial-header">
+            <h2 class="section-title"><i class="bi bi-table"></i> Historial de Envíos</h2>
+            <div class="historial-filtros">
+                <select class="filtro-select" id="filtroHoja" onchange="filtrarHistorial()">
+                    <option value="">Todos los tipos</option>
+                    <option value="afiliaciones">Afiliaciones</option>
+                    <option value="resultados">Resultados</option>
+                    <option value="indemnizaciones">Indemnizaciones</option>
+                    <option value="alertas">Alertas SENAMHI</option>
+                </select>
+                <select class="filtro-select" id="filtroEstado" onchange="filtrarHistorial()">
+                    <option value="">Todos los estados</option>
+                    <option value="enviado">Enviado</option>
+                    <option value="fallido">Fallido</option>
+                    <option value="pendiente">Pendiente</option>
+                </select>
+                <button class="btn-refresh" onclick="cargarHistorial()">
+                    <i class="bi bi-arrow-clockwise"></i> Actualizar
+                </button>
+            </div>
+        </div>
+
+        <!-- Gráficos resumen -->
+        <div class="chart-row" id="chartRow">
+            <div class="chart-card">
+                <h4><i class="bi bi-bar-chart-fill"></i> Mensajes por Tipo</h4>
+                <canvas id="chartTipo" height="140"></canvas>
+            </div>
+            <div class="chart-card">
+                <h4><i class="bi bi-pie-chart-fill"></i> Estado General</h4>
+                <canvas id="chartEstado" height="140"></canvas>
+            </div>
+        </div>
+
+        <!-- Tabla -->
+        <div class="tabla-wrapper">
+            <div class="tabla-loading" id="tablaLoading" style="display:none;">
+                <i class="bi bi-arrow-repeat spin"></i> Cargando datos de Google Sheets...
+            </div>
+            <table class="historial-table" id="historialTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Tipo</th>
+                        <th>Nombre</th>
+                        <th>Número</th>
+                        <th>Entidad</th>
+                        <th>Estado</th>
+                        <th>Fecha Envío</th>
+                    </tr>
+                </thead>
+                <tbody id="historialBody">
+                    <tr>
+                        <td colspan="7" class="tabla-empty">
+                            <i class="bi bi-inbox"></i> Presiona "Historial de Envíos" para cargar los datos
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
 </div>
+
+<!-- Toast de notificación -->
+<div class="msg-toast" id="msgToast" style="display:none;">
+    <div class="toast-icon" id="toastIcon"></div>
+    <div class="toast-content">
+        <strong id="toastTitle"></strong>
+        <span id="toastMsg"></span>
+    </div>
+    <button class="toast-close" onclick="cerrarToast()"><i class="bi bi-x"></i></button>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/mensajeria.js') }}"></script>
 {% endblock %}

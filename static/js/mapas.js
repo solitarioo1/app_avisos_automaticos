@@ -80,7 +80,7 @@ async function cargarAvisos() {
                                 <button class="btn btn-sm btn-naranja-turquesa" onclick="abrirCarruselModal(${aviso.numero})">
                                     <i class="bi bi-eye"></i> Ver Todos
                                 </button>
-                                <button class="btn btn-sm btn-naranja-turquesa" onclick="generarMapas(${aviso.numero})">
+                                <button class="btn btn-sm btn-naranja-turquesa" onclick="generarMapas(${aviso.numero}, true)">
                                     <i class="bi bi-arrow-repeat"></i> Regenerar
                                 </button>
                             ` : `
@@ -214,13 +214,14 @@ function carouselSiguiente(numero) {
     }
 }
 
-async function generarMapas(numero) {
+async function generarMapas(numero, force = false) {
     const modal = new bootstrap.Modal(document.getElementById('mapaModal'));
-    document.getElementById('mapaModalTitle').textContent = `Generando mapas - Aviso #${numero}`;
-    document.getElementById('carouselContent').innerHTML = '<p>Iniciando generaci\u00f3n...</p>';
+    document.getElementById('mapaModalTitle').textContent = `${force ? 'Regenerando' : 'Generando'} mapas - Aviso #${numero}`;
+    document.getElementById('mapaModalDepto').textContent = force ? '⚠️ Borrando mapas anteriores y reprocesando...' : '';
+    document.getElementById('carouselContent').innerHTML = '<p>Iniciando...</p>';
     modal.show();
 
-    const eventSource = new EventSource(`/api/avisos/${numero}/procesar?stream=true`);
+    const eventSource = new EventSource(`/api/avisos/${numero}/procesar?stream=true${force ? '&force=true' : ''}`);
     let logHTML = '';
 
     eventSource.onmessage = function(event) {

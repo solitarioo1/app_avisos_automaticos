@@ -15,3 +15,5 @@ requests
 shapely
 pandas
 openpyxl
+gspread
+google-auth

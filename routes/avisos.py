@@ -172,10 +172,13 @@ def api_procesar_aviso(numero):
     """API para generar mapas del aviso con soporte Server-Sent Events"""
     try:
         stream = request.args.get('stream', 'false').lower() == 'true'
+        force  = request.args.get('force',  'false').lower() == 'true'
         output_path = OUTPUT_DIR / 'aviso_{}'.format(numero)
 
-        if output_path.exists() and (any(output_path.glob('*.webp')) or
-                                     any(output_path.glob('*.png'))):
+        # Si ya existen mapas y NO es force → retornar sin reprocesar
+        if (not force and output_path.exists() and
+                (any(output_path.glob('*.webp')) or
+                 any(output_path.glob('*.png')))):
             if stream:
                 def generate_existing():
                     msg = {'type': 'log', 'message': 'Mapas ya existen',
@@ -191,6 +194,12 @@ def api_procesar_aviso(numero):
                 'message': 'Mapas ya existen',
                 'path': str(output_path)
             }), 200
+
+        # force=true → limpiar OUTPUT anterior para reprocesar desde cero
+        if force and output_path.exists():
+            import shutil
+            shutil.rmtree(str(output_path), ignore_errors=True)
+            logger.info('Limpiado OUTPUT para forzar regeneración: aviso %d', numero)
 
         if stream:
             def generate():
@@ -558,6 +567,7 @@ def api_avisos():
                 tiene_mapas = (output_path.exists() and
                                (any(output_path.glob('*.webp')) or
                                 any(output_path.glob('*.png'))))
+                tiene_shp = (BASE_DIR / 'SHP' / 'aviso_{}'.format(numero) / 'view_aviso.shp').exists()
                 avisos_dict[numero] = {
                     'numero': numero,
                     'titulo': aviso['titulo'],
@@ -566,6 +576,7 @@ def api_avisos():
                     'fecha_emision': str(aviso.get('fecha_emision', '')),
                     'descargado': '\u2705' if tiene_json else '\u23f3',
                     'mapa_creado': '\u2705' if tiene_mapas else '\u23f3',
+                    'tiene_shp': tiene_shp,
                     'fuente': 'bd'
                 }
         except (psycopg2.Error, ImportError):
@@ -591,18 +602,20 @@ def api_avisos():
                                        (any(output_path.glob('*.webp')) or
                                         any(output_path.glob('*.png'))))
 
+                        shp_path = BASE_DIR / 'SHP' / 'aviso_{}'.format(numero) / 'view_aviso.shp'
                         avisos_dict[numero] = {
-                            'numero': numero,
-                            'titulo': datos.get('titulo',
-                                              'Aviso {}'.format(numero)),
-                            'nivel': datos.get('nivel', 'AMARILLO'),
-                            'color': color,
-                            'fecha_emision': datos.get('fecha_emision',
-                                                      '2026-02-01'),
-                            'descargado': '✅',
-                            'mapa_creado': '✅' if mapas_creados else '⏳',
-                            'fuente': 'json'
-                        }
+                                'numero': numero,
+                                'titulo': datos.get('titulo',
+                                                  'Aviso {}'.format(numero)),
+                                'nivel': datos.get('nivel', 'AMARILLO'),
+                                'color': color,
+                                'fecha_emision': datos.get('fecha_emision',
+                                                          '2026-02-01'),
+                                'descargado': '\u2705',
+                                'mapa_creado': '\u2705' if mapas_creados else '\u23f3',
+                                'tiene_shp': shp_path.exists(),
+                                'fuente': 'json'
+                            }
                 except (ValueError, KeyError, json.JSONDecodeError,
                        OSError):
                     pass
@@ -616,14 +629,16 @@ def api_avisos():
                         if numero not in avisos_dict:
                             has_maps = (any(carpeta.glob('*.webp')) or
                                        any(carpeta.glob('*.png')))
+                            shp_path = BASE_DIR / 'SHP' / 'aviso_{}'.format(numero) / 'view_aviso.shp'
                             avisos_dict[numero] = {
                                 'numero': numero,
                                 'titulo': 'Aviso {}'.format(numero),
                                 'nivel': 'N/A',
                                 'color': 'plomo',
                                 'fecha_emision': '2026-02-01',
-                                'descargado': '⏳',
-                                'mapa_creado': '✅' if has_maps else '⏳',
+                                'descargado': '\u23f3',
+                                'mapa_creado': '\u2705' if has_maps else '\u23f3',
+                                'tiene_shp': shp_path.exists(),
                                 'fuente': 'output'
                             }
                     except (ValueError, OSError):

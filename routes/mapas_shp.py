@@ -3,17 +3,10 @@ Rutas de Mapas y SHP - Endpoints para capas geoespaciales
 Maneja SHP de avisos y delimitaciones (departamentos, provincias, distritos)
 """
 import logging
-import sys
 from pathlib import Path
 
 import geopandas as gpd
 from flask import Blueprint, jsonify
-
-sys.path.insert(0, str(Path(__file__).parent.parent / 'LAYOUT'))
-try:
-    from utils import seleccionar_dia_critico
-except ImportError:
-    seleccionar_dia_critico = None
 
 BASE_DIR = Path(__file__).parent.parent
 SHP_DIR = BASE_DIR / 'SHP'
@@ -40,27 +33,11 @@ def obtener_shp_geojson(numero):
         if not temp_base.exists():
             return jsonify({'error': f'Aviso {numero} no encontrado'}), 404
 
-        # Buscar los 3 días
-        dict_shps = {}
-        for dia in range(1, 4):
-            dia_dir = temp_base / f'dia{dia}'
-            shp_path = dia_dir / 'view_aviso.shp'
-            if shp_path.exists():
-                dict_shps[f'dia{dia}'] = str(shp_path)
-
-        if not dict_shps:
-            return jsonify({'error': 'No hay SHP disponibles'}), 404
-
-        # Seleccionar día crítico
+        shp_critico = str(temp_base / 'view_aviso.shp')
         dia_critico = 'dia1'
-        shp_critico = None
-        try:
-            dia_critico, shp_critico = seleccionar_dia_critico(dict_shps)
-        except (ValueError, AttributeError):
-            # Si falla, usa dia1
-            shp_critico = dict_shps.get('dia1')
-            if not shp_critico:
-                return jsonify({'error': 'No se pudo seleccionar día'}), 500
+
+        if not (temp_base / 'view_aviso.shp').exists():
+            return jsonify({'error': 'No hay SHP disponible para este aviso'}), 404
 
         # Leer SHP
         try:

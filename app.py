@@ -67,6 +67,8 @@ from routes.utils import utils_bp
 from routes.decisiones import decisiones_bp
 from routes.mapas_shp import mapas_shp_bp
 from routes.areas import areas_bp
+from routes.difusion import difusion_bp
+from routes.mensajeria import mensajeria_bp
 
 # Registrar blueprints (cada blueprint contiene sus propias rutas)
 app.register_blueprint(avisos_bp)
@@ -75,6 +77,18 @@ app.register_blueprint(utils_bp)
 app.register_blueprint(decisiones_bp)
 app.register_blueprint(mapas_shp_bp)
 app.register_blueprint(areas_bp)
+app.register_blueprint(difusion_bp)
+app.register_blueprint(mensajeria_bp)
+
+# ── Sin caché en todas las rutas /api/ ──────────────────────────────────────
+@app.after_request
+def no_cache_api(response):
+    """Deshabilita el caché del navegador para todas las respuestas /api/."""
+    if request.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
 
 # ============================================================================
 # ENDPOINT PRINCIPAL - PROCESAR AVISO (Integración con n8n)

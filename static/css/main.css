@@ -23,6 +23,7 @@
 @import url('./dashboard.css');
 @import url('./decisiones.css');
 @import url('./whatsapp.css'); /* difusion.html usa estilos whatsapp.css */
+@import url('./mensajeria.css'); 
 
 /* ============================================================================
    ESTILOS GLOBALES ADICIONALES

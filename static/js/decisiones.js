@@ -12,6 +12,8 @@ let delimitacionesLayers = {};
 let nivelSeleccionado = 'nacional';
 let agregacionesData = {};
 let filtroActual = { depto: null, provincia: null, distrito: null };
+let filtroEntidadActual = null;  // id de la entidad seleccionada (null = todas)
+let agregacionesDataOriginal = {};  // copia sin filtrar para restaurar
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeDecisiones();
@@ -20,7 +22,9 @@ document.addEventListener('DOMContentLoaded', function() {
 function initializeDecisiones() {
     console.log('🎯 Centro de Decisiones iniciado');
     inicializarMapa();
+    cargarClientesMapa();   // todos los clientes, una sola vez
     cargarAvisos();
+    cargarSelectorEntidades();  // independiente del aviso
 }
 
 // ============================================================================
@@ -31,8 +35,22 @@ function inicializarMapa() {
     // Crear mapa centrado en Perú
     mapa = L.map('mapa-leaflet').setView([-9.189, -75.0152], 5.5);
     
-    // Aumentar altura del contenedor para Perú (país largo)
-    document.getElementById('mapa-leaflet').style.height = '750px';
+    // Igualar altura del mapa al panel derecho dinámicamente
+    const panelDerecho = document.querySelector('.panel-derecho');
+    const mapaDiv = document.getElementById('mapa-leaflet');
+
+    function igualarAlturaMapa() {
+        const panelH = panelDerecho ? panelDerecho.offsetHeight : 0;
+        const nuevaAltura = Math.max(panelH, 600);
+        mapaDiv.style.height = nuevaAltura + 'px';
+        mapa.invalidateSize();
+    }
+
+    // Ejecutar al cargar y cuando el panel cambie de tamaño
+    setTimeout(igualarAlturaMapa, 300);
+    if (window.ResizeObserver && panelDerecho) {
+        new ResizeObserver(igualarAlturaMapa).observe(panelDerecho);
+    }
     mapa.invalidateSize();
     
     // Capa base
@@ -77,18 +95,19 @@ function cargarCapaGeoJSON(numero) {
             }, {
                 style: (feature) => ({
                     fillColor: feature.properties.color,
-                    fillOpacity: 0.4,
-                    color: 'none',
-                    weight: 0,
-                    opacity: 0
+                    fillOpacity: 0.55,
+                    color: '#555',
+                    weight: 0.4,
+                    opacity: 0.6
                 })
             }).addTo(mapa);
             
             if (geojsonLayer.getLayers().length > 0) {
                 mapa.fitBounds(geojsonLayer.getBounds());
-                geojsonLayer.bringToBack();  // Enviar al fondo para no bloquear clicks
             }
-            console.log('✅ SHP renderizado');
+            // Mantener orden: SHP encima de tiles, puntos encima del SHP
+            if (clientesLayer) clientesLayer.bringToFront();
+            console.log('✅ SHP renderizado:', featuresFiltrados.length, 'features');
         })
         .catch(e => console.error('❌ Error SHP:', e));
 }
@@ -98,12 +117,13 @@ function cargarClientesMapa(numero) {
         mapa.removeLayer(clientesLayer);
     }
     
-    console.log(`👥 Cargando clientes del aviso ${numero}`);
+    // Cargar TODOS los clientes de la BD (no filtrar por aviso)
+    console.log('👥 Cargando todos los clientes de la BD');
     
-    fetch(`/api/avisos/${numero}/clientes-geojson`)
+    fetch('/api/clientes/todos-geojson')
         .then(r => r.json())
         .then(geojson => {
-            console.log(`✅ ${geojson.total} clientes cargados`);
+            console.log(`✅ ${geojson.total} clientes totales en mapa`);
             
             clientesLayer = L.geoJSON(geojson, {
                 pointToLayer: (feature, latlng) => {
@@ -271,12 +291,19 @@ function cargarAvisos() {
             
             console.log(`📊 Total de avisos cargados: ${avisos.length}`);
             
-            // Usar todos los avisos
-            const totalAvisos = avisos.length;
+            // Solo avisos con SHP generado (mapa disponible)
+            const conMapa = avisos.filter(a => a.tiene_shp === true);
+            const totalAvisos = conMapa.length;
+            console.log(`🗺️ Avisos con SHP disponible: ${totalAvisos}`);
+            
+            if (totalAvisos === 0) {
+                selector.innerHTML = '<option value="">-- Sin avisos con mapa --</option>';
+                return;
+            }
             
             selector.innerHTML = '<option value="">-- Seleccionar Aviso --</option>' + 
-                avisos.map(a => 
-                    `<option value="${a.numero}">Aviso ${a.numero} - ${a.color || ''}</option>`
+                conMapa.map(a => 
+                    `<option value="${a.numero}">Aviso ${a.numero} — ${a.titulo || a.color || ''}</option>`
                 ).join('');
             
             // Mensaje de scroll si hay muchos
@@ -288,9 +315,9 @@ function cargarAvisos() {
             }
             
             // ✅ CARGAR PRIMER AVISO AUTOMÁTICAMENTE
-            if (avisos.length > 0) {
-                selector.value = avisos[0].numero;
-                console.log(`✅ Auto-cargando aviso ${avisos[0].numero}`);
+            if (conMapa.length > 0) {
+                selector.value = conMapa[0].numero;
+                console.log(`✅ Auto-cargando aviso ${conMapa[0].numero}`);
                 cargarAviso();
             }
         })
@@ -311,7 +338,12 @@ function cargarAviso() {
     
     // Resetear filtros
     filtroActual = { depto: null, provincia: null, distrito: null };
+    filtroEntidadActual = null;
     nivelSeleccionado = 'nacional';
+
+    // Resetear selector entidad (solo el valor, no deshabilitar)
+    const selEnt = document.getElementById('filtro-entidad');
+    if (selEnt) { selEnt.value = ''; }
     
     console.log(`📊 Cargando aviso ${numero}`);
     
@@ -326,15 +358,13 @@ function cargarAviso() {
         const clientes = clientesResp.clientes || clientesResp;
         const stats = statsResp;
         agregacionesData = agregacionesResp.agregaciones || {};
+        agregacionesDataOriginal = agregacionesData;  // guardar copia original
         
         console.log('📋 Clientes cargados:', clientes);
         console.log('📊 Stats:', stats);
         console.log('📈 Agregaciones:', agregacionesData);
         
-        // Actualizar KPIs antiguos (compatibilidad)
-        actualizarKPIs(stats, clientes);
-        
-        // ✅ CARGAR KPIs NUEVOS (PARTE SUPERIOR)
+        // ✅ CARGAR KPIs (desde v_estadisticas_aviso)
         cargarKPIsNuevos(numero);
         
         actualizarEstadisticas(stats);
@@ -346,10 +376,13 @@ function cargarAviso() {
         
         // Poblar selector de departamentos con datos de agregaciones
         poblarSelectorDepartamentos();
+
+        // Cargar selector de entidades (ya cargado en init, no repetir)
+        // cargarSelectorEntidades();
         
-        // Renderizar capas
-        cargarCapaGeoJSON(numero);  // ✅ SHP visible + bringToBack() evita bloquear clicks
-        cargarClientesMapa(numero);
+        // Renderizar capa SHP del aviso
+        cargarCapaGeoJSON(numero);
+        // (los puntos de clientes ya están cargados desde el init)
         
         console.log('✅ Aviso cargado completamente');
     })
@@ -369,9 +402,10 @@ function actualizarDatos() {
     let url = `/api/avisos/${avisoActual}/clientes-afectados`;
     const params = [];
     
-    if (filtroActual.depto) params.push(`depto=${encodeURIComponent(filtroActual.depto)}`);
+    if (filtroActual.depto)     params.push(`depto=${encodeURIComponent(filtroActual.depto)}`);
     if (filtroActual.provincia) params.push(`provincia=${encodeURIComponent(filtroActual.provincia)}`);
-    if (filtroActual.distrito) params.push(`distrito=${encodeURIComponent(filtroActual.distrito)}`);
+    if (filtroActual.distrito)  params.push(`distrito=${encodeURIComponent(filtroActual.distrito)}`);
+    if (filtroEntidadActual)    params.push(`entidad_id=${encodeURIComponent(filtroEntidadActual)}`);
     
     if (params.length > 0) {
         url += '?' + params.join('&');
@@ -384,6 +418,9 @@ function actualizarDatos() {
             // Los KPIs superiores son ESTÁTICOS (todo el aviso)
             actualizarEstadisticasDinamicas(data.clientes || {});
             actualizarTituloPanel();
+
+            // FILTRAR PUNTOS EN MAPA según selección actual
+            filtrarPuntosEnMapa(filtroActual.depto, filtroActual.provincia, filtroActual.distrito);
             
             // ACTUALIZAR TABLAS
             actualizarTablaZonas();
@@ -391,6 +428,54 @@ function actualizarDatos() {
             actualizarTablaCultivos();
         })
         .catch(e => console.error('Error actualizando datos:', e));
+}
+
+/**
+ * Filtra visualmente los puntos del mapa según el filtro activo.
+ * Coincidentes: naranja grande | No coincidentes: gris tenue | Sin filtro: azul normal
+ */
+function filtrarPuntosEnMapa(depto, provincia, distrito) {
+    if (!clientesLayer) return;
+
+    const hayFiltro = depto || provincia || distrito;
+
+    clientesLayer.eachLayer((layer) => {
+        const props = layer.feature?.properties || {};
+        const pDepto = (props.departamento || '').toUpperCase().trim();
+        const pProv  = (props.provincia   || '').toUpperCase().trim();
+        const pDist  = (props.distrito    || '').toUpperCase().trim();
+        const pEnt   = String(props.entidad_id ?? '');
+
+        if (!hayFiltro && !filtroEntidadActual) {
+            // Sin filtro: todos iguales azul
+            layer.setStyle({
+                radius: 3, fillColor: '#0066FF', color: '#003399',
+                weight: 0.5, opacity: 0.8, fillOpacity: 0.6
+            });
+            return;
+        }
+
+        const matchEnt      = !filtroEntidadActual || String(filtroEntidadActual) === pEnt;
+        const matchDepto    = !depto    || depto.toUpperCase().trim()    === pDepto;
+        const matchProvincia = !provincia || provincia.toUpperCase().trim() === pProv;
+        const matchDistrito  = !distrito  || distrito.toUpperCase().trim()  === pDist;
+        const match = matchEnt && matchDepto && matchProvincia && matchDistrito;
+
+        if (match) {
+            layer.setStyle({
+                radius: 7, fillColor: '#0066FF', color: '#003399',
+                weight: 1.5, opacity: 1, fillOpacity: 0.95
+            });
+            layer.bringToFront();
+        } else {
+            layer.setStyle({
+                radius: 2, fillColor: '#BBBBBB', color: '#999999',
+                weight: 0.3, opacity: 0.25, fillOpacity: 0.15
+            });
+        }
+    });
+
+    console.log(`🎯 Puntos filtrados en mapa: depto=${depto} prov=${provincia} dist=${distrito}`);
 }
 
 function actualizarTituloPanel() {
@@ -410,43 +495,6 @@ function actualizarTituloPanel() {
 // ============================================================================
 // ACTUALIZAR UI
 // ============================================================================
-
-function actualizarKPIs(stats, clientes) {
-    // Valores por defecto
-    let critico = 0;
-    let alto = 0;
-    let agr = 0;
-    let pol = 0;
-    let ha = 0;
-    
-    // Extraer valores correctamente (backend devuelve 'count' no 'cantidad')
-    if (stats && stats.critico && stats.critico.count) {
-        critico = stats.critico.count;
-    }
-    if (stats && stats.alto_riesgo && stats.alto_riesgo.count) {
-        alto = stats.alto_riesgo.count;
-    }
-    if (clientes && clientes.total_agricultores) {
-        agr = clientes.total_agricultores;
-    }
-    if (clientes && clientes.total_monto_asegurado) {
-        pol = clientes.total_monto_asegurado;
-    }
-    if (clientes && clientes.total_hectareas) {
-        ha = clientes.total_hectareas;
-    }
-    
-    // Actualizar tarjetas KPI
-    const elem = (id) => document.getElementById(id);
-    
-    if (elem('kpi-critico')) elem('kpi-critico').textContent = critico > 0 ? `${critico}` : '-';
-    if (elem('kpi-alto')) elem('kpi-alto').textContent = alto > 0 ? `${alto}` : '-';
-    if (elem('kpi-agr')) elem('kpi-agr').textContent = agr > 0 ? agr.toLocaleString('es-ES') : '0';
-    if (elem('kpi-pol')) elem('kpi-pol').textContent = pol > 0 ? `S/ ${(pol).toLocaleString('es-ES', {maximumFractionDigits: 0})}` : '-';
-    if (elem('kpi-ha')) elem('kpi-ha').textContent = ha > 0 ? ha.toLocaleString('es-ES') : '0';
-    
-    console.log('✅ KPIs actualizados:', {critico, alto, agr, pol, ha});
-}
 
 function cargarKPIsNuevos(numero) {
     /**
@@ -524,14 +572,20 @@ function actualizarEstadisticas(stats) {
     if (nivelBadge) {
         const color = stats.color?.toLowerCase() || 'sin_color';
         if (color === 'rojo') {
-            nivelBadge.textContent = '🔴 CRÍTICO';
+            nivelBadge.textContent = 'RIESGO EXTREMO';
             nivelBadge.className = 'badge-nivel badge-rojo';
         } else if (color === 'naranja') {
-            nivelBadge.textContent = '🟠 ALTO RIESGO';
+            nivelBadge.textContent = 'RIESGO ALTO';
             nivelBadge.className = 'badge-nivel badge-naranja';
+        } else if (color === 'amarillo') {
+            nivelBadge.textContent = 'RIESGO MEDIO';
+            nivelBadge.className = 'badge-nivel badge-amarillo';
+        } else if (color === 'verde') {
+            nivelBadge.textContent = 'RIESGO BAJO';
+            nivelBadge.className = 'badge-nivel badge-verde';
         } else {
-            nivelBadge.textContent = '⚪ SIN NIVEL';
-            nivelBadge.className = 'badge-nivel';
+            nivelBadge.textContent = 'SIN CLASIFICAR';
+            nivelBadge.className = 'badge-nivel badge-sin-nivel';
         }
     }
     
@@ -676,18 +730,31 @@ function actualizarTablaEntidades() {
             
             let html = '';
             for (const ent of entidades) {
-                const agr_afect = ent.agricultores || 0;
-                const ha_afect = ent.hectareas || 0;
-                const monto_afect = ent.monto || 0;
-                const pct = ent.pct_damage || 0;
-                
+                const agr_afect  = ent.agricultores  || 0;
+                const total_ent  = ent.total_entidad || 0;
+                const ha_afect   = ent.hectareas     || 0;
+                const monto_afect = ent.monto        || 0;
+                const pct        = ent.pct_damage    || 0;
+
+                // color del badge según % daño
+                let badgeColor = '#28a745';       // verde < 20%
+                if      (pct >= 50) badgeColor = '#dc3545';   // rojo
+                else if (pct >= 30) badgeColor = '#fd7e14';   // naranja
+                else if (pct >= 20) badgeColor = '#ffc107';   // amarillo
+
                 html += `
                     <tr>
                         <td><strong>${ent.nombre}</strong></td>
                         <td>${agr_afect}</td>
                         <td>${ha_afect.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                         <td>S/ ${monto_afect.toLocaleString('es-ES', {maximumFractionDigits: 0})}</td>
-                        <td><span class="badge badge-danger" style="color: black; background-color: #FF6B6B;">${pct}%</span></td>
+                        <td>
+                            <span class="badge"
+                                  style="background-color:${badgeColor}; color:#fff; cursor:default;"
+                                  title="${agr_afect} afectados de ${total_ent} clientes totales de esta entidad">
+                                ${pct}%
+                            </span>
+                        </td>
                     </tr>
                 `;
             }
@@ -720,28 +787,47 @@ function actualizarTablaCultivos() {
             if (!tbody) return;
             
             const cultivos = data.cultivos || [];
-            
+
+            const medals = ['🥇','🥈','🥉'];
             let html = '';
-            for (const cult of cultivos) {
-                const agr = cult.agricultores || 0;
-                const ha = cult.hectareas || 0;
-                const monto = cult.monto || 0;
-                const depto = cult.departamento || 'SIN DEPTO';
-                const cultivo = cult.cultivo_nombre || 'SIN CULTIVO';
-                
+            cultivos.forEach((cult, i) => {
+                const agr       = cult.agricultores  || 0;
+                const total     = cult.total_cultivo || 0;
+                const ha        = cult.hectareas     || 0;
+                const monto     = cult.monto         || 0;
+                const pct       = cult.pct_damage    || 0;
+                const nombre    = cult.cultivo_nombre || 'SIN CULTIVO';
+                const deptos    = cult.departamentos  || '-';
+                const rank      = i + 1;  // solo número
+
+                let barColor = '#28a745';
+                if      (pct >= 50) barColor = '#dc3545';
+                else if (pct >= 30) barColor = '#fd7e14';
+                else if (pct >= 20) barColor = '#ffc107';
+
                 html += `
                     <tr>
-                        <td><strong>${cultivo}</strong></td>
-                        <td>${depto}</td>
-                        <td>${agr}</td>
-                        <td>${ha.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                        <td>S/ ${monto.toLocaleString('es-ES', {maximumFractionDigits: 0})}</td>
+                        <td class="text-center fw-bold">${rank}</td>
+                        <td><strong>${nombre}</strong></td>
+                        <td class="text-center">${agr}</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-1">
+                                <div style="flex:1; background:#e9ecef; border-radius:4px; height:8px; min-width:50px;">
+                                    <div style="width:${Math.min(pct,100)}%; background:${barColor}; height:8px; border-radius:4px;"></div>
+                                </div>
+                                <span class="badge" style="background:${barColor}; color:#fff; min-width:46px;"
+                                      title="${agr} afectados de ${total} agricultores con este cultivo">${pct}%</span>
+                            </div>
+                        </td>
+                        <td class="text-end">${ha.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ha</td>
+                        <td class="text-end">S/ ${monto.toLocaleString('es-ES', {maximumFractionDigits: 0})}</td>
+                        <td style="font-size:11px; color:#555;">${deptos}</td>
                     </tr>
                 `;
-            }
+            });
             
             if (html === '') {
-                html = '<tr><td colspan="5" class="text-center text-muted">Sin datos de cultivos afectados</td></tr>';
+                html = '<tr><td colspan="7" class="text-center text-muted">Sin datos de cultivos afectados</td></tr>';
             }
             
             tbody.innerHTML = html;
@@ -810,6 +896,78 @@ function mostrarDistritosDelimitacion(depto, provincia) {
 // ============================================================================
 // SELECCIÓN JERÁRQUICA: DEPTO → PROVINCIA → DISTRITO
 // ============================================================================
+
+function cargarSelectorEntidades() {
+    const sel = document.getElementById('filtro-entidad');
+    if (!sel) return;
+    fetch('/api/entidades')
+        .then(r => r.json())
+        .then(data => {
+            // el endpoint devuelve {data:[...], success:true}
+            const entidades = Array.isArray(data) ? data : (data.data || data.entidades || []);
+            sel.innerHTML = '<option value="">-- Todas las Entidades --</option>' +
+                entidades.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
+            sel.disabled = false;
+            console.log(`🏦 Selector entidades poblado: ${entidades.length} entidades`);
+        })
+        .catch(e => console.error('Error cargando entidades:', e));
+}
+
+function cambiarEntidad() {
+    const sel = document.getElementById('filtro-entidad');
+    const entidadId = sel ? (sel.value || null) : null;
+    filtroEntidadActual = entidadId;
+
+    // Resetear filtros de zona
+    filtroActual = { depto: null, provincia: null, distrito: null };
+    nivelSeleccionado = 'nacional';
+    const selectorDepto = document.getElementById('filtro-depto');
+    const selectorProv  = document.getElementById('filtro-provincia');
+    const selectorDist  = document.getElementById('filtro-distrito');
+    if (selectorDist) { selectorDist.innerHTML = '<option value="">-- Selecciona Provincia --</option>'; selectorDist.disabled = true; }
+    if (selectorProv)  { selectorProv.innerHTML  = '<option value="">-- Selecciona Departamento --</option>'; selectorProv.disabled = true; }
+
+    if (!entidadId) {
+        // Volver a mostrar todos los deptos de la agregacion original
+        poblarSelectorDepartamentos();
+        filtrarPuntosEnMapa(null, null, null);
+        actualizarDatos();
+        return;
+    }
+
+    // Filtrar deptos/provincias/distritos disponibles para esta entidad
+    // usando las propiedades de los features ya cargados en clientesLayer
+    const deptos = {};
+    if (clientesLayer) {
+        clientesLayer.eachLayer((layer) => {
+            const p = layer.feature?.properties || {};
+            if (String(p.entidad_id) !== String(entidadId)) return;
+            const dep = (p.departamento || '').toUpperCase().trim();
+            const pro = (p.provincia   || '').toUpperCase().trim();
+            const dis = (p.distrito    || '').toUpperCase().trim();
+            if (!dep) return;
+            if (!deptos[dep]) deptos[dep] = { provincias: {} };
+            if (pro) {
+                if (!deptos[dep].provincias[pro]) deptos[dep].provincias[pro] = { distritos: {} };
+                if (dis) deptos[dep].provincias[pro].distritos[dis] = true;
+            }
+        });
+    }
+
+    // Poblar selector depto filtrado por entidad
+    if (selectorDepto) {
+        const listaDeptos = Object.keys(deptos).sort();
+        selectorDepto.innerHTML = '<option value="">-- Todos los Departamentos --</option>' +
+            listaDeptos.map(d => `<option value="${d}">${d}</option>`).join('');
+    }
+
+    // Guardar data filtrada para que cambiarDepartamento use
+    agregacionesData = deptos;
+
+    filtrarPuntosEnMapa(null, null, null);
+    actualizarDatos();
+    console.log(`🏦 Entidad seleccionada: ${sel.options[sel.selectedIndex]?.text} (id=${entidadId})`);
+}
 
 function poblarSelectorDepartamentos() {
     const selector = document.getElementById('filtro-depto');
@@ -1040,7 +1198,16 @@ function cambiarDistrito() {
 function limpiarFiltros() {
     // Resetear filtros
     filtroActual = { depto: null, provincia: null, distrito: null };
+    filtroEntidadActual = null;
     nivelSeleccionado = 'nacional';
+
+    // Resetear selector entidad
+    const selEnt = document.getElementById('filtro-entidad');
+    if (selEnt) selEnt.value = '';
+
+    // Restaurar agregaciones originales (sin filtro de entidad)
+    agregacionesData = agregacionesDataOriginal;
+    poblarSelectorDepartamentos();
     
     // Resetear estilos de delimitaciones
     if (delimitacionesLayers['departamentos']) {
@@ -1063,10 +1230,6 @@ function limpiarFiltros() {
         mapa.removeLayer(delimitacionesLayers['distritoActual']);
         delimitacionesLayers['distritoActual'] = null;
     }
-    if (delimitacionesLayers['distritosDelimitacion']) {
-        mapa.removeLayer(delimitacionesLayers['distritosDelimitacion']);
-        delimitacionesLayers['distritosDelimitacion'] = null;
-    }
     
     // Resetear selectores
     const selectorDepto = document.getElementById('filtro-depto');
@@ -1084,7 +1247,10 @@ function limpiarFiltros() {
     }
     
     console.log('🔄 Filtros limpiados');
-    
+
+    // Restaurar todos los puntos a azul normal
+    filtrarPuntosEnMapa(null, null, null);
+
     // Asegurar orden correcto: SHP atrás, puntos arriba
     if (geojsonLayer) {
         geojsonLayer.bringToBack();
@@ -1092,12 +1258,12 @@ function limpiarFiltros() {
     if (clientesLayer) {
         clientesLayer.bringToFront();
     }
-    
+
     // Volver a vista nacional
     if (mapa) {
         mapa.setView([-9.189, -75.0152], 6);
     }
-    
+
     actualizarDatos();
 }
 

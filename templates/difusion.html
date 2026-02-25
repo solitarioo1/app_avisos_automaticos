@@ -1,697 +1,427 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
+
+{% block title %}Difusión de Avisos — SENAMHI{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/difusion.css') }}">
+<style>
+  .difusion-container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+</style>
+{% endblock %}
 
 {% block content %}
-<style>
-    .whatsapp-container {
-        max-width: 1400px;
-        margin: 0 auto;
-    }
+<div class="container-fluid p-3 difusion-container">
 
-    .color-badge {
-        display: inline-block;
-        width: 12px;
-        height: 12px;
-        border-radius: 3px;
-        margin-right: 8px;
-    }
+  <!-- Zona de alertas -->
+  <div id="alertaZona" style="position:sticky;top:70px;z-index:999;"></div>
 
-    .color-rojo { background-color: #FF0000; }
-    .color-naranja { background-color: #FF8C00; }
-    .color-amarillo { background-color: #FFFF00; border: 1px solid #ccc; }
-
-    .canal-option {
-        padding: 15px;
-        border: 2px solid #e0e0e0;
-        border-radius: 8px;
-        cursor: pointer;
-    }
-
-    .canal-option.selected {
-        border-color: #28a745;
-        background-color: #f0fff4;
-    }
-
-    .stat-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 10px 0;
-        border-bottom: 1px solid #f0f0f0;
-        font-size: 14px;
-    }
-
-    .stat-row:last-child {
-        border-bottom: none;
-    }
-
-    .stat-value {
-        font-weight: bold;
-        color: #333;
-    }
-
-    .nivel-filter {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .nivel-option {
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-    }
-
-    .nivel-option input[type="radio"] {
-        margin-right: 10px;
-        width: 20px;
-        height: 20px;
-        cursor: pointer;
-    }
-
-    .modal-backdrop {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.5);
-        z-index: 999;
-    }
-
-    .modal-backdrop.show {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .preview-modal {
-        background: white;
-        border-radius: 10px;
-        padding: 30px;
-        max-width: 500px;
-        width: 90%;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-    }
-
-    .preview-item {
-        display: flex;
-        align-items: center;
-        margin: 12px 0;
-        font-size: 15px;
-    }
-
-    .preview-item strong {
-        min-width: 120px;
-    }
-
-    .preview-value {
-        color: #28a745;
-        font-weight: bold;
-    }
-
-    .programa-section {
-        background: #f9f9f9;
-        padding: 15px;
-        border-radius: 8px;
-        margin: 15px 0;
-        display: none;
-    }
-
-    .bloques-section {
-        background: #f9f9f9;
-        padding: 15px;
-        border-radius: 8px;
-        margin: 15px 0;
-        display: none;
-    }
-
-    .bloques-section.show {
-        display: block;
-    }
-
-    .historial-table {
-        font-size: 13px;
-    }
-
-    .historial-table td {
-        padding: 8px 4px;
-    }
-
-    .canal-count {
-        display: inline-block;
-        padding: 2px 8px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: bold;
-        margin: 0 2px;
-    }
-
-    .canal-count.wa { background-color: #dcf8c6; color: #075e54; }
-    .canal-count.sms { background-color: #e3f2fd; color: #1565c0; }
-    .canal-count.email { background-color: #fce4ec; color: #880e4f; }
-</style>
-<div class="container-fluid p-3 whatsapp-container">
-    <div class="dashboard-header mb-4">
-        <h1><i class="bi bi-whatsapp"></i> Envío de Avisos</h1>
-        <p class="text-muted">Distribuir alertas a agricultores por WhatsApp, SMS o Email</p>
+  <!-- ── Encabezado ─────────────────────────────────────────── -->
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h4 class="mb-0 fw-bold">
+        <span class="me-2">📡</span>Difusión de Avisos
+      </h4>
+      <small class="text-muted">Genera y envía mensajes a clientes según nivel de alerta</small>
     </div>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-secondary" onclick="cargarHistorial()">
+        🔄 Actualizar historial
+      </button>
+    </div>
+  </div>
 
-    <div class="row">
-        <!-- Panel Principal -->
-        <div class="col-lg-8">
-            <div class="card">
-                <div class="card-header">
-                    <h5><i class="bi bi-send"></i> Configurar Envío</h5>
-                </div>
-                <div class="card-body">
-                    <form id="form-envio-whatsapp">
-                        <!-- Seleccionar Aviso -->
-                        <div class="mb-3">
-                            <label class="form-label">Aviso a Enviar</label>
-                            <select class="form-select" id="aviso-seleccionado" required>
-                                <option value="">Seleccionar aviso...</option>
-                            </select>
-                        </div>
+  <div class="row g-3">
 
-                        <!-- Nivel a Enviar -->
-                        <div class="mb-4">
-                            <label class="form-label">Nivel a Enviar</label>
-                            <div class="nivel-filter">
-                                <div class="nivel-option">
-                                    <input type="radio" name="nivel" id="nivel-todos" value="todos" checked>
-                                    <label for="nivel-todos" class="flex-grow-1 mb-0">
-                                        ⭕ Todos los afectados
-                                    </label>
-                                </div>
-                                <div class="nivel-option">
-                                    <input type="radio" name="nivel" id="nivel-rojo" value="rojo">
-                                    <label for="nivel-rojo" class="flex-grow-1 mb-0">
-                                        <span class="color-badge color-rojo"></span> Solo Rojo
-                                    </label>
-                                </div>
-                                <div class="nivel-option">
-                                    <input type="radio" name="nivel" id="nivel-naranja" value="naranja">
-                                    <label for="nivel-naranja" class="flex-grow-1 mb-0">
-                                        <span class="color-badge color-naranja"></span> Solo Naranja
-                                    </label>
-                                </div>
-                                <div class="nivel-option">
-                                    <input type="radio" name="nivel" id="nivel-amarillo" value="amarillo">
-                                    <label for="nivel-amarillo" class="flex-grow-1 mb-0">
-                                        <span class="color-badge color-amarillo"></span> Solo Amarillo
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
+    <!-- ════════════════════════════════════════════════════════
+         COLUMNA IZQUIERDA (8) — Formulario + Historial
+         ════════════════════════════════════════════════════════ -->
+    <div class="col-lg-8">
 
-                        <!-- Entidad -->
-                        <div class="mb-4">
-                            <label class="form-label">Filtrar por Entidad (Opcional)</label>
-                            <select class="form-select" id="entidad-filtro">
-                                <option value="">Todas las entidades</option>
-                            </select>
-                        </div>
+      <!-- ── Paso 1: Selección de aviso ─────────────────────── -->
+      <div class="difusion-panel paso-panel">
+        <div class="paso-header">
+          <span class="paso-num">1</span>
+          <h5 class="paso-title">Selecciona el aviso</h5>
+          <span class="paso-hint">Solo muestra avisos con mapa generado</span>
+        </div>
+        <select id="selectAviso" class="form-select aviso-select mt-2">
+          <option value="">— Cargando avisos con mapa… —</option>
+        </select>
+        <div id="avisoInfo" class="aviso-info-bar d-none mt-2"></div>
+      </div>
 
-                        <!-- Canales de Envío -->
-                        <div class="mb-4">
-                            <label class="form-label">Canales de Envío</label>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="canal-option selected" data-canal="whatsapp">
-                                        <div style="text-align: center;">
-                                            <i class="bi bi-whatsapp" style="font-size: 24px; color: #25d366;"></i>
-                                            <div style="margin-top: 8px; font-weight: bold;">WhatsApp</div>
-                                            <div style="font-size: 12px; color: #666;">✅ Activo</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="canal-option" data-canal="sms">
-                                        <div style="text-align: center;">
-                                            <i class="bi bi-chat" style="font-size: 24px; color: #1565c0;"></i>
-                                            <div style="margin-top: 8px; font-weight: bold;">SMS</div>
-                                            <div style="font-size: 12px; color: #666;">Sin WhatsApp</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="canal-option" data-canal="email">
-                                        <div style="text-align: center;">
-                                            <i class="bi bi-envelope" style="font-size: 24px; color: #d32f2f;"></i>
-                                            <div style="margin-top: 8px; font-weight: bold;">Email</div>
-                                            <div style="font-size: 12px; color: #666;">Alternativo</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <input type="hidden" id="canal-seleccionado" name="canal_final" value="whatsapp">
-                        </div>
+      <!-- ── Paso 2: Entidad ────────────────────────────────── -->
+      <div class="difusion-panel paso-panel">
+        <div class="paso-header">
+          <span class="paso-num">2</span>
+          <h5 class="paso-title">Entidad receptora</h5>
+          <span class="paso-hint">Selecciona una o varias instituciones</span>
+        </div>
+        <select id="selectEntidad" class="form-select mt-2">
+          <option value="">— Añadir entidad… —</option>
+        </select>
+        <!-- chips de entidades seleccionadas -->
+        <div id="entidadTags" class="entidad-tags-row mt-2">
+          <span class="entidad-chip entidad-chip-todas">Todas las entidades</span>
+        </div>
+      </div>
 
-                        <!-- Opciones Adicionales -->
-                        <div class="mb-4">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="incluir-mapa" checked>
-                                <label class="form-check-label" for="incluir-mapa">
-                                    Incluir mapa meteorológico
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- Envío por Bloques -->
-                        <div class="form-check mb-4">
-                            <input class="form-check-input" type="checkbox" id="envio-bloques">
-                            <label class="form-check-label" for="envio-bloques">
-                                Envío por bloques (para evitar sobrecarga)
-                            </label>
-                        </div>
-
-                        <div class="bloques-section" id="bloques-config">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <label class="form-label">Mensajes por Bloque</label>
-                                    <input type="number" class="form-control" id="msgs-por-bloque" value="50" min="10" max="500">
-                                    <small class="text-muted">Cantidad de mensajes por lote</small>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Intervalo entre Bloques (seg)</label>
-                                    <input type="number" class="form-control" id="intervalo-bloques" value="120" min="30" max="600">
-                                    <small class="text-muted">Espera entre lotes</small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Programación -->
-                        <div class="form-check mb-4">
-                            <input class="form-check-input" type="checkbox" id="programar-envio">
-                            <label class="form-check-label" for="programar-envio">
-                                Programar para después
-                            </label>
-                        </div>
-
-                        <div class="programa-section" id="programa-config">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <label class="form-label">Fecha</label>
-                                    <input type="date" class="form-control" id="fecha-programa">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Hora</label>
-                                    <input type="time" class="form-control" id="hora-programa">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Botones -->
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-outline-info" onclick="mostrarPreview()">
-                                <i class="bi bi-eye"></i> Previsualizar
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary" onclick="exportarCSV()">
-                                <i class="bi bi-download"></i> Exportar CSV
-                            </button>
-                            <button type="submit" class="btn btn-success">
-                                <i class="bi bi-whatsapp"></i> Enviar
-                            </button>
-                        </div>
-                    </form>
-                </div>
+      <!-- ── Paso 3: Nivel de alerta ────────────────────────── -->
+      <div class="difusion-panel paso-panel">
+        <div class="paso-header">
+          <span class="paso-num">3</span>
+          <h5 class="paso-title">Nivel de alerta</h5>
+          <span class="paso-hint">Clientes afectados por este nivel</span>
+        </div>
+        <div class="row g-2 mt-1">
+          <div class="col">
+            <div class="nivel-option selected-todos" data-nivel="todos">
+              <span class="nivel-dot" style="background:#1565c0"></span> Todos
             </div>
-
-            <!-- Historial de Envíos -->
-            <div class="card mt-4">
-                <div class="card-header">
-                    <h5><i class="bi bi-clock-history"></i> Historial de Envíos</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-sm historial-table">
-                            <thead>
-                                <tr>
-                                    <th>Fecha</th>
-                                    <th>Aviso</th>
-                                    <th>Nivel</th>
-                                    <th>Canales</th>
-                                    <th>Total</th>
-                                    <th>Estado</th>
-                                </tr>
-                            </thead>
-                            <tbody id="historial-body">
-                                <tr>
-                                    <td colspan="6" class="text-center text-muted">No hay envíos registrados</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+          </div>
+          <div class="col">
+            <div class="nivel-option" data-nivel="Rojo">
+              <span class="nivel-dot" style="background:#e53935"></span> Rojo
             </div>
+          </div>
+          <div class="col">
+            <div class="nivel-option" data-nivel="Naranja">
+              <span class="nivel-dot" style="background:#fb8c00"></span> Naranja
+            </div>
+          </div>
+          <div class="col">
+            <div class="nivel-option" data-nivel="Amarillo">
+              <span class="nivel-dot" style="background:#c6a000"></span> Amarillo
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Paso 4: Método de envío ────────────────────────── -->
+      <div class="difusion-panel paso-panel">
+        <div class="paso-header">
+          <span class="paso-num">4</span>
+          <h5 class="paso-title">Método de envío</h5>
+          <span class="paso-hint">Canal, opciones de mensaje y programación</span>
         </div>
 
-        <!-- Sidebar Derecha -->
-        <div class="col-lg-4">
-            <!-- Resumen de Clientes Afectados -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h6><i class="bi bi-people-fill"></i> Clientes Afectados</h6>
-                </div>
-                <div class="card-body">
-                    <div class="stat-row">
-                        <span><span class="color-badge color-rojo"></span> Rojo</span>
-                        <span class="stat-value" id="stat-rojo">45</span>
-                    </div>
-                    <div class="stat-row">
-                        <span><span class="color-badge color-naranja"></span> Naranja</span>
-                        <span class="stat-value" id="stat-naranja">120</span>
-                    </div>
-                    <div class="stat-row">
-                        <span><span class="color-badge color-amarillo"></span> Amarillo</span>
-                        <span class="stat-value" id="stat-amarillo">280</span>
-                    </div>
-                    <div class="stat-row" style="border-top: 2px solid #f0f0f0; padding-top: 15px; margin-top: 10px;">
-                        <strong>Total</strong>
-                        <strong class="stat-value" id="stat-total">445</strong>
-                    </div>
-                </div>
+        <!-- Canal -->
+        <p class="small fw-semibold text-muted mb-2 mt-3">Canal <span class="text-danger">*</span></p>
+        <div class="row g-2 mb-3">
+          <div class="col-md-4">
+            <div class="canal-option selected-wa" data-canal="whatsapp">
+              <div class="canal-icon">💬</div>
+              <div class="canal-label">WhatsApp</div>
+              <span class="canal-count wa" id="countWa">—</span>
             </div>
-
-            <!-- Disponibilidad por Canal -->
-            <div class="card">
-                <div class="card-header">
-                    <h6><i class="bi bi-arrow-repeat"></i> Disponibilidad por Canal</h6>
-                </div>
-                <div class="card-body">
-                    <div class="stat-row">
-                        <span>✅ Con WhatsApp</span>
-                        <span class="stat-value" id="disp-whatsapp">380</span>
-                    </div>
-                    <div class="stat-row">
-                        <span>⚠️ Solo SMS</span>
-                        <span class="stat-value" id="disp-sms">45</span>
-                    </div>
-                    <div class="stat-row">
-                        <span>❌ Solo Email</span>
-                        <span class="stat-value" id="disp-email">20</span>
-                    </div>
-                </div>
+          </div>
+          <div class="col-md-4">
+            <div class="canal-option" data-canal="sms">
+              <div class="canal-icon">📱</div>
+              <div class="canal-label">SMS</div>
+              <span class="canal-count sms" id="countSms">—</span>
             </div>
+          </div>
+          <div class="col-md-4">
+            <div class="canal-option" data-canal="email">
+              <div class="canal-icon">✉️</div>
+              <div class="canal-label">Email</div>
+              <span class="canal-count email" id="countEmail">—</span>
+            </div>
+          </div>
         </div>
+
+        <!-- Panel SMS: descarga CSV (visible solo cuando canal=SMS) -->
+        <div id="smsCsvPanel" class="sms-csv-panel d-none mt-3">
+          <div class="d-flex align-items-start gap-3">
+            <div style="font-size:2rem;line-height:1">📋</div>
+            <div>
+              <p class="mb-1 fw-semibold">Envío SMS vía CSV</p>
+              <p class="small text-muted mb-2">
+                Descarga el listado de números y mensajes para subirlo a tu plataforma de envío masivo.
+                Al descargar, los registros quedan marcados como <span class="estado-badge enviado">enviado</span>.
+              </p>
+              <button class="btn btn-success btn-sm" onclick="exportarCSVSms()">
+                ⬇️ Descargar CSV para SMS
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <!-- Opciones del mensaje -->
+        <p class="small fw-semibold text-muted mb-2">Opciones del mensaje</p>
+
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="incluirMapa" checked
+                 onchange="STATE.incluirMapa = this.checked; actualizarResumenConfig()">
+          <label class="form-check-label" for="incluirMapa">
+            🗺️ Incluir mapa meteorológico
+          </label>
+        </div>
+
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="chkBloques"
+                 onchange="toggleBloques(this.checked)">
+          <label class="form-check-label" for="chkBloques">
+            ✂️ Envío por bloques <small class="text-muted">(evita sobrecarga)</small>
+          </label>
+        </div>
+
+        <div id="bloquesConfig" class="bloques-config-box d-none mb-3">
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label small">Mensajes por bloque</label>
+              <input type="number" class="form-control form-control-sm" id="msgsPorBloque"
+                     value="50" min="10" max="500"
+                     onchange="STATE.msgsPorBloque = +this.value; actualizarResumenConfig()">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small">Intervalo entre bloques (seg)</label>
+              <input type="number" class="form-control form-control-sm" id="intervaloBloques"
+                     value="120" min="30" max="600"
+                     onchange="STATE.intervaloBloques = +this.value; actualizarResumenConfig()">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="chkProgramar"
+                 onchange="toggleProgramar(this.checked)">
+          <label class="form-check-label" for="chkProgramar">
+            ⏰ Programar para después
+          </label>
+        </div>
+
+        <div id="programarFechaBox" class="programar-box d-none mb-2">
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label small">📅 Fecha</label>
+              <input type="date" class="form-control form-control-sm" id="fechaProgramada"
+                     onchange="STATE.fechaProgramada = this.value + 'T' + (document.getElementById('horaProgramada').value || '08:00'); actualizarResumenConfig()">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small">🕐 Hora</label>
+              <input type="time" class="form-control form-control-sm" id="horaProgramada" value="08:00"
+                     onchange="STATE.fechaProgramada = (document.getElementById('fechaProgramada').value || '') + 'T' + this.value; actualizarResumenConfig()">
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Paso 5: Acciones ───────────────────────────────── -->
+      <div class="difusion-panel paso-panel">
+        <div class="paso-header">
+          <span class="paso-num">5</span>
+          <h5 class="paso-title">Acciones</h5>
+          <span class="paso-hint">Genera → Revisa → Envía</span>
+        </div>
+
+        <div id="spinnerGenerar" class="difusion-spinner mt-2">
+          <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+          Enviando solicitud a n8n para generar mensajes…
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          <button id="btnGenerar" class="btn-generar" onclick="generarMensajes()" disabled>
+            ⚡ Generar mensajes
+          </button>
+          <button id="btnPreview" class="btn-preview" onclick="verPreview()" disabled>
+            👁 Ver preview
+          </button>
+          <button id="btnEnviar" class="btn-enviar" onclick="confirmarEnvio()" disabled>
+            🚀 Confirmar y enviar
+          </button>
+        </div>
+
+        <!-- Resumen de configuración actual -->
+        <div id="resumenConfig" class="resumen-config d-none mt-3"></div>
+      </div>
+
+      <!-- ── Historial de envíos ────────────────────────────── -->
+      <div class="difusion-panel">
+        <h5>Historial de envíos</h5>
+        <div class="row g-3">
+
+          <!-- Tabla izquierda -->
+          <div class="col-lg-8">
+            <div class="table-responsive">
+              <table class="table historial-table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Aviso</th>
+                    <th>Nivel</th>
+                    <th>Canal</th>
+                    <th>Enviado/Total</th>
+                    <th>Estado</th>
+                    <th>% Éxito</th>
+                  </tr>
+                </thead>
+                <tbody id="historialTbody">
+                  <tr>
+                    <td colspan="7" class="text-center text-muted py-3">
+                      Cargando historial…
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Panel derecho: resumen por canal -->
+          <div class="col-lg-4">
+            <div class="historial-panel-derecho">
+              <h6 class="fw-bold mb-3">Resumen por canal</h6>
+              <div id="historialPorCanal">
+                <p class="text-muted small">Cargando…</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- /col-lg-8 -->
+
+
+    <!-- ════════════════════════════════════════════════════════
+         COLUMNA DERECHA (4) — Sidebar estadísticas
+         ════════════════════════════════════════════════════════ -->
+    <div class="col-lg-4">
+
+      <!-- Stats clientes -->
+      <div class="difusion-panel">
+        <h6 class="fw-bold mb-3">📊 Clientes por nivel</h6>
+        <div id="statsPorNivel">
+          <p class="text-muted small">Selecciona un aviso para ver estadísticas</p>
+        </div>
+        <hr class="my-2">
+        <div class="d-flex justify-content-between small">
+          <span class="text-muted">Total clientes</span>
+          <strong id="totalClientes">—</strong>
+        </div>
+        <div class="d-flex justify-content-between small mt-1">
+          <span class="text-muted">Mensajes generados</span>
+          <strong id="mensajesGenerados">—</strong>
+        </div>
+      </div>
+
+      <!-- Guía de flujo -->
+      <div class="difusion-panel">
+        <h6 class="fw-bold mb-3">🗺️ Flujo de difusión</h6>
+        <ol class="small ps-3" style="line-height:2">
+          <li>Selecciona aviso, nivel y canal</li>
+          <li>
+            <strong>Genera mensajes</strong>
+            <br>
+            <span class="text-muted">n8n crea los textos y los guarda en BD</span>
+          </li>
+          <li>
+            <strong>Ver preview</strong>
+            <br>
+            <span class="text-muted">Revisa 4 mensajes de muestra</span>
+          </li>
+          <li>
+            <strong>Confirmar y enviar</strong>
+            <br>
+            <span class="text-muted">n8n despacha WA / SMS / Email por separado</span>
+          </li>
+          <li>Monitorea en el historial</li>
+        </ol>
+      </div>
+
+      <!-- Leyenda de estados -->
+      <div class="difusion-panel">
+        <h6 class="fw-bold mb-3">📋 Estados</h6>
+        <table class="table table-sm table-bordered estados-tabla mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Estado</th>
+              <th>Descripción</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="estado-badge pendiente">pendiente</span></td>
+              <td class="small text-muted">En cola de envío</td>
+            </tr>
+            <tr>
+              <td><span class="estado-badge enviando">enviando</span></td>
+              <td class="small text-muted">Procesando envío</td>
+            </tr>
+            <tr>
+              <td><span class="estado-badge enviado">enviado</span></td>
+              <td class="small text-muted">Entregado y confirmado</td>
+            </tr>
+            <tr>
+              <td><span class="estado-badge leido">leído</span></td>
+              <td class="small text-muted">Cliente leyó el mensaje (WA)</td>
+            </tr>
+            <tr>
+              <td><span class="estado-badge error">error</span></td>
+              <td class="small text-muted">Falló el envío — usa ↺ para reintentar</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div><!-- /col-lg-4 -->
+
+  </div><!-- /row -->
+</div><!-- /container -->
+
+
+<!-- ════════════════════════════════════════════════════════════
+     MODAL — Preview de mensajes
+     ════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">👁 Preview de mensajes generados</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <!-- Resumen numérico -->
+        <div class="preview-resumen" id="previewResumen">
+          <!-- JS rellena aquí -->
+        </div>
+
+        <p class="text-muted small mb-3">
+          Se muestran hasta 4 mensajes de muestra (1 por canal × nivel).
+          El texto real fue generado por n8n.
+        </p>
+
+        <!-- Cards estilo WhatsApp -->
+        <div class="preview-cards-container" id="previewCards">
+          <!-- JS rellena aquí -->
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn-enviar"
+                onclick="confirmarEnvio(); bootstrap.Modal.getInstance(document.getElementById('previewModal')).hide()">
+          🚀 Enviar ahora
+        </button>
+      </div>
+
     </div>
+  </div>
 </div>
 
-<!-- Modal de Previsualización -->
-<div class="modal-backdrop" id="preview-modal">
-    <div class="preview-modal">
-        <div style="margin-bottom: 20px;">
-            <h5><i class="bi bi-eye"></i> Previsualización de Envío</h5>
-        </div>
-        <div id="preview-content">
-            <div class="preview-item">
-                <strong>Aviso:</strong>
-                <span class="preview-value" id="prev-aviso">#29</span>
-            </div>
-            <div class="preview-item">
-                <strong>Nivel:</strong>
-                <span class="preview-value" id="prev-nivel">Todos</span>
-            </div>
-            <div class="preview-item">
-                <strong>Canal:</strong>
-                <span class="preview-value" id="prev-canal">WhatsApp</span>
-            </div>
-            <div class="preview-item">
-                <strong>📱 WhatsApp:</strong>
-                <span class="preview-value" id="prev-whatsapp">0</span>
-            </div>
-            <div class="preview-item">
-                <strong>📞 SMS:</strong>
-                <span class="preview-value" id="prev-sms">0</span>
-            </div>
-            <div class="preview-item">
-                <strong>✉️ Email:</strong>
-                <span class="preview-value" id="prev-email">0</span>
-            </div>
-            <div class="preview-item">
-                <strong style="color: #333;">Total:</strong>
-                <span class="preview-value" id="prev-total">0</span>
-            </div>
-            <hr>
-            <div id="bloques-info" style="display: none;">
-                <div class="preview-item">
-                    <strong>Bloques:</strong>
-                    <span class="preview-value" id="prev-bloques">50/120s</span>
-                </div>
-            </div>
-        </div>
-        <div style="margin-top: 20px; display: flex; gap: 10px;">
-            <button class="btn btn-outline-secondary flex-grow-1" onclick="cerrarPreview()">Cancelar</button>
-            <button class="btn btn-success flex-grow-1" onclick="confirmarEnvio()">Confirmar y Enviar</button>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
-<script>
-// ============================================================================
-// CARGAR AVISOS EN SELECT
-// ============================================================================
-async function cargarAvisos() {
-    try {
-        const response = await fetch('/api/avisos');
-        const data = await response.json();
-        
-        if (data.success && data.avisos) {
-            const select = document.getElementById('aviso-seleccionado');
-            const defaultOption = select.querySelector('option[value=""]');
-            select.innerHTML = '';
-            
-            if (defaultOption) {
-                select.appendChild(defaultOption);
-            }
-            
-            data.avisos.forEach(aviso => {
-                const option = document.createElement('option');
-                option.value = aviso.numero;
-                option.textContent = `Aviso ${aviso.numero} - ${aviso.color}`;
-                select.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('Error cargando avisos:', error);
-    }
-}
-
-// ============================================================================
-// ACTUALIZAR ESTADÍSTICAS DE CLIENTES
-// ============================================================================
-async function actualizarEstadisticas() {
-    const aviso = document.getElementById('aviso-seleccionado').value;
-    
-    if (!aviso) {
-        document.getElementById('stat-rojo').textContent = '-';
-        document.getElementById('stat-naranja').textContent = '-';
-        document.getElementById('stat-amarillo').textContent = '-';
-        document.getElementById('stat-total').textContent = '-';
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/api/difusion/clientes/${aviso}`);
-        const data = await response.json();
-        
-        if (data.success) {
-            const stats = data.stats;
-            document.getElementById('stat-rojo').textContent = stats.rojo || 0;
-            document.getElementById('stat-naranja').textContent = stats.naranja || 0;
-            document.getElementById('stat-amarillo').textContent = stats.amarillo || 0;
-            document.getElementById('stat-total').textContent = stats.total || 0;
-        } else {
-            console.error('Error:', data.error);
-        }
-    } catch (error) {
-        console.error('Error actualizando estadísticas:', error);
-    }
-}
-
-// ============================================================================
-// EVENT LISTENERS
-// ============================================================================
-
-// ============================================================================
-// CARGAR ENTIDADES DESDE BD
-// ============================================================================
-async function cargarEntidades() {
-    try {
-        const response = await fetch('/api/entidades');
-        const data = await response.json();
-        
-        if (data.success && data.data) {
-            const select = document.getElementById('entidad-filtro');
-            const defaultOption = select.querySelector('option[value=""]');
-            
-            // Limpiar opciones excepto la primera
-            while (select.children.length > 1) {
-                select.removeChild(select.lastChild);
-            }
-            
-            // Agregar entidades dinámicamente
-            data.data.forEach(entidad => {
-                const option = document.createElement('option');
-                option.value = entidad.id;
-                option.textContent = entidad.nombre;
-                select.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('Error cargando entidades:', error);
-    }
-}
-
-// ============================================================================
-// EXPORTAR CSV DE CLIENTES
-// ============================================================================
-function exportarCSV() {
-    const aviso = document.getElementById('aviso-seleccionado').value;
-    
-    if (!aviso) {
-        alert('Por favor selecciona un aviso para exportar');
-        return;
-    }
-    
-    // Crear un link temporal para descargar el archivo
-    const url = `/api/difusion/clientes/export/${aviso}`;
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `clientes_aviso_${aviso}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
-// ============================================================================
-// EVENT LISTENERS
-// ============================================================================
-
-// Cargar avisos al abrir la página
-document.addEventListener('DOMContentLoaded', function() {
-    cargarAvisos();
-    cargarEntidades();
-});
-
-// Listener para cambios de aviso
-document.getElementById('aviso-seleccionado').addEventListener('change', function() {
-    actualizarEstadisticas();
-});
-
-// Listener para cambios de nivel
-document.querySelectorAll('input[name="nivel"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-        // Aquí se actualiza la lógica si es necesario
-        console.log('Nivel seleccionado:', this.value);
-    });
-});
-
-// Seleccionar canales
-document.querySelectorAll('.canal-option').forEach(option => {
-    option.addEventListener('click', function() {
-        document.querySelectorAll('.canal-option').forEach(o => o.classList.remove('selected'));
-        this.classList.add('selected');
-        const canal = this.getAttribute('data-canal');
-        document.getElementById('canal-seleccionado').value = canal;
-    });
-});
-
-// Mostrar/Ocultar bloques
-document.getElementById('envio-bloques').addEventListener('change', function() {
-    document.getElementById('bloques-config').classList.toggle('show', this.checked);
-});
-
-// Mostrar/Ocultar programación
-document.getElementById('programar-envio').addEventListener('change', function() {
-    document.getElementById('programa-config').style.display = this.checked ? 'block' : 'none';
-});
-
-// ============================================================================
-// PREVISUALIZACIÓN
-// ============================================================================
-function mostrarPreview() {
-    const aviso = document.getElementById('aviso-seleccionado').value;
-    const nivel = document.querySelector('input[name="nivel"]:checked').value;
-    const canal = document.getElementById('canal-seleccionado').value;
-    
-    if (!aviso) {
-        alert('Por favor selecciona un aviso');
-        return;
-    }
-
-    // Obtener datos de la tabla de estadísticas
-    const stats = {
-        rojo: parseInt(document.getElementById('stat-rojo').textContent) || 0,
-        naranja: parseInt(document.getElementById('stat-naranja').textContent) || 0,
-        amarillo: parseInt(document.getElementById('stat-amarillo').textContent) || 0,
-        total: parseInt(document.getElementById('stat-total').textContent) || 0
-    };
-
-    let total = 0;
-    if (nivel === 'todos') total = stats.rojo + stats.naranja + stats.amarillo;
-    else if (nivel === 'rojo') total = stats.rojo;
-    else if (nivel === 'naranja') total = stats.naranja;
-    else if (nivel === 'amarillo') total = stats.amarillo;
-
-    document.getElementById('prev-aviso').textContent = '#' + aviso;
-    document.getElementById('prev-nivel').textContent = nivel.charAt(0).toUpperCase() + nivel.slice(1);
-    document.getElementById('prev-canal').textContent = canal.charAt(0).toUpperCase() + canal.slice(1);
-    document.getElementById('prev-total').textContent = total;
-
-    // Por canal
-    if (canal === 'whatsapp') {
-        document.getElementById('prev-whatsapp').textContent = Math.floor(total * 0.85);
-        document.getElementById('prev-sms').textContent = Math.floor(total * 0.10);
-        document.getElementById('prev-email').textContent = Math.floor(total * 0.05);
-    } else if (canal === 'sms') {
-        document.getElementById('prev-whatsapp').textContent = '0';
-        document.getElementById('prev-sms').textContent = total;
-        document.getElementById('prev-email').textContent = '0';
-    } else if (canal === 'email') {
-        document.getElementById('prev-whatsapp').textContent = '0';
-        document.getElementById('prev-sms').textContent = '0';
-        document.getElementById('prev-email').textContent = total;
-    }
-
-    const bloques = document.getElementById('envio-bloques').checked;
-    if (bloques) {
-        document.getElementById('bloques-info').style.display = 'block';
-        const msgsBloque = document.getElementById('msgs-por-bloque').value;
-        const intervalo = document.getElementById('intervalo-bloques').value;
-        document.getElementById('prev-bloques').textContent = msgsBloque + '/' + intervalo + 's';
-    } else {
-        document.getElementById('bloques-info').style.display = 'none';
-    }
-
-    document.getElementById('preview-modal').classList.add('show');
-}
-
-function cerrarPreview() {
-    document.getElementById('preview-modal').classList.remove('show');
-}
-
-function confirmarEnvio() {
-    alert('Envío iniciado. El historial se actualizará en breve.');
-    cerrarPreview();
-}
-
-// Cerrar modal al hacer click afuera
-document.getElementById('preview-modal').addEventListener('click', function(e) {
-    if (e.target === this) cerrarPreview();
-});
-
-// Submit del form
-document.getElementById('form-envio-whatsapp').addEventListener('submit', function(e) {
-    e.preventDefault();
-    mostrarPreview();
-});
-</script>
+<script src="{{ url_for('static', filename='js/difusion.js') }}"></script>
 {% endblock %}
-</body>
-</html>

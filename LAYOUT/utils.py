@@ -181,29 +181,28 @@ def extraer_provincias_afectadas(shp_riesgo_path):
 
 def extraer_distritos_afectados(shp_riesgo_path):
     """
-    Extrae distritos afectados por riesgo ALTO del día crítico
-    
-    Args:
-        shp_riesgo_path: Ruta al shapefile de riesgo del día crítico
-    
+    Extrae distritos afectados por cualquier nivel de riesgo del día crítico.
+    Usa INNER join para evitar NULLs — DISTRITOS.shp ya contiene
+    departamento + provincia + distrito en su metadata.
+
     Returns:
         DataFrame con columnas: DEPARTAMEN, PROVINCIA, DISTRITO
     """
     shp_riesgo = gpd.read_file(shp_riesgo_path)
     shp_distritos = gpd.read_file('DELIMITACIONES/DISTRITOS/DISTRITOS.shp')
-    
-    # Filtrar solo Nivel 3 y 4
-    shp_alto = shp_riesgo[shp_riesgo['nivel'].isin(['Nivel 3', 'Nivel 4'])]
-    
+
+    # Niveles afectados: Amarillo (2), Naranja (3), Rojo (4) — Verde no cuenta
+    niveles_validos = ['Nivel 2', 'Nivel 3', 'Nivel 4']
+    shp_alto = shp_riesgo[shp_riesgo['nivel'].isin(niveles_validos)]
+
     if shp_alto.empty:
         return None
-    
-    # Spatial join con distritos
+
+    # Spatial join INNER — solo filas con match → cero NULLs
     shp_alto = shp_alto.to_crs(shp_distritos.crs)
-    riesgo_con_dist = gpd.sjoin(shp_alto, shp_distritos, how='left', predicate='intersects')
-    
-    distritos_afectados = riesgo_con_dist[['DEPARTAMEN', 'PROVINCIA', 'DISTRITO']].dropna().drop_duplicates()
-    print(f"✓ Distritos afectados: {len(distritos_afectados)}")
-    
+    riesgo_con_dist = gpd.sjoin(shp_alto, shp_distritos, how='inner', predicate='intersects')
+
+    distritos_afectados = riesgo_con_dist[['DEPARTAMEN', 'PROVINCIA', 'DISTRITO']].drop_duplicates()
+    print(f'✓ Distritos afectados: {len(distritos_afectados)}')
     return distritos_afectados
 

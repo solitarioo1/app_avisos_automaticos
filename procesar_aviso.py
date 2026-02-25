@@ -42,7 +42,6 @@ from LAYOUT.utils import (
     descomprimir_zip,
     seleccionar_dia_critico,
     extraer_departamentos_afectados,
-    extraer_provincias_afectadas,
     extraer_distritos_afectados,
     limpiar_temp
 )
@@ -224,36 +223,20 @@ def procesar_aviso(numero_aviso, desde_db=False):
         logger.warning("⚠ No se encontraron departamentos afectados de nivel ALTO")
         return output_dir
     
-    # 7. Extraer y guardar provincias y distritos
-    provincias = extraer_provincias_afectadas(shp_critico)
+    # 7. Extraer y guardar distritos (DISTRITOS.shp ya incluye depto+prov+dist)
     distritos = extraer_distritos_afectados(shp_critico)
-    
-    num_provincias = len(provincias) if provincias is not None else 0
+
     num_distritos = len(distritos) if distritos is not None else 0
-    
+
     print(f"\n📍 Áreas afectadas:", flush=True)
-    print(f"  🏛️  Departamentos: {len(deptos_afectados)}", flush=True)
-    print(f"  🏢 Provincias: {num_provincias}", flush=True)
     print(f"  🏘️  Distritos: {num_distritos}", flush=True)
     
-    # 7. INSERTAR ZONAS AFECTADAS EN BD (antes: eran CSVs)
+    # 7. INSERTAR ZONAS AFECTADAS EN BD
     print(f"\n💾 Guardando zonas en base de datos...", flush=True)
-    if provincias is not None and len(provincias) > 0:
-        # Mapear nombres de columnas correctos (DEPARTAMEN en BD, typo original)
-        provincias_bd = provincias.copy()
-        provincias_bd.columns = ['departamento', 'provincia']
-        provincias_bd['distrito'] = None
-        provincias_bd['area_km2'] = 0
-        
-        insertadas_prov = insertar_zonas_afectadas(numero_aviso, provincias_bd)
-        print(f"  ✅ Pegadas {insertadas_prov} provincias en BD", flush=True)
-    
     if distritos is not None and len(distritos) > 0:
-        # Mapear nombres de columnas correctos
         distritos_bd = distritos.copy()
         distritos_bd.columns = ['departamento', 'provincia', 'distrito']
         distritos_bd['area_km2'] = 0
-        
         insertados_dist = insertar_zonas_afectadas(numero_aviso, distritos_bd)
         print(f"  ✅ Pegados {insertados_dist} distritos en BD", flush=True)
     
@@ -331,7 +314,7 @@ def procesar_aviso(numero_aviso, desde_db=False):
             print(f"✅ CREADO", flush=True)
             
             # Guardar ruta en BD
-            ruta_relativa = f"/static/output/aviso_{numero_aviso}/{depto}.webp"
+            ruta_relativa = f"OUTPUT/aviso_{numero_aviso}/{depto}.webp"
             guardar_imagen_aviso(numero_aviso, depto, ruta_relativa)
             
         except ImportError:
@@ -340,7 +323,7 @@ def procesar_aviso(numero_aviso, desde_db=False):
             print(f"✅ CREADO", flush=True)
             
             # Guardar ruta en BD (formato PNG si PIL no está disponible)
-            ruta_relativa = f"/static/output/aviso_{numero_aviso}/{depto}.png"
+            ruta_relativa = f"OUTPUT/aviso_{numero_aviso}/{depto}.png"
             guardar_imagen_aviso(numero_aviso, depto, ruta_relativa)
     
     # 10. Limpiar TEMP

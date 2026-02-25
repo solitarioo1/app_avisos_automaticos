@@ -125,12 +125,18 @@
         display: grid;
         grid-template-columns: 2fr 1fr;
         gap: 2rem;
-        min-height: 600px;
+        align-items: stretch;
+    }
+
+    .contenedor-principal > div:first-child {
+        display: flex;
+        flex-direction: column;
     }
     
     #mapa-leaflet {
         width: 100%;
-        height: 600px;
+        flex: 1;
+        min-height: 600px;
         background: #f5f5f5;
         border-radius: 0;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -140,53 +146,85 @@
         display: flex;
         flex-direction: column;
         gap: 1rem;
+        position: relative;
+        z-index: 1000;
+    }
+
+    .filtro-card, .estadisticas-card, .info-hover {
+        position: relative;
+        z-index: 1000;
+        pointer-events: auto;
     }
     
     .filtro-card {
-        background: #f9fafa;
-        border-radius: 0;
-        padding: 1.5rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        border-left: 4px solid #fb9c84;
+        background: #ffffff;
+        border-radius: 2px;
+        padding: 1.25rem 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        border-left: 4px solid #e07b5a;
+        border-top: 1px solid #f0f0f0;
     }
     
     .filtro-label {
-        font-size: 13px;
-        font-weight: 600;
-        color: #333;
-        margin-bottom: 0.5rem;
+        font-size: 12px;
+        font-weight: 700;
+        color: #888;
+        margin-bottom: 0.6rem;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        display: block;
     }
     
     .filtro-select {
         width: 100%;
-        padding: 8px 12px;
-        border: 1px solid #ddd;
-        border-radius: 0;
-        font-size: 13px;
-        background: white;
+        padding: 10px 14px;
+        border: 1.5px solid #e0e0e0;
+        border-radius: 2px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #222;
+        background: #fafafa;
         max-height: 250px;
         overflow-y: auto;
+        transition: border-color 0.2s;
+    }
+
+    .filtro-select:focus {
+        outline: none;
+        border-color: #e07b5a;
+        background: #fff;
     }
     
     .filtro-select option {
         padding: 8px;
-        line-height: 1.5;
+        line-height: 1.6;
+        font-size: 14px;
     }
     
     .estadisticas-card {
-        background: #f9fafa;
-        border-radius: 0;
-        padding: 1.5rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        background: #ffffff;
+        border-radius: 2px;
+        padding: 1.25rem 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
         border-left: 4px solid #2cdde4;
+        border-top: 1px solid #f0f0f0;
+    }
+
+    .estadisticas-card h5 {
+        font-size: 12px;
+        font-weight: 700;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin-bottom: 1rem;
     }
     
     .stat-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0.75rem 0;
-        border-bottom: 1px solid #f0f0f0;
+        padding: 0.85rem 0;
+        border-bottom: 1px solid #f2f2f2;
     }
     
     .stat-item:last-child {
@@ -194,49 +232,76 @@
     }
     
     .stat-label {
-        font-size: 13px;
-        color: #666;
-        font-weight: 500;
+        font-size: 14px;
+        color: #555;
+        font-weight: 600;
     }
     
     .stat-value {
-        font-size: 16px;
-        font-weight: 700;
-        color: #333;
+        font-size: 20px;
+        font-weight: 800;
+        color: #1a1a1a;
+        letter-spacing: -0.5px;
     }
     
     .badge-nivel {
         display: inline-block;
-        padding: 4px 12px;
-        border-radius: 0;
-        font-size: 11px;
-        font-weight: 600;
+        padding: 5px 14px;
+        border-radius: 2px;
+        font-size: 12px;
+        font-weight: 700;
         text-transform: uppercase;
+        letter-spacing: 0.8px;
     }
     
     .badge-rojo {
-        background: #a67676;
-        color: white;
+        background: #c0392b;
+        color: #fff;
+        letter-spacing: 0.5px;
     }
     
     .badge-naranja {
-        background: #b8956a;
-        color: white;
+        background: #e67e22;
+        color: #fff;
+        letter-spacing: 0.5px;
+    }
+
+    .badge-amarillo {
+        background: #d4a017;
+        color: #fff;
+        letter-spacing: 0.5px;
+    }
+
+    .badge-verde {
+        background: #27ae60;
+        color: #fff;
+        letter-spacing: 0.5px;
+    }
+
+    .badge-sin-nivel {
+        background: #95a5a6;
+        color: #fff;
+        letter-spacing: 0.5px;
     }
     
     .info-hover {
-        background: #f9fafa;
-        border-radius: 0;
-        padding: 1rem;
-        border-left: 4px solid #fb9c84;
-        font-size: 13px;
-        margin-top: 1rem;
+        background: #ffffff;
+        border-radius: 2px;
+        padding: 1rem 1.25rem;
+        border-left: 4px solid #e07b5a;
+        font-size: 13.5px;
+        margin-top: 0.5rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        color: #444;
+        line-height: 1.6;
     }
     
     .info-hover strong {
         display: block;
-        margin-bottom: 0.5rem;
-        color: #333;
+        margin-bottom: 0.4rem;
+        color: #1a1a1a;
+        font-size: 14px;
+        font-weight: 700;
     }
     
     @media (max-width: 1024px) {
@@ -257,6 +322,9 @@
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         overflow: hidden;
         margin-bottom: 1rem;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
     }
     
     .tabla-header {
@@ -275,28 +343,51 @@
     .tabla-zonas,
     .tabla-entidades {
         font-size: 13px;
+        table-layout: fixed;
+        width: 100%;
     }
-    
+
     .tabla-zonas thead,
     .tabla-entidades thead {
         background: #f8f9fa;
         font-weight: 600;
         color: #333;
     }
-    
+
+    /* separadores verticales en ambas tablas */
+    .tabla-zonas th,
+    .tabla-entidades th,
+    .tabla-zonas td,
+    .tabla-entidades td {
+        border-right: 1px solid #dee2e6 !important;
+    }
+    .tabla-zonas th:last-child,
+    .tabla-entidades th:last-child,
+    .tabla-zonas td:last-child,
+    .tabla-entidades td:last-child {
+        border-right: none !important;
+    }
+
+    /* filas zonas: misma altura que entidades */
     .tabla-zonas tbody tr,
     .tabla-entidades tbody tr {
         border-bottom: 1px solid #e9ecef;
+        height: 40px;
     }
-    
+
     .tabla-zonas tbody tr:hover,
     .tabla-entidades tbody tr:hover {
-        background: #f9f9f9;
+        background: #f0f4f8;
     }
-    
+
+    /* anchos columnas tabla zonas */
+    .tabla-zonas th:nth-child(1), .tabla-zonas td:nth-child(1) { width: 30%; }
+    .tabla-zonas th:nth-child(2), .tabla-zonas td:nth-child(2) { width: 22%; text-align: right; }
+    .tabla-zonas th:nth-child(3), .tabla-zonas td:nth-child(3) { width: 24%; text-align: right; }
+    .tabla-zonas th:nth-child(4), .tabla-zonas td:nth-child(4) { width: 24%; text-align: right; }
+
     .tabla-zonas td:first-child {
         font-weight: 600;
-        min-width: 80px;
     }
     
     .zona-rojo {
@@ -317,24 +408,111 @@
     .tabla-zonas td,
     .tabla-entidades td {
         vertical-align: middle;
-        padding: 0.75rem 0.5rem;
+        padding: 0.6rem 0.75rem;
     }
-    
+
+    .tabla-zonas th,
+    .tabla-entidades th {
+        padding: 0.6rem 0.75rem;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    /* ── Scroll de 4 filas en tabla entidades ── */
+    .tabla-entidades {
+        table-layout: fixed;
+        width: 100%;
+    }
+    .tabla-entidades thead tr,
     .tabla-entidades tbody tr {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+    }
+    .tabla-entidades thead {
+        display: table;
+        width: 100%;
+    }
+    /* forzar altura uniforme por fila */
+    .tabla-entidades tbody tr {
+        height: 40px;
         cursor: pointer;
     }
-    
+    .tabla-entidades tbody {
+        display: block;
+        height: 160px;       /* exactamente 4 filas × 40px */
+        overflow-y: scroll;  /* scroll siempre visible */
+        overflow-x: hidden;
+    }
+    /* scrollbar visible y ancho */
+    .tabla-entidades tbody::-webkit-scrollbar {
+        width: 8px;
+    }
+    .tabla-entidades tbody::-webkit-scrollbar-track {
+        background: #e0e0e0;
+        border-radius: 4px;
+    }
+    .tabla-entidades tbody::-webkit-scrollbar-thumb {
+        background: #7a8fa6;
+        border-radius: 4px;
+    }
+    .tabla-entidades tbody::-webkit-scrollbar-thumb:hover {
+        background: #4a6fa5;
+    }
+    /* anchos de columnas — Monto Asegurado en una línea */
+    .tabla-entidades th:nth-child(1), .tabla-entidades td:nth-child(1) { width: 28%; }
+    .tabla-entidades th:nth-child(2), .tabla-entidades td:nth-child(2) { width: 15%; text-align: right; }
+    .tabla-entidades th:nth-child(3), .tabla-entidades td:nth-child(3) { width: 15%; text-align: right; }
+    .tabla-entidades th:nth-child(4), .tabla-entidades td:nth-child(4) { width: 28%; text-align: right; white-space: nowrap; }
+    .tabla-entidades th:nth-child(5), .tabla-entidades td:nth-child(5) { width: 14%; text-align: center; }
+
     @media (max-width: 768px) {
         .tabla-zonas,
         .tabla-entidades {
             font-size: 12px;
         }
-        
+
         .tabla-zonas tbody tr,
         .tabla-entidades tbody tr {
             padding: 0.5rem;
         }
     }
+
+    /* ── Scroll tabla cultivos: 10 filas visibles ── */
+    .tabla-cultivos {
+        table-layout: fixed;
+        width: 100%;
+        font-size: 13px;
+    }
+    .tabla-cultivos thead tr,
+    .tabla-cultivos tbody tr {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+    }
+    .tabla-cultivos thead { display: table; width: 100%; }
+    .tabla-cultivos tbody tr { height: 40px; }
+    .tabla-cultivos tbody {
+        display: block;
+        height: 400px;  /* 10 filas × 40px */
+        overflow-y: scroll;
+        overflow-x: hidden;
+    }
+    .tabla-cultivos tbody::-webkit-scrollbar { width: 8px; }
+    .tabla-cultivos tbody::-webkit-scrollbar-track { background:#e0e0e0; border-radius:4px; }
+    .tabla-cultivos tbody::-webkit-scrollbar-thumb { background:#7a8fa6; border-radius:4px; }
+    .tabla-cultivos tbody::-webkit-scrollbar-thumb:hover { background:#4a6fa5; }
+    /* anchos columnas cultivos */
+    .tabla-cultivos th:nth-child(1),.tabla-cultivos td:nth-child(1){ width:4%;  text-align:center; }
+    .tabla-cultivos th:nth-child(2),.tabla-cultivos td:nth-child(2){ width:16%; }
+    .tabla-cultivos th:nth-child(3),.tabla-cultivos td:nth-child(3){ width:10%; text-align:center; }
+    .tabla-cultivos th:nth-child(4),.tabla-cultivos td:nth-child(4){ width:24%; }
+    .tabla-cultivos th:nth-child(5),.tabla-cultivos td:nth-child(5){ width:12%; text-align:right; }
+    .tabla-cultivos th:nth-child(6),.tabla-cultivos td:nth-child(6){ width:15%; text-align:right; white-space:nowrap; }
+    .tabla-cultivos th:nth-child(7),.tabla-cultivos td:nth-child(7){ width:19%; }
+    .tabla-cultivos td,.tabla-cultivos th { padding:0.5rem 0.6rem; vertical-align:middle; border-right:1px solid #dee2e6 !important; }
+    .tabla-cultivos td:last-child,.tabla-cultivos th:last-child { border-right:none !important; }
+    .tabla-cultivos tbody tr:hover { background:#f0f4f8; }
 </style>
 {% endblock %}
 
@@ -391,7 +569,7 @@
     <!-- Contenedor Principal: Mapa + Panel -->
     <div class="contenedor-principal">
         <!-- IZQUIERDA: Mapa Leaflet -->
-        <div>
+        <div style="display:flex; flex-direction:column;">
             <div id="mapa-leaflet"></div>
         </div>
         
@@ -402,6 +580,14 @@
                 <label class="filtro-label">Seleccionar Aviso</label>
                 <select id="filtro-aviso" class="filtro-select" onchange="cargarAviso()">
                     <option value="">-- Cargando avisos --</option>
+                </select>
+            </div>
+
+            <!-- Filtro Entidad -->
+            <div class="filtro-card">
+                <label class="filtro-label">🏦 Seleccionar Entidad</label>
+                <select id="filtro-entidad" class="filtro-select" onchange="cambiarEntidad()">
+                    <option value="">-- Todas las Entidades --</option>
                 </select>
             </div>
             
@@ -427,14 +613,14 @@
                     </select>
                 </div>
                 
-                <button onclick="limpiarFiltros()" class="btn btn-sm btn-outline-secondary w-100 mt-2" style="font-size: 12px;">
-                    🔄 Limpiar Filtros
+                <button onclick="limpiarFiltros()" class="w-100 mt-2" style="font-size: 13px; font-weight: 700; letter-spacing: 0.6px; color: #444; border: none; background: #e0e0e0; padding: 11px 0; cursor: pointer; text-transform: uppercase; display: flex; align-items: center; justify-content: center; gap: 6px;" onmouseover="this.style.background='#d0d0d0'" onmouseout="this.style.background='#e0e0e0'">
+                    ↺ Limpiar Filtros
                 </button>
             </div>
             
             <!-- Estadísticas -->
             <div class="estadisticas-card">
-                <h6 class="mb-3" style="font-weight: 700; font-size: 14px;">📊 Estadísticas</h6>
+                <h6 class="mb-3" style="font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; color: #888;">📊 Estadísticas</h6>
                 
                 <div class="stat-item">
                     <span class="stat-label">Nivel</span>
@@ -466,9 +652,9 @@
     </div>
     
     <!-- TABLAS: Resumen por Zonas y Entidades -->
-    <div class="row mt-5">
+    <div class="row mt-5 align-items-stretch">
         <!-- Tabla Zonas: Roja / Naranja / Amarilla -->
-        <div class="col-lg-6">
+        <div class="col-lg-6 d-flex flex-column">
             <div class="tabla-card">
                 <div class="tabla-header">
                     <h5 class="mb-0">📍 Resumen por Zonas de Riesgo</h5>
@@ -492,7 +678,7 @@
         </div>
         
         <!-- Tabla Entidades: Cajas/Financieras -->
-        <div class="col-lg-6">
+        <div class="col-lg-6 d-flex flex-column">
             <div class="tabla-card">
                 <div class="tabla-header">
                     <h5 class="mb-0">🏦 Resumen por Entidades (Cajas/Financieras)</h5>
@@ -503,7 +689,7 @@
                             <th>Entidad</th>
                             <th>Agricultores</th>
                             <th>Hectáreas</th>
-                            <th>Monto Asegurado</th>
+                            <th style="white-space: nowrap;">Monto Asegurado</th>
                             <th>% Daño</th>
                         </tr>
                     </thead>
@@ -522,21 +708,23 @@
         <div class="col-lg-12">
             <div class="tabla-card">
                 <div class="tabla-header">
-                    <h5 class="mb-0">🌾 Top 5 Cultivos Más Afectados</h5>
+                    <h5 class="mb-0">🌾 Cultivos Más Afectados por % de Daño (Top 15)</h5>
                 </div>
                 <table class="table table-sm tabla-cultivos mb-0">
                     <thead>
                         <tr>
+                            <th>#</th>
                             <th>Cultivo</th>
-                            <th>Departamento</th>
-                            <th>Agricultores</th>
+                            <th>Afectados</th>
+                            <th>% Daño</th>
                             <th>Hectáreas</th>
-                            <th>Monto Asegurado</th>
+                            <th style="white-space:nowrap;">Monto Asegurado</th>
+                            <th>Deptos Afectados</th>
                         </tr>
                     </thead>
                     <tbody id="tabla-cultivos-body">
                         <tr>
-                            <td colspan="5" class="text-center text-muted">Cargando...</td>
+                            <td colspan="7" class="text-center text-muted">Cargando...</td>
                         </tr>
                     </tbody>
                 </table>

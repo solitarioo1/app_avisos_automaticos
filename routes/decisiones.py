@@ -104,9 +104,9 @@ def parse_csv_avisos(numero_aviso):
         return []
 
 
-def get_clientes_afectados(numero_aviso, depto=None, provincia=None, distrito=None):
+def get_clientes_afectados(numero_aviso, depto=None, provincia=None, distrito=None, entidad_id=None):
     """
-    Consulta BD clientes desde vista y filtra por aviso + zona afectada
+    Consulta BD clientes desde vista y filtra por aviso + zona afectada + entidad
     
     Retorna los clientes clasificados por nivel (vista v_clientes_por_aviso_completo)
     """
@@ -124,20 +124,22 @@ def get_clientes_afectados(numero_aviso, depto=None, provincia=None, distrito=No
                 'financieras': {}
             }
         
-        # Obtener zonas afectadas
-        zonas_afectadas = parse_csv_avisos(numero_aviso)
-        deptos_afectados = list(set([zona['departamento'].upper().strip() for zona in zonas_afectadas]))
-        
-        # Filtrar DataFrame por zonas afectadas
+        # v_clientes_por_aviso_completo ya filtra por aviso vía spatial join.
+        # Solo aplicamos los filtros opcionales de depto/prov/dist/entidad del usuario.
         agricultores = []
         for _, row in df_clientes.iterrows():
             depto_row = (str(row.get('departamento') or '')).upper().strip()
-            
-            # Filtro 1: Solo departamentos afectados
-            if depto_row not in deptos_afectados:
-                continue
-            
-            # Filtro 2: Filtros opcionales (si se proporcionan)
+
+            # Filtro por entidad
+            if entidad_id is not None:
+                eid = row.get('entidad_id')
+                try:
+                    if int(eid) != int(entidad_id):
+                        continue
+                except (TypeError, ValueError):
+                    continue
+
+            # Filtros opcionales del endpoint (depto/prov/dist explícitos)
             if depto and depto.upper().strip() != depto_row:
                 continue
             if provincia:
@@ -165,6 +167,7 @@ def get_clientes_afectados(numero_aviso, depto=None, provincia=None, distrito=No
                 'provincia': row.get('provincia', ''),
                 'departamento': depto_row,
                 'nivel': row.get('nivel', ''),
+                'entidad_id':     row.get('entidad_id'),
                 'entidad_nombre': row.get('entidad_nombre', '')
             }
             agricultores.append(agr_dict)
@@ -180,8 +183,9 @@ def get_clientes_afectados(numero_aviso, depto=None, provincia=None, distrito=No
             total_hectareas += agr.get('hectareas', 0)
             total_monto += agr.get('monto_asegurado', 0)
         
-        logger.info("Clientes afectados para aviso %d: %d (deptos: %s)",
-                    numero_aviso, len(agricultores), deptos_afectados[:3])
+        logger.info("Clientes afectados para aviso %d: %d (depto:%s prov:%s dist:%s)",
+                    numero_aviso, len(agricultores),
+                    depto or 'todos', provincia or 'todas', distrito or 'todos')
         
         return {
             'total_agricultores': len(agricultores),
@@ -255,6 +259,65 @@ def get_estadisticas_aviso(numero_aviso):
 # RUTAS
 # ============================================================================
 
+@decisiones_bp.route('/api/clientes/todos-geojson', methods=['GET'])
+def api_todos_clientes_geojson():
+    """
+    Devuelve TODOS los clientes de la BD como GeoJSON (sin filtro de aviso).
+    Se usa para mostrar siempre todos los puntos en el mapa.
+    """
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Sin conexión'}), 500
+
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute("""
+            SELECT c.id, c.nombre, c.apellido, c.dni_ruc,
+                   c.latitud, c.longitud,
+                   c.departamento, c.provincia, c.distrito,
+                   c.hectareas, c.monto_asegurado,
+                   c.entidad_id, e.nombre AS entidad_nombre
+            FROM clientes c
+            LEFT JOIN entidades e ON e.id = c.entidad_id
+            WHERE c.latitud IS NOT NULL
+              AND c.longitud IS NOT NULL
+        """)
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+
+        features = []
+        for r in rows:
+            features.append({
+                'type': 'Feature',
+                'geometry': {
+                    'type': 'Point',
+                    'coordinates': [float(r['longitud']), float(r['latitud'])]
+                },
+                'properties': {
+                    'nombre':         f"{r.get('nombre','')} {r.get('apellido','')}",
+                    'dni_ruc':        r.get('dni_ruc', ''),
+                    'departamento':   r.get('departamento', ''),
+                    'provincia':      r.get('provincia', ''),
+                    'distrito':       r.get('distrito', ''),
+                    'hectareas':      r.get('hectareas'),
+                    'monto':          r.get('monto_asegurado'),
+                    'entidad_id':     r.get('entidad_id'),
+                    'entidad_nombre': r.get('entidad_nombre', '')
+                }
+            })
+
+        return jsonify({
+            'type': 'FeatureCollection',
+            'features': features,
+            'total': len(features)
+        })
+
+    except Exception as e:
+        logger.error("Error en todos-clientes-geojson: %s", str(e))
+        return jsonify({'error': str(e)}), 500
+
+
 @decisiones_bp.route('/api/avisos/<int:numero>/clientes-geojson', methods=['GET'])
 def api_clientes_geojson(numero):
     """
@@ -295,6 +358,24 @@ def api_clientes_geojson(numero):
     except Exception as e:
         logger.error("Error en clientes-geojson: %s", str(e))
         return jsonify({'error': str(e)}), 500
+
+
+@decisiones_bp.route('/api/entidades', methods=['GET'])
+def api_lista_entidades():
+    """Lista todas las entidades para el selector de filtro"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify([]), 500
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute("SELECT id, nombre FROM entidades ORDER BY nombre")
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return jsonify([{'id': r['id'], 'nombre': r['nombre']} for r in rows])
+    except Exception as e:
+        logger.error("Error listando entidades: %s", str(e))
+        return jsonify([]), 500
 
 
 @decisiones_bp.route('/api/avisos/<int:numero>/agregaciones', methods=['GET'])
@@ -366,11 +447,12 @@ def api_clientes_afectados(numero):
         ?depto=TACNA&provincia=TACNA&distrito=TACNA - filtro específico
     """
     try:
-        depto = request.args.get('depto')
-        provincia = request.args.get('provincia')
-        distrito = request.args.get('distrito')
+        depto      = request.args.get('depto')
+        provincia  = request.args.get('provincia')
+        distrito   = request.args.get('distrito')
+        entidad_id = request.args.get('entidad_id')
         
-        clientes = get_clientes_afectados(numero, depto, provincia, distrito)
+        clientes = get_clientes_afectados(numero, depto, provincia, distrito, entidad_id)
         stats = get_estadisticas_aviso(numero)
         
         response = {
@@ -402,32 +484,43 @@ def api_estadisticas(numero):
 
 @decisiones_bp.route('/api/avisos/<int:numero>/kpis-entidades', methods=['GET'])
 def get_kpis_entidades(numero):
-    """TOP 5 entidades con más agricultores afectados (Rojo/Naranja/Amarillo)"""
+    """Todas las entidades con agricultores afectados (Rojo/Naranja/Amarillo), ordenadas por cantidad"""
     try:
         conn = get_db_connection()
         if not conn:
             return jsonify({'error': 'Sin conexión a BD'}), 500
 
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Afectados por entidad (Rojo/Naranja/Amarillo) + total de clientes de esa entidad en BD
+        # % Daño = afectados_entidad / total_clientes_entidad * 100
         cursor.execute("""
             SELECT
-                entidad_id,
-                entidad_nombre,
-                COUNT(*)                        AS agricultores,
-                COALESCE(SUM(hectareas),       0) AS hectareas,
-                COALESCE(SUM(monto_asegurado), 0) AS monto
-            FROM v_clientes_por_aviso_completo
-            WHERE numero_aviso = %s
-              AND nivel IN ('Rojo', 'Naranja', 'Amarillo')
-              AND UPPER(departamento) IN (
-                    SELECT DISTINCT UPPER(departamento)
-                    FROM aviso_zonas_afectadas
-                    WHERE numero_aviso = %s
-              )
-            GROUP BY entidad_id, entidad_nombre
-            ORDER BY agricultores DESC
-            LIMIT 5
-        """, (numero, numero))
+                afc.entidad_id,
+                afc.entidad_nombre,
+                afc.agricultores_afectados,
+                afc.hectareas,
+                afc.monto,
+                tot.total_clientes_entidad
+            FROM (
+                SELECT
+                    entidad_id,
+                    entidad_nombre,
+                    COUNT(*)                          AS agricultores_afectados,
+                    COALESCE(SUM(hectareas),       0) AS hectareas,
+                    COALESCE(SUM(monto_asegurado), 0) AS monto
+                FROM v_clientes_por_aviso_completo
+                WHERE numero_aviso = %s
+                  AND LOWER(nivel) IN ('rojo', 'naranja', 'amarillo')
+                GROUP BY entidad_id, entidad_nombre
+            ) afc
+            JOIN (
+                SELECT entidad_id, COUNT(*) AS total_clientes_entidad
+                FROM clientes
+                GROUP BY entidad_id
+            ) tot ON tot.entidad_id = afc.entidad_id
+            ORDER BY afc.agricultores_afectados DESC
+        """, (numero,))
         rows = cursor.fetchall()
         cursor.close()
         conn.close()
@@ -436,16 +529,19 @@ def get_kpis_entidades(numero):
             return jsonify({'error': f'No hay clientes para aviso {numero}'}), 404
 
         entidades_list = []
-        total_monto = sum(float(r['monto'] or 0) for r in rows)
         for r in rows:
-            monto = float(r['monto'] or 0)
+            afectados    = int(r['agricultores_afectados'])
+            total_ent    = int(r['total_clientes_entidad'] or 1)
+            pct_damage   = round(afectados / total_ent * 100, 1)
             entidades_list.append({
-                'entidad_id':   r['entidad_id'],
-                'nombre':       r['entidad_nombre'],
-                'agricultores': int(r['agricultores']),
-                'hectareas':    round(float(r['hectareas'] or 0), 2),
-                'monto':        round(monto, 2),
-                'pct_damage':   round(monto / total_monto * 100, 1) if total_monto > 0 else 0
+                'entidad_id':          r['entidad_id'],
+                'nombre':              r['entidad_nombre'],
+                'agricultores':        afectados,
+                'total_entidad':       total_ent,
+                'hectareas':           round(float(r['hectareas'] or 0), 2),
+                'monto':               round(float(r['monto'] or 0), 2),
+                # % clientes afectados de esa entidad sobre su total en BD
+                'pct_damage':          pct_damage
             })
 
         return jsonify({'numero_aviso': numero, 'entidades': entidades_list})
@@ -456,50 +552,77 @@ def get_kpis_entidades(numero):
 
 @decisiones_bp.route('/api/avisos/<int:numero>/kpis-cultivos', methods=['GET'])
 def get_kpis_cultivos(numero):
-    """TOP 5 cultivos más afectados (Rojo/Naranja/Amarillo en deptos afectados)"""
+    """Cultivos afectados (Rojo/Naranja/Amarillo), ordenados por % daño DESC"""
     try:
         conn = get_db_connection()
         if not conn:
             return jsonify({'error': 'Sin conexión a BD'}), 500
 
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Afectados por cultivo + total + departamentos donde aparece ese cultivo en el aviso
         cursor.execute("""
             SELECT
-                cultivo_id,
-                cultivo                         AS cultivo_nombre,
-                UPPER(departamento)             AS departamento,
-                COUNT(*)                        AS agricultores,
-                COALESCE(SUM(hectareas),       0) AS hectareas,
-                COALESCE(SUM(monto_asegurado), 0) AS monto
-            FROM v_clientes_por_aviso_completo
-            WHERE numero_aviso = %s
-              AND nivel IN ('Rojo', 'Naranja', 'Amarillo')
-              AND UPPER(departamento) IN (
-                    SELECT DISTINCT UPPER(departamento)
-                    FROM aviso_zonas_afectadas
-                    WHERE numero_aviso = %s
-              )
-            GROUP BY cultivo_id, cultivo, UPPER(departamento)
-            ORDER BY agricultores DESC
-            LIMIT 5
+                afc.cultivo_id,
+                afc.cultivo_nombre,
+                afc.agricultores_afectados,
+                afc.hectareas,
+                afc.monto,
+                tot.total_cultivo,
+                dep.departamentos
+            FROM (
+                SELECT
+                    cultivo_id,
+                    cultivo                           AS cultivo_nombre,
+                    COUNT(*)                          AS agricultores_afectados,
+                    COALESCE(SUM(hectareas),       0) AS hectareas,
+                    COALESCE(SUM(monto_asegurado), 0) AS monto
+                FROM v_clientes_por_aviso_completo
+                WHERE numero_aviso = %s
+                  AND LOWER(nivel) IN ('rojo', 'naranja', 'amarillo')
+                GROUP BY cultivo_id, cultivo
+            ) afc
+            JOIN (
+                SELECT cultivo_id, COUNT(*) AS total_cultivo
+                FROM clientes
+                GROUP BY cultivo_id
+            ) tot ON tot.cultivo_id = afc.cultivo_id
+            JOIN (
+                SELECT cultivo_id,
+                       STRING_AGG(DISTINCT INITCAP(LOWER(departamento)), ', '
+                                  ORDER BY INITCAP(LOWER(departamento))) AS departamentos
+                FROM v_clientes_por_aviso_completo
+                WHERE numero_aviso = %s
+                  AND LOWER(nivel) IN ('rojo', 'naranja', 'amarillo')
+                GROUP BY cultivo_id
+            ) dep ON dep.cultivo_id = afc.cultivo_id
+            ORDER BY ROUND(afc.agricultores_afectados::numeric / tot.total_cultivo * 100, 1) DESC
+            LIMIT 15
         """, (numero, numero))
         rows = cursor.fetchall()
         cursor.close()
         conn.close()
 
         if not rows:
-            return jsonify({'error': f'No hay clientes para aviso {numero}'}), 404
+            return jsonify({'error': f'No hay cultivos para aviso {numero}'}), 404
 
-        cultivos_list = [{
-            'cultivo_id':     r['cultivo_id'],
-            'cultivo_nombre': r['cultivo_nombre'],
-            'departamento':   r['departamento'],
-            'agricultores':   int(r['agricultores']),
-            'hectareas':      round(float(r['hectareas'] or 0), 2),
-            'monto':          round(float(r['monto']    or 0), 2)
-        } for r in rows]
+        cultivos_list = []
+        for r in rows:
+            afectados   = int(r['agricultores_afectados'])
+            total_cult  = int(r['total_cultivo'] or 1)
+            pct_damage  = round(afectados / total_cult * 100, 1)
+            cultivos_list.append({
+                'cultivo_id':     r['cultivo_id'],
+                'cultivo_nombre': r['cultivo_nombre'],
+                'agricultores':   afectados,
+                'total_cultivo':  total_cult,
+                'hectareas':      round(float(r['hectareas'] or 0), 2),
+                'monto':          round(float(r['monto']    or 0), 2),
+                'pct_damage':     pct_damage,
+                'departamentos':  r['departamentos'] or ''
+            })
 
-        logger.info("Cultivos TOP 5 para aviso %d: %d cultivos", numero, len(cultivos_list))
+        logger.info("Cultivos para aviso %d: %d cultivos", numero, len(cultivos_list))
         return jsonify({'numero_aviso': numero, 'cultivos': cultivos_list})
 
     except Exception as e:
@@ -509,13 +632,29 @@ def get_kpis_cultivos(numero):
 
 @decisiones_bp.route('/api/avisos/<int:numero>/kpis', methods=['GET'])
 def get_kpis(numero):
-    """KPIs principales usando directamente la vista v_estadisticas_aviso"""
+    """
+    KPIs del panel superior.
+    - TOTALES  : toda la tabla clientes (independiente del aviso)
+    - AFECTADOS: clientes Rojo+Naranja+Amarillo del aviso seleccionado
+    """
     try:
         conn = get_db_connection()
         if not conn:
             return jsonify({'error': 'Sin conexión a BD'}), 500
 
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # ── 1. TOTALES GLOBALES (toda la BD, sin importar el aviso) ──────────
+        cursor.execute("""
+            SELECT
+                COUNT(*)                          AS total_clientes,
+                COALESCE(SUM(hectareas),       0) AS total_hectareas,
+                COALESCE(SUM(monto_asegurado), 0) AS total_poliza
+            FROM clientes
+        """)
+        totales_bd = cursor.fetchone()
+
+        # ── 2. DATOS DEL AVISO (desde la vista dinámica) ─────────────────────
         cursor.execute(
             "SELECT * FROM v_estadisticas_aviso WHERE numero_aviso = %s",
             (numero,)
@@ -527,11 +666,23 @@ def get_kpis(numero):
         if not row:
             return jsonify({'error': f'No hay datos para aviso {numero}'}), 404
 
-        totales   = int(row['total_clientes'] or 0)
-        afectados = int((row['clientes_nivel_rojo']     or 0) +
-                        (row['clientes_nivel_naranja']   or 0) +
-                        (row['clientes_nivel_amarillo']  or 0))
-        porcentaje = round(afectados / totales * 100, 1) if totales > 0 else 0
+        # Totales = toda la BD
+        total_clientes   = int(totales_bd['total_clientes'] or 0)
+        total_hectareas  = float(totales_bd['total_hectareas'] or 0)
+        total_poliza     = float(totales_bd['total_poliza'] or 0)
+
+        # Afectados = Rojo + Naranja + Amarillo del aviso
+        afectados = int((row['clientes_nivel_rojo']    or 0) +
+                        (row['clientes_nivel_naranja']  or 0) +
+                        (row['clientes_nivel_amarillo'] or 0))
+        ha_afect  = round(float(row['hectareas_nivel_rojo']    or 0) +
+                          float(row['hectareas_nivel_naranja']  or 0) +
+                          float(row['hectareas_nivel_amarillo'] or 0), 2)
+        pol_afect = round(float(row['monto_nivel_rojo']    or 0) +
+                          float(row['monto_nivel_naranja']  or 0) +
+                          float(row['monto_nivel_amarillo'] or 0), 2)
+
+        porcentaje = round(afectados / total_clientes * 100, 1) if total_clientes > 0 else 0
 
         zonas_por_color = {
             'Rojo': {
@@ -557,20 +708,14 @@ def get_kpis(numero):
         }
 
         return jsonify({
-            'agricultores_totales':   totales,
-            'agricultores_afectados': afectados,
+            'agricultores_totales':   total_clientes,   # todos en BD
+            'agricultores_afectados': afectados,         # Rojo+Naranja+Amarillo del aviso
             'porcentaje_afectacion':  porcentaje,
-            'hectareas_totales':  float(row['total_hectareas']  or 0),
-            'hectareas_afectadas': round(
-                float(row['hectareas_nivel_rojo']    or 0) +
-                float(row['hectareas_nivel_naranja'] or 0) +
-                float(row['hectareas_nivel_amarillo']or 0), 2),
-            'poliza_total':    float(row['total_monto_asegurado'] or 0),
-            'poliza_afectados': round(
-                float(row['monto_nivel_rojo']    or 0) +
-                float(row['monto_nivel_naranja'] or 0) +
-                float(row['monto_nivel_amarillo']or 0), 2),
-            'zonas_por_color': zonas_por_color
+            'hectareas_totales':      round(total_hectareas, 2),   # todas en BD
+            'hectareas_afectadas':    ha_afect,
+            'poliza_total':           round(total_poliza, 2),      # toda BD
+            'poliza_afectados':       pol_afect,
+            'zonas_por_color':        zonas_por_color
         })
 
     except Exception as e:

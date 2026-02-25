@@ -1,0 +1,576 @@
+/* ============================================================
+   difusion.css — Módulo de Difusión de Avisos SENAMHI
+   ============================================================ */
+
+/* ── Variables de color por nivel ───────────────────────────── */
+:root {
+  --rojo:     #e53935;
+  --naranja:  #fb8c00;
+  --amarillo: #fdd835;
+  --verde:    #43a047;
+
+  --wa-verde:   #25d366;
+  --wa-bg:      #ece5dd;
+  --wa-burbuja: #dcf8c6;
+  --email-azul: #1565c0;
+
+  --card-shadow: 0 2px 8px rgba(0,0,0,.12);
+  --radius:      10px;
+}
+
+/* ── Pasos — estructura visual ───────────────────────────────── */
+.paso-panel {
+  border-left: 4px solid #e0e0e0;
+  transition: border-color .2s;
+}
+
+.paso-panel:focus-within {
+  border-left-color: #1565c0;
+}
+
+.paso-header {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  margin-bottom: 1.2rem;
+}
+
+.paso-title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.paso-hint {
+  font-size: .82rem;
+  color: #888;
+  font-style: italic;
+  white-space: nowrap;
+}
+
+.paso-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px; height: 28px;
+  background: #1565c0;
+  color: #fff;
+  border-radius: 50%;
+  font-size: .82rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ── Select aviso con dot de color ───────────────────────────── */
+.aviso-select {
+  font-weight: 500;
+}
+
+.aviso-info-bar {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .45rem .8rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  font-size: .85rem;
+  flex-wrap: wrap;
+}
+
+.aviso-dot-grande {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(0,0,0,.1);
+}
+
+/* dot inline dentro del select (no soportado nativamente, va en info-bar) */
+.nivel-dot {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  margin-right: .35rem;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* ── Panel CSV SMS ─────────────────────────────────── */
+.sms-csv-panel {
+  background: #f1fdf4;
+  border: 1px solid #81c784;
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+}
+
+.sms-csv-panel p {
+  margin-bottom: .4rem;
+}
+
+/* ── Panel config de bloques ─────────────────────────────────── */
+.bloques-config-box {
+  background: #f0f4ff;
+  border: 1px solid #c5cae9;
+  border-radius: 8px;
+  padding: .8rem 1rem;
+  margin-left: 1.5rem;
+  margin-top: .4rem;
+}
+
+.bloques-config-box label {
+  font-size: .8rem;
+  color: #555;
+  font-weight: 600;
+}
+
+.bloques-config-box input[type="number"] {
+  font-size: .85rem;
+}
+
+/* ── Caja programar envío ────────────────────────────────────── */
+.programar-box {
+  background: #fffde7;
+  border: 1px solid #f9a825;
+  border-radius: 8px;
+  padding: .8rem 1rem;
+  margin-top: .75rem;
+}
+
+/* ── Resumen de configuración ────────────────────────────────── */
+.resumen-config {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: .4rem;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.resumen-config::-webkit-scrollbar { display: none; }
+
+.resumen-tag {
+  background: #e8f0fe;
+  color: #1565c0;
+  font-size: .75rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+/* ── Chips de entidades seleccionadas ───────────────────────── */
+.entidad-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  min-height: 30px;
+}
+
+.entidad-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  background: #e8f0fe;
+  color: #1565c0;
+  font-size: .8rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.entidad-chip-todas {
+  background: #f0f0f0;
+  color: #666;
+  font-weight: 500;
+}
+
+.entidad-chip-remove {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+  color: #1565c0;
+  cursor: pointer;
+  margin-left: 2px;
+}
+
+.entidad-chip-remove:hover { color: #c62828; }
+
+/* ── Panel principal ─────────────────────────────────────────── */
+.difusion-panel {
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--card-shadow);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.difusion-panel h5 {
+  font-weight: 700;
+  margin-bottom: 0;
+  color: #333;
+}
+
+/* ── Cards de canal ──────────────────────────────────────────── */
+.canal-option {
+  cursor: pointer;
+  border: 2px solid #dee2e6;
+  border-radius: var(--radius);
+  padding: 1rem;
+  text-align: center;
+  transition: border-color .2s, box-shadow .2s, transform .15s;
+  user-select: none;
+}
+
+.canal-option:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+}
+
+.canal-option.selected-wa    {
+  border-color: var(--wa-verde);
+  background: #f0faf4;
+}
+
+.canal-option.selected-sms {
+  border-color: #7b1fa2;
+  background: #f3e5f5;
+}
+
+.canal-option.selected-email {
+  border-color: var(--email-azul);
+  background: #e8f0fe;
+}
+
+.canal-option .canal-icon {
+  font-size: 2rem;
+  margin-bottom: .4rem;
+}
+
+.canal-option .canal-label {
+  font-weight: 600;
+  font-size: .95rem;
+}
+
+.canal-count {
+  display: inline-block;
+  font-size: .75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  margin-top: .3rem;
+}
+
+.canal-count.wa    { background: #c8e6c9; color: #1b5e20; }
+.canal-count.sms   { background: #e1bee7; color: #4a148c; }
+.canal-count.email { background: #bbdefb; color: #0d47a1; }
+
+/* ── Badges de nivel ─────────────────────────────────────────── */
+.nivel-option {
+  cursor: pointer;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  padding: .5rem .8rem;
+  font-size: .88rem;
+  font-weight: 600;
+  transition: border-color .2s, background .2s;
+  text-align: center;
+}
+
+.nivel-option:hover              { opacity: .85; }
+.nivel-option.selected-Rojo      { border-color: var(--rojo);    background: #ffebee; color: var(--rojo); }
+.nivel-option.selected-Naranja   { border-color: var(--naranja); background: #fff3e0; color: var(--naranja); }
+.nivel-option.selected-Amarillo  { border-color: #c6a000;        background: #fffde7; color: #c6a000; }
+.nivel-option.selected-Verde     { border-color: var(--verde);   background: #e8f5e9; color: var(--verde); }
+.nivel-option.selected-todos     { border-color: #555;           background: #f5f5f5; color: #333; }
+
+/* ── Sidebar — estadísticas ──────────────────────────────────── */
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .45rem .6rem;
+  border-radius: 6px;
+  margin-bottom: .35rem;
+  font-size: .85rem;
+}
+
+.stat-row.Rojo     { background: #ffebee; }
+.stat-row.Naranja  { background: #fff3e0; }
+.stat-row.Amarillo { background: #fffde7; }
+.stat-row.Verde    { background: #e8f5e9; }
+
+.stat-nivel-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  margin-right: .5rem;
+  flex-shrink: 0;
+}
+
+.stat-nivel-dot.Rojo     { background: var(--rojo); }
+.stat-nivel-dot.Naranja  { background: var(--naranja); }
+.stat-nivel-dot.Amarillo { background: #c6a000; }
+.stat-nivel-dot.Verde    { background: var(--verde); }
+
+.stat-badge {
+  font-weight: 700;
+  font-size: .82rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(0,0,0,.07);
+}
+
+/* ── Botones de acción ───────────────────────────────────────── */
+.btn-generar {
+  background: #1565c0;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: .55rem 1.1rem;
+  font-weight: 600;
+  font-size: .88rem;
+  transition: background .2s, transform .15s;
+}
+
+.btn-generar:hover    { background: #0d47a1; transform: translateY(-1px); }
+.btn-generar:disabled { background: #90caf9; cursor: not-allowed; }
+
+.btn-preview {
+  background: #fff;
+  color: #1565c0;
+  border: 2px solid #1565c0;
+  border-radius: 8px;
+  padding: .5rem 1rem;
+  font-weight: 600;
+  font-size: .88rem;
+  transition: background .2s, color .2s;
+}
+
+.btn-preview:hover    { background: #e8f0fe; }
+.btn-preview:disabled { border-color: #90caf9; color: #90caf9; cursor: not-allowed; }
+
+.btn-enviar {
+  background: var(--wa-verde);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: .55rem 1.1rem;
+  font-weight: 600;
+  font-size: .88rem;
+  transition: background .2s, transform .15s;
+}
+
+.btn-enviar:hover    { background: #1ebe5d; transform: translateY(-1px); }
+.btn-enviar:disabled { background: #a5d6a7; cursor: not-allowed; }
+
+.btn-reanudar {
+  background: #e65100;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: .45rem .9rem;
+  font-weight: 600;
+  font-size: .82rem;
+  transition: background .2s;
+}
+
+.btn-reanudar:hover { background: #bf360c; }
+
+/* ── Modal: preview de mensajes ──────────────────────────────── */
+#previewModal .modal-dialog {
+  max-width: 700px;
+}
+
+.preview-cards-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding: .5rem 0;
+}
+
+@media (max-width: 576px) {
+  .preview-cards-container { grid-template-columns: 1fr; }
+}
+
+.wa-card {
+  background: var(--wa-bg);
+  border-radius: var(--radius);
+  padding: .75rem;
+  font-size: .82rem;
+}
+
+.wa-card-header {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: .6rem;
+}
+
+.wa-avatar {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--wa-verde);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.wa-card-info .wa-name {
+  font-weight: 700;
+  font-size: .8rem;
+  color: #1a1a1a;
+}
+
+.wa-card-info .wa-meta {
+  font-size: .72rem;
+  color: #666;
+}
+
+.wa-bubble {
+  background: var(--wa-burbuja);
+  border-radius: 8px 8px 8px 0;
+  padding: .6rem .8rem;
+  position: relative;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #1a1a1a;
+  line-height: 1.4;
+}
+
+.wa-bubble::before {
+  content: '';
+  position: absolute;
+  left: -8px; bottom: 0;
+  border: 8px solid transparent;
+  border-right-color: var(--wa-burbuja);
+  border-bottom-color: var(--wa-burbuja);
+}
+
+.wa-card.canal-email .wa-avatar    { background: var(--email-azul); }
+.wa-card.canal-email .wa-bubble    { background: #e8f0fe; border-radius: 8px 8px 8px 0; }
+.wa-card.canal-email .wa-bubble::before { border-right-color: #e8f0fe; border-bottom-color: #e8f0fe; }
+
+.nivel-tag {
+  display: inline-block;
+  font-size: .68rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 10px;
+  color: #fff;
+  margin-left: .3rem;
+  vertical-align: middle;
+}
+
+.nivel-tag.Rojo     { background: var(--rojo); }
+.nivel-tag.Naranja  { background: var(--naranja); }
+.nivel-tag.Amarillo { background: #c6a000; }
+.nivel-tag.Verde    { background: var(--verde); }
+
+.preview-resumen {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  padding: .6rem .8rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  font-size: .82rem;
+}
+
+.preview-resumen-item {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+
+.preview-resumen-item strong { font-size: .9rem; }
+
+/* ── Estado badges (historial) ───────────────────────────────── */
+.estado-badge {
+  display: inline-block;
+  font-size: .72rem;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.estado-badge.pendiente  { background: #fff3e0; color: #e65100; }
+.estado-badge.enviando   { background: #e3f2fd; color: #1565c0; }
+.estado-badge.enviado    { background: #e8f5e9; color: #1b5e20; }
+.estado-badge.error      { background: #ffebee; color: #c62828; }
+.estado-badge.leido      { background: #f3e5f5; color: #6a1b9a; }
+
+/* ── Tabla de estados ────────────────────────────────────────── */
+.estados-tabla { border-radius: 8px; overflow: hidden; }
+.estados-tabla thead th { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #555; }
+.estados-tabla tbody td { vertical-align: middle; padding: .45rem .75rem; }
+.estados-tabla tbody td:first-child { width: 110px; }
+
+/* ── Historial ───────────────────────────────────────────────── */
+.historial-table {
+  font-size: .83rem;
+}
+
+.historial-table th {
+  background: #f5f5f5;
+  font-weight: 700;
+  color: #555;
+  border-bottom: 2px solid #dee2e6;
+  white-space: nowrap;
+}
+
+.historial-table td { vertical-align: middle; }
+
+/* Panel derecho del historial: resumen por canal */
+.historial-panel-derecho {
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--card-shadow);
+  padding: 1.2rem;
+  height: 100%;
+}
+
+.historial-canal-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .55rem .6rem;
+  border-radius: 8px;
+  margin-bottom: .5rem;
+  background: #f8f9fa;
+  font-size: .83rem;
+}
+
+.historial-canal-row .canal-name {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.historial-canal-row .tasa {
+  font-size: .78rem;
+  color: #666;
+  margin-top: .1rem;
+}
+
+/* ── Spinner / overlay ───────────────────────────────────────── */
+.difusion-spinner {
+  display: none;
+  text-align: center;
+  padding: 1rem;
+  color: #666;
+  font-size: .88rem;
+}
+
+.difusion-spinner.visible { display: block; }
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .difusion-panel { padding: 1rem; }
+  .preview-cards-container { grid-template-columns: 1fr; }
+}
