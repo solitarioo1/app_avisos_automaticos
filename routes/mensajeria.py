@@ -8,14 +8,16 @@ import gspread
 from google.oauth2.service_account import Credentials
 import requests
 import os
+import json
+import base64
 from datetime import datetime
 
 mensajeria_bp = Blueprint('mensajeria', __name__, url_prefix='/mensajeria')
 
 # ── Configuración Google Sheets ──
 SCOPES = [
-    'https://www.googleapis.com/auth/spreadsheets',
-    'https://www.googleapis.com/auth/drive'
+    'https://www.googleapis.com/auth/spreadsheets.readonly',  # Solo lectura
+    'https://www.googleapis.com/auth/drive.readonly'
 ]
 CREDENTIALS_FILE = os.getenv('GOOGLE_CREDENTIALS_JSON', 'credentials.json')
 SHEET_ID         = os.getenv('MENSAJERIA_SHEET_ID', '')
@@ -38,8 +40,19 @@ HOJAS = {
 
 
 def get_sheet_client():
-    """Retorna cliente autenticado de gspread."""
-    creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPES)
+    """Retorna cliente autenticado de gspread.
+    Soporta dos métodos:
+    - GOOGLE_CREDENTIALS_B64: contenido del JSON en base64 (EasyPanel/producción)
+    - GOOGLE_CREDENTIALS_JSON: ruta al archivo .json (desarrollo local)
+    """
+    b64 = os.getenv('GOOGLE_CREDENTIALS_B64', '')
+    if b64:
+        # Producción: decodificar desde variable de entorno
+        info = json.loads(base64.b64decode(b64).decode('utf-8'))
+        creds = Credentials.from_service_account_info(info, scopes=SCOPES)
+    else:
+        # Desarrollo local: leer desde archivo
+        creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPES)
     return gspread.authorize(creds)
 
 
@@ -127,6 +140,7 @@ def historial():
     """
     Lee las 4 hojas del Google Sheet y retorna todos los registros
     con su estado (pendiente / enviado / fallido).
+    IMPORTANTE: Sin caché - siempre lee datos frescos de Google Sheets
     """
     try:
         client       = get_sheet_client()
@@ -148,10 +162,14 @@ def historial():
                         'mensaje':    r.get('asunto', '')[:80] + '...' if r.get('asunto', '') else ''
                     })
             except gspread.exceptions.WorksheetNotFound:
-                # Si la hoja no existe, la ignoramos
                 continue
 
-        return jsonify({'success': True, 'registros': todos, 'total': len(todos)})
+        response = jsonify({'success': True, 'registros': todos, 'total': len(todos)})
+        # Deshabilitar caché - siempre datos frescos
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
 
     except Exception as e:
         return jsonify({'success': False, 'mensaje': f'Error al leer Google Sheets: {str(e)}'}), 500

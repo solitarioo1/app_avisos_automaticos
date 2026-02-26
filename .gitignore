@@ -59,6 +59,8 @@ dev_*.py
 .env
 .env.local
 .env.*.local
+credentials.json
+*credentials*.json
 
 # ========================================
 # Datos temporales (no subir al repo)

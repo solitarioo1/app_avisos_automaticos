@@ -33,6 +33,7 @@ async function enviarMensaje(tipo, btnEl) {
     // Estado: cargando
     setBotonCargando(btnEl, true);
     marcarCardActiva(tipo, true);
+    mostrarToast('info', '⏳ Enviando...', `Enviando mensajes de ${tipo}. Esto puede tomar un momento...`);
 
     try {
         const response = await fetch(`/mensajeria/enviar`, {
@@ -46,22 +47,28 @@ async function enviarMensaje(tipo, btnEl) {
         if (response.ok && data.success) {
             // Mostrar KPIs
             actualizarKPIs(data);
-            mostrarToast('success', '✅ Envío completado',
-                `${data.enviados} enviados · ${data.fallidos} fallidos`);
-            // Recargar historial si está visible
-            if (document.getElementById('historialSection').style.display !== 'none') {
+            const msg = `${data.enviados} enviados · ${data.fallidos} fallidos · ${data.pendientes} pendientes`;
+            mostrarToast('success', '✅ Envío completado', msg);
+            
+            // Scroll a KPIs
+            document.getElementById('kpiStrip').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Recargar historial AUTOMÁTICAMENTE tras 2-3 segundos
+            setTimeout(async () => {
+                mostrarToast('info', '⏳ Actualizando historial...', 'Refrescando desde Google Sheet...');
                 await cargarHistorial();
-            }
+            }, 2500);
         } else {
             mostrarToast('error', '❌ Error en el envío', data.mensaje || 'Ocurrió un error inesperado.');
         }
 
     } catch (err) {
         console.error(err);
-        mostrarToast('error', '❌ Error de conexión', 'No se pudo conectar con el servidor.');
+        mostrarToast('error', '❌ Error de conexión', err.message || 'No se pudo conectar con el servidor.');
     } finally {
         setBotonCargando(btnEl, false);
         marcarCardActiva(tipo, false);
+        cerrarToast();
     }
 }
 
@@ -117,7 +124,9 @@ async function cargarHistorial() {
     tbody.innerHTML = '';
 
     try {
-        const response = await fetch('/mensajeria/historial');
+        // Agregar timestamp para evitar caché del navegador
+        const url = `/mensajeria/historial?t=${Date.now()}`;
+        const response = await fetch(url);
         const data = await response.json();
 
         if (response.ok && data.registros) {

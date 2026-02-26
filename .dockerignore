@@ -23,11 +23,22 @@ pip-delete-this-directory.txt
 *~
 .DS_Store
 
-# Desarrollo
+# Desarrollo local
 .env.local
 .env.*.local
 debug/
 test_*.py
+
+# Directorios temporales
+.pytest_cache
+.coverage
+
+# Node (si existe)
+node_modules
+npm-debug.log
+
+# No excluir: credentials.json, .env (se pasan manualmente)
+
 
 # Temporal
 TEMP/
