@@ -137,7 +137,7 @@
                         <td>
                             <div class="acciones-col" style="display: flex; gap: 0.4rem; align-items: center;">
                                 <button class="btn btn-accion btn-accion-descargar btn-descargar" title="Descargar JSON" data-numero="{{ aviso.numero }}"><i class="bi bi-download"></i></button>
-                                <button class="btn btn-accion btn-accion-procesar btn-procesar" title="Generar capa y clasificar clientes" data-numero="{{ aviso.numero }}"><i class="bi bi-diagram-3"></i></button>
+                                <button class="btn btn-accion btn-accion-procesar btn-procesar {{ 'ya-procesado' if aviso.capa_procesada else '' }}" title="{{ 'Ya procesado — clic para regenerar' if aviso.capa_procesada else 'Generar capa y clasificar clientes' }}" data-numero="{{ aviso.numero }}"><i class="bi bi-diagram-3"></i></button>
                                 <a href="/decisiones?aviso={{ aviso.numero }}" class="btn btn-accion btn-accion-decisiones" title="Seguro Comercial"><i class="bi bi-geo"></i></a>
                             </div>
                         </td>
@@ -195,6 +195,10 @@
     .btn-accion-descargar:hover { background-color: #03aaa3; color: white; }
     .btn-accion-procesar { background-color: #64d3ce; }
     .btn-accion-procesar:hover { background-color: #3fbfb9; color: white; }
+    /* Ya procesado (capa generada + clientes clasificados) — antes se
+       quedaba del mismo color siempre, parecía que faltaba generar. */
+    .btn-accion-procesar.ya-procesado { background-color: #28a745; }
+    .btn-accion-procesar.ya-procesado:hover { background-color: #1e7e34; color: white; }
     .btn-accion-decisiones { background-color: #fa6f4a; }
     .btn-accion-decisiones:hover { background-color: #e05535; color: white; }
 </style>

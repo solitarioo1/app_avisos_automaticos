@@ -17,6 +17,7 @@ from CONFIG.db import get_connection
 
 BASE_DIR = Path(__file__).parent.parent
 OUTPUT_DIR = BASE_DIR / 'OUTPUT'
+SHP_DIR = BASE_DIR / 'SHP'
 logger = logging.getLogger(__name__)
 active_processes = {}
 
@@ -42,6 +43,15 @@ def avisos():
         )
         cursor.execute(query)
         avisos_bd = cursor.fetchall()
+
+        # Qué avisos ya corrieron procesar_aviso.py (SHP + clientes_por_aviso)
+        # — señal real de "listo para Seguro Comercial", DISTINTA de
+        # mapa_creado (que solo mira si hay PNG/WEBP estáticos, flujo viejo).
+        # Antes el botón "Generar capa y clasificar clientes" se quedaba
+        # siempre del mismo color aunque ya se hubiera procesado — parecía
+        # que faltaba generar. Una sola query acá, no una por aviso.
+        cursor.execute("SELECT DISTINCT numero_aviso FROM clientes_por_aviso")
+        avisos_con_capa = {r['numero_aviso'] for r in cursor.fetchall()}
         cursor.close()
         conn.close()
 
@@ -57,6 +67,7 @@ def avisos():
             mapas_creados = (output_path.exists() and
                            (any(output_path.glob('*.webp')) or
                             any(output_path.glob('*.png'))))
+            capa_procesada = numero in avisos_con_capa
 
             css_class = ('table-success' if mapas_creados else
                         ('table-warning' if estado_descargado else ''))
@@ -68,6 +79,7 @@ def avisos():
                 'fecha_emision': str(aviso['fecha_emision']),
                 'descargado': '✅' if estado_descargado else '⏳',
                 'mapa_creado': '✅' if mapas_creados else '⏳',
+                'capa_procesada': capa_procesada,
                 'estado_css': css_class
             })
     except (psycopg2.Error, ImportError):
@@ -95,6 +107,10 @@ def avisos():
                         mapas_creados = (output_path.exists() and
                                        (any(output_path.glob('*.webp')) or
                                         any(output_path.glob('*.png'))))
+                        # Sin BD no se puede consultar clientes_por_aviso —
+                        # se usa la carpeta SHP/aviso_N/ como proxy (procesar_
+                        # aviso.py la crea junto con el cruce de clientes).
+                        capa_procesada = (SHP_DIR / 'aviso_{}'.format(numero)).exists()
 
                         avisos_lista.append({
                             'numero': numero,
@@ -106,6 +122,7 @@ def avisos():
                                                      '2026-02-01'),
                             'descargado': '✅',
                             'mapa_creado': '✅' if mapas_creados else '⏳',
+                            'capa_procesada': capa_procesada,
                             'estado_css': ('table-success' if mapas_creados
                                          else 'table-warning')
                         })
