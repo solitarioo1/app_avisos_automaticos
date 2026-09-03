@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}Mapa de Calor de Siniestros - La Positiva AgroSeguros{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<style>
+    .mcs-container { max-width: 1300px; margin: 0 auto; }
+
+    /* ===== KPI (mismo lenguaje visual que Centro de Decisiones) ===== */
+    .mcs-kpi-section { background: white; border-radius: 0; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .mcs-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.5rem; }
+    .mcs-kpi {
+        background: #FEEBE6; border-radius: 4px; padding: 1.25rem; text-align: center;
+        border: 1px solid #e9ecef; border-left: 5px solid #fa6f4a;
+    }
+    .mcs-kpi:nth-child(1) { border-left-color: #fa6f4a; }
+    .mcs-kpi:nth-child(2) { border-left-color: #fc6c44; }
+    .mcs-kpi:nth-child(3) { border-left-color: #04ccc4; }
+    .mcs-kpi:nth-child(4) { border-left-color: #b9e8e3; }
+    .mcs-kpi .lbl { font-size: 12px; color: #6c757d; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.75rem; }
+    .mcs-kpi .val { font-size: 26px; font-weight: 700; color: #1a1a1a; }
+    .mcs-kpi .sub { font-size: 11.5px; color: #999; margin-top: 0.35rem; }
+
+    @media (max-width: 768px) {
+        .mcs-kpis { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+        .mcs-kpi { padding: 0.85rem; }
+        .mcs-kpi .val { font-size: 20px; }
+    }
+
+    /* ===== Contenedor principal: mapa (izq) + panel filtros (der) ===== */
+    .mcs-principal { display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; align-items: stretch; margin-bottom: 1.5rem; }
+    @media (max-width: 1024px) { .mcs-principal { grid-template-columns: 1fr; } }
+
+    #mcs-mapa { width: 100%; height: 620px; min-height: 500px; border-radius: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+
+    .mcs-panel { display: flex; flex-direction: column; gap: 1rem; }
+    .mcs-filtro-card {
+        background: #fff; border-radius: 2px; padding: 1.25rem 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        border-left: 4px solid #e07b5a; border-top: 1px solid #f0f0f0;
+    }
+    .mcs-field { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; }
+    .mcs-field:last-of-type { margin-bottom: 0; }
+    .mcs-field label {
+        font-size: 12px; font-weight: 700; color: #888;
+        text-transform: uppercase; letter-spacing: 0.6px;
+    }
+    .mcs-field select, .mcs-field input {
+        width: 100%; padding: 9px 12px; border: 1.5px solid #e0e0e0; border-radius: 2px;
+        font-size: 13.5px; font-weight: 500; color: #222;
+        background: #fafafa; transition: border-color 0.2s;
+    }
+    .mcs-field select:focus, .mcs-field input:focus { outline: none; border-color: #e07b5a; background: #fff; }
+    .mcs-anios { display: flex; gap: 0.75rem; }
+    .mcs-anios .mcs-field { flex: 1; }
+
+    #mcs-btn-filtrar {
+        width: 100%; background: #2c3e50; color: #fff; border: none;
+        padding: 11px 14px; border-radius: 20px;
+        font-size: 13px; font-weight: 700; letter-spacing: 0.4px;
+        text-transform: uppercase; cursor: pointer; transition: background 0.15s;
+    }
+    #mcs-btn-filtrar:hover { background: #1a252f; }
+
+    .mcs-estadisticas-card {
+        background: #fff; border-radius: 2px; padding: 1.25rem 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        border-left: 4px solid #2cdde4; border-top: 1px solid #f0f0f0;
+    }
+    .mcs-estadisticas-card h5 {
+        font-size: 12px; font-weight: 700; color: #888;
+        text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 1rem;
+    }
+    .mcs-stat-item { display: flex; justify-content: space-between; align-items: center; padding: 0.7rem 0; border-bottom: 1px solid #f2f2f2; }
+    .mcs-stat-item:last-child { border-bottom: none; }
+    .mcs-stat-label { font-size: 13px; color: #555; font-weight: 600; }
+    .mcs-stat-value { font-size: 15px; font-weight: 800; color: #1a1a1a; }
+
+    .mcs-leyenda-mapa { background: #fff; padding: 8px 10px; border-radius: 2px; box-shadow: 0 1px 5px rgba(0,0,0,0.35); font-size: 12px; line-height: 1.6; }
+
+    /* ===== Sección inferior: tablas de análisis (mismo patrón que tabla-card) ===== */
+    .mcs-tablas-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 1.5rem; }
+    @media (max-width: 1100px) { .mcs-tablas-row { grid-template-columns: 1fr; } }
+
+    .mcs-tabla-card { background: white; border-radius: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; }
+    .mcs-tabla-card-header {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        color: white; padding: 0.85rem 1.25rem; font-weight: 700; font-size: 13.5px;
+        text-transform: uppercase; letter-spacing: 0.4px;
+    }
+    .mcs-tabla-card table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .mcs-tabla-card thead { background: #f8f9fa; }
+    .mcs-tabla-card th { text-align: left; padding: 8px 12px; color: #666; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; border-bottom: 1px solid #e9ecef; }
+    .mcs-tabla-card td { padding: 8px 12px; border-bottom: 1px solid #f2f2f2; color: #333; }
+    .mcs-tabla-card tr:hover { background: #f0f4f8; }
+    .mcs-tabla-card td.num, .mcs-tabla-card th.num { text-align: right; }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mcs-container">
+    <!-- Header -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <h2 class="mb-0"><i class="bi bi-thermometer-sun"></i> Mapa de Calor de Siniestros</h2>
+            <p class="text-muted mb-0">Historial de siniestros indemnizados 2012-2026 — vista nacional o por departamento</p>
+        </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="mcs-kpi-section">
+        <div class="mcs-kpis">
+            <div class="mcs-kpi"><div class="lbl">Total De Sieniestros</div><div class="val" id="mcs-kpi-total">-</div><div class="sub" id="mcs-kpi-rango">-</div></div>
+            <div class="mcs-kpi"><div class="lbl">% casos indemnizados</div><div class="val" id="mcs-kpi-pct">-</div><div class="sub" id="mcs-kpi-detalle">-</div></div>
+            <div class="mcs-kpi"><div class="lbl">Monto indemnizable</div><div class="val" id="mcs-kpi-monto">-</div><div class="sub"></div></div>
+            <div class="mcs-kpi"><div class="lbl"> -- </div><div class="val" id="mcs-kpi-sindato">-</div><div class="sub"> -- </div></div>
+        </div>
+    </div>
+
+    <!-- Mapa + Panel de filtros -->
+    <div class="mcs-principal">
+        <div>
+            <div id="mcs-mapa"></div>
+        </div>
+        <div class="mcs-panel">
+            <div class="mcs-filtro-card">
+                <div class="mcs-field">
+                    <label>Departamento</label>
+                    <select id="mcs-departamento">
+                        <option value="">-- Nacional (macro general) --</option>
+                    </select>
+                </div>
+                <div class="mcs-anios">
+                    <div class="mcs-field">
+                        <label>Año desde</label>
+                        <input type="number" id="mcs-anio-desde" placeholder="2013" min="2000" max="2030">
+                    </div>
+                    <div class="mcs-field">
+                        <label>Año hasta</label>
+                        <input type="number" id="mcs-anio-hasta" placeholder="2026" min="2000" max="2030">
+                    </div>
+                </div>
+                <div class="mcs-field">
+                    <label>Evento</label>
+                    <select id="mcs-evento"><option value="">-- Todos --</option></select>
+                </div>
+                <button id="mcs-btn-filtrar">Aplicar</button>
+                <button id="mcs-btn-limpiar" class="w-100 mt-2" style="font-size: 13px; font-weight: 700; letter-spacing: 0.6px; color: #444; border: none; background: #e0e0e0; padding: 11px 0; cursor: pointer; text-transform: uppercase; display: flex; align-items: center; justify-content: center; gap: 6px;" onmouseover="this.style.background='#d0d0d0'" onmouseout="this.style.background='#e0e0e0'">
+                    ↺ Limpiar Filtros
+                </button>
+            </div>
+            <div class="mcs-estadisticas-card">
+                <h5 id="mcs-panel-titulo">Vista Nacional</h5>
+                <div class="mcs-stat-item"><span class="mcs-stat-label">Distrito top</span><span class="mcs-stat-value" id="mcs-stat-distrito-top">-</span></div>
+                <div class="mcs-stat-item"><span class="mcs-stat-label">Evento top</span><span class="mcs-stat-value" id="mcs-stat-evento-top">-</span></div>
+                <div class="mcs-stat-item"><span class="mcs-stat-label">Cultivo top</span><span class="mcs-stat-value" id="mcs-stat-cultivo-top">-</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tablas de análisis -->
+    <div class="mcs-tablas-row">
+        <div class="mcs-tabla-card">
+            <div class="mcs-tabla-card-header" id="mcs-th-distritos">Distritos más afectados</div>
+            <table>
+                <thead><tr><th>Distrito</th><th class="num">Casos</th><th class="num">Monto (S/)</th></tr></thead>
+                <tbody id="mcs-body-distritos"><tr><td colspan="3" style="text-align:center; color:#999; padding:1rem;">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+        <div class="mcs-tabla-card">
+            <div class="mcs-tabla-card-header">Eventos climáticos más concurrentes</div>
+            <table>
+                <thead><tr><th>Evento</th><th class="num">Indemnizados</th><th class="num">Total</th></tr></thead>
+                <tbody id="mcs-body-eventos"><tr><td colspan="3" style="text-align:center; color:#999; padding:1rem;">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+        <div class="mcs-tabla-card">
+            <div class="mcs-tabla-card-header">Cultivos — casos y monto</div>
+            <table>
+                <thead><tr><th>Cultivo</th><th class="num">Casos</th><th class="num">Monto (S/)</th></tr></thead>
+                <tbody id="mcs-body-cultivos"><tr><td colspan="3" style="text-align:center; color:#999; padding:1rem;">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="{{ url_for('static', filename='js/mapa_calor_siniestros.js') }}"></script>
+{% endblock %}

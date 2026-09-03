@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+
+{% block title %}Evaluación de Riesgo - La Positiva AgroSeguros{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<style>
+    .evr-container { max-width: 1300px; margin: 0 auto; }
+
+    .evr-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        align-items: start;
+    }
+    @media (max-width: 992px) {
+        .evr-grid { grid-template-columns: 1fr; }
+    }
+
+    .evr-card {
+        background: #fff;
+        border-radius: 2px;
+        padding: 1.25rem 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        border-left: 4px solid #e07b5a;
+        border-top: 1px solid #f0f0f0;
+        margin-bottom: 1.5rem;
+    }
+
+    .evr-label {
+        font-size: 12px;
+        font-weight: 700;
+        color: #888;
+        margin-bottom: 0.4rem;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        display: block;
+    }
+
+    .evr-select, .evr-input {
+        width: 100%;
+        padding: 9px 12px;
+        border: 1.5px solid #e0e0e0;
+        border-radius: 2px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #222;
+        background: #fafafa;
+    }
+    .evr-select:focus, .evr-input:focus { outline: none; border-color: #e07b5a; background: #fff; }
+
+    .evr-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .evr-field { margin-bottom: 1rem; }
+
+    #evr-mapa {
+        width: 100%;
+        height: 320px;
+        border-radius: 2px;
+        margin-bottom: 0.5rem;
+    }
+    .evr-mapa-hint { font-size: 11.5px; color: #999; margin-bottom: 1rem; }
+
+    #evr-btn-verificar {
+        width: 100%;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        color: #fff;
+        border: none;
+        background: #2c3e50;
+        padding: 10px 14px;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    #evr-btn-verificar:hover { background: #1a252f; }
+    #evr-btn-verificar:disabled { background: #95a5a6; cursor: wait; }
+
+    .evr-resultado-vacio {
+        text-align: center;
+        color: #999;
+        padding: 3rem 1rem;
+        font-size: 14px;
+    }
+
+    .evr-veredicto {
+        text-align: center;
+        padding: 1rem;
+        border-radius: 4px;
+        font-size: 17px;
+        font-weight: 700;
+        margin-bottom: 1.25rem;
+    }
+    .evr-veredicto.si { background: #eafaf1; color: #1e8449; border: 1px solid #a9dfbf; }
+    .evr-veredicto.no { background: #fdedec; color: #a93226; border: 1px solid #f5b7b1; }
+
+    .evr-ubicacion-preview { font-size: 12.5px; color: #666; margin-top: 0.4rem; }
+
+    /* ===== Toggle Manual / Foto / Excel ===== */
+    .evr-modo-tabs { display: flex; gap: 0.4rem; margin-bottom: 1rem; }
+    .evr-modo-tab {
+        flex: 1;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        color: #888;
+        background: #f2f2f2;
+        border: none;
+        border-radius: 20px;
+        padding: 8px 6px;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .evr-modo-tab:hover { background: #e6e6e6; }
+    .evr-modo-tab.activo { background: #2c3e50; color: #fff; }
+
+    .evr-foto-drop {
+        border: 2px dashed #ddd;
+        border-radius: 4px;
+        padding: 1.5rem 1rem;
+        text-align: center;
+        color: #999;
+        font-size: 13px;
+        margin-bottom: 0.75rem;
+        background: #fafafa;
+        display: block;
+        cursor: pointer;
+    }
+    .evr-foto-drop.tiene-foto { border-color: #27ae60; color: #27ae60; }
+    .evr-foto-status { font-size: 12px; margin-top: 0.4rem; }
+    .evr-foto-status .ok { color: #27ae60; }
+    .evr-foto-status .falta { color: #c0392b; }
+
+    /* ===== Excel (lote) ===== */
+    .evr-lote-hint { font-size: 12px; color: #888; margin-bottom: 0.75rem; }
+    .evr-lote-hint code { background: #f2f2f2; padding: 1px 5px; border-radius: 3px; }
+    #evr-btn-lote {
+        width: 100%; font-size: 13px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
+        color: #fff; border: none; background: #2c3e50; padding: 10px 14px; border-radius: 20px; cursor: pointer;
+    }
+    #evr-btn-lote:disabled { background: #95a5a6; cursor: wait; }
+    .evr-tabla-lote { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 1rem; }
+    .evr-tabla-lote th, .evr-tabla-lote td { padding: 6px 8px; border-bottom: 1px solid #eee; text-align: left; }
+    .evr-tabla-lote th { color: #888; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.4px; }
+    .evr-badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+    .evr-badge.si { background: #eafaf1; color: #1e8449; }
+    .evr-badge.no { background: #fdedec; color: #a93226; }
+    .evr-badge.err { background: #f2f2f2; color: #888; }
+    .evr-ver-detalle { font-size: 11px; color: #2c3e50; text-decoration: underline; cursor: pointer; background: none; border: none; padding: 0; }
+
+    /* ===== Legend de la capa en el mapa ===== */
+    .evr-capa-legend { font-size: 11px; color: #666; margin-bottom: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.5rem 0.9rem; }
+    .evr-capa-legend span { display: inline-flex; align-items: center; gap: 4px; }
+    .evr-capa-legend .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+    /* ===== Secciones del reporte (siempre vertical) ===== */
+    .evr-reporte-seccion { margin-bottom: 1.75rem; }
+    .evr-reporte-titulo {
+        font-size: 12.5px; font-weight: 700; color: #2c3e50; text-transform: uppercase;
+        letter-spacing: 0.6px; margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 2px solid #2c3e50;
+    }
+    .evr-input-resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; }
+    .evr-input-item { background: #f8f9fa; border-radius: 4px; padding: 0.6rem 0.8rem; }
+    .evr-input-item .lbl { font-size: 10.5px; color: #999; text-transform: uppercase; letter-spacing: 0.4px; display: block; }
+    .evr-input-item .val { font-size: 13.5px; font-weight: 600; color: #222; }
+
+    .evr-meteo-grid { display: grid; grid-template-columns: 165px 1fr; gap: 1.25rem; align-items: start; }
+    .evr-meteo-titulo-col { font-size: 11px; color: #888; margin-bottom: 0.5rem; font-weight: 700; }
+    @media (max-width: 700px) { .evr-meteo-grid { grid-template-columns: 1fr; } }
+    .evr-tabla-meteo { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+    .evr-tabla-meteo th, .evr-tabla-meteo td { padding: 3px 4px; border-bottom: 1px solid #eee; text-align: right; }
+    .evr-tabla-meteo th:first-child, .evr-tabla-meteo td:first-child { text-align: left; }
+    .evr-tabla-meteo tr.mes-evento { background: #fdf3ee; font-weight: 700; }
+    #evr-chart-meteo { max-height: 220px; }
+
+    #evr-mapa-gdr { width: 100%; height: 360px; border-radius: 2px; margin-bottom: 0.5rem; }
+    .evr-gdr-datos { font-size: 12.5px; color: #444; }
+    .evr-gdr-datos b { color: #222; }
+
+    /* ===== Reporte imprimible ===== */
+    .evr-print-header { display: none; }
+    .evr-print-header-linea { display: none; }
+    .evr-print-logo { height: 60px; object-fit: contain; }
+    #evr-btn-imprimir {
+        font-size: 12px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
+        color: #2c3e50; border: 1.5px solid #2c3e50; background: #fff; padding: 8px 14px;
+        border-radius: 20px; cursor: pointer; margin-top: 1rem; width: 100%;
+    }
+    #evr-btn-imprimir:hover { background: #f2f4f5; }
+    #evr-btn-imprimir:disabled { color: #999; border-color: #ccc; cursor: wait; }
+
+    @page { size: A4 portrait; margin: 10mm 12mm; }
+
+    @media print {
+        body { font-size: 11px; }
+        .main-header, .main-navigation, #evr-col-form, #evr-btn-imprimir, .evr-intro-txt, .evr-titulo-pagina { display: none !important; }
+        .evr-grid { display: block !important; }
+        #evr-col-resultado { width: 100%; }
+        .evr-card { box-shadow: none !important; border: none !important; padding: 0 !important; margin-bottom: 0 !important; }
+        .evr-print-header { display: flex !important; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem; }
+        .evr-print-header h3 { margin: 0 0 0.15rem 0; font-size: 16px; }
+        .evr-print-header .sub { font-size: 10.5px; color: #666; }
+        .evr-print-header-linea { display: block !important; margin: 0 0 0.6rem 0; }
+        .evr-print-logo { height: 48px; }
+
+        .evr-reporte-seccion { break-inside: avoid; margin-bottom: 0.6rem; }
+        .evr-reporte-titulo { font-size: 10.5px; margin-bottom: 0.4rem; padding-bottom: 0.2rem; }
+
+        .evr-input-resumen { gap: 0.4rem; }
+        .evr-input-item { padding: 0.3rem 0.5rem; }
+        .evr-input-item .lbl { font-size: 9px; }
+        .evr-input-item .val { font-size: 11px; }
+
+        #evr-mapa-gdr { height: 300px !important; }
+        .evr-gdr-datos { font-size: 10.5px; }
+
+        .evr-veredicto { padding: 0.6rem; font-size: 13px; margin-bottom: 0; margin-top: 0.2rem; }
+        .evr-veredicto span { font-size: 10.5px !important; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="evr-container">
+    <h2 class="mb-1 evr-titulo-pagina">Evaluación de Riesgo</h2>
+    <p class="evr-intro-txt" style="color:#888; font-size:13.5px; margin-bottom:1.5rem;">
+        Verificación de eventos mediante triple cruce: capa de riesgo climático + aviso SENAMHI + estación meteorológica más cercana (percentil climatológico, no umbral manual).
+        Por ahora esta herramienta funciona solo para <strong>Piura</strong> (único departamento con estaciones con datos reales) — el mapa está recortado a esa zona.
+    </p>
+
+    <div class="evr-grid">
+        <!-- Columna izquierda: formulario -->
+        <div id="evr-col-form">
+            <div class="evr-card">
+                <div class="evr-modo-tabs">
+                    <button type="button" class="evr-modo-tab activo" id="evr-tab-manual" onclick="evrCambiarModoInput('manual')">Coordenada</button>
+                    <button type="button" class="evr-modo-tab" id="evr-tab-foto" onclick="evrCambiarModoInput('foto')">Foto</button>
+                    <button type="button" class="evr-modo-tab" id="evr-tab-lote" onclick="evrCambiarModoInput('lote')">Excel(masivo)</button>
+                </div>
+
+                <!-- Bloque Excel/Lote: reemplaza todo el formulario cuando está activo -->
+                <div id="evr-bloque-lote" style="display:none;">
+                    <p class="evr-lote-hint">
+                        Verifica varios eventos a la vez. Columnas esperadas: <code>referencia</code> (opcional),
+                        <code>fecha</code>, <code>evento</code> (helada/friaje/sequia/viento/incendios/inundacion),
+                        <code>lat</code>, <code>lon</code>.
+                    </p>
+                    <input type="file" id="evr-lote-input" accept=".xlsx,.xls" class="evr-input" style="margin-bottom:0.75rem;">
+                    <button id="evr-btn-lote" onclick="evrVerificarLote()">Verificar Lote</button>
+                    <div id="evr-lote-status" style="font-size:12px; margin-top:0.5rem;"></div>
+                    <div id="evr-lote-tabla-cont" style="max-height:420px; overflow-y:auto;"></div>
+                </div>
+
+                <div id="evr-bloque-form">
+                    <div id="evr-bloque-foto" style="display:none;">
+                        <label class="evr-foto-drop" id="evr-foto-drop" for="evr-foto-input">
+                            📷 Haz clic para elegir una foto (se lee la fecha y GPS del EXIF si el celular los guardó)
+                        </label>
+                        <input type="file" id="evr-foto-input" accept="image/*" style="display:none;" onchange="evrProcesarFoto(event)">
+                        <div class="evr-foto-status" id="evr-foto-status"></div>
+                    </div>
+
+                    <div class="evr-field">
+                        <label class="evr-label">Tipo de evento</label>
+                        <select id="evr-evento" class="evr-select">
+                            {% for ev in eventos %}
+                            <option value="{{ ev.id }}" data-unidad="{{ ev.unidad }}" data-cola="{{ ev.cola }}" data-capa="{{ ev.capa }}">{{ ev.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="evr-row2">
+                        <div class="evr-field">
+                            <label class="evr-label">Fecha del evento</label>
+                            <input type="date" id="evr-fecha" class="evr-input">
+                        </div>
+                        <div class="evr-field">
+                            <label class="evr-label">Severidad del percentil</label>
+                            <select id="evr-severidad" class="evr-select">
+                                <option value="90">P90 / P10 (moderado)</option>
+                                <option value="95">P95 / P5 (severo)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="evr-mapa-hint" id="evr-percentil-hint" style="margin-top:-0.5rem;">Se compara contra el histórico de la estación (°C, mes calendario).</div>
+
+                    <label class="evr-label">Coordenada (haz clic en el mapa o arrastra el marcador)</label>
+                    <div class="evr-capa-legend" id="evr-capa-legend"></div>
+                    <div id="evr-mapa"></div>
+                    <div class="evr-mapa-hint">Lat/Lon: <span id="evr-coords">-5.1783, -80.6549</span> · 🟢 estación con datos · ⚪ estación sin datos aún</div>
+                    <div class="evr-ubicacion-preview" id="evr-ubicacion-preview">Ubicando...</div>
+
+                    <div style="margin-top:1.25rem;">
+                        <button id="evr-btn-verificar" onclick="evrVerificar()">Verificar evento</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Columna derecha: resultado / reporte (siempre vertical: Input -> Meteorológica -> Gestión de Riesgo) -->
+        <div id="evr-col-resultado">
+            <div class="evr-card" id="evr-resultado-card">
+                <div class="evr-print-header">
+                    <div>
+                        <h3>Reporte de Evaluación de Riesgo</h3>
+                        <div class="sub">La Positiva · generado el <span id="evr-print-fecha"></span></div>
+                    </div>
+                    <img src="/static/img/logo-positiva.png" alt="La Positiva" class="evr-print-logo">
+                </div>
+                <hr class="evr-print-header-linea">
+                <div class="evr-resultado-vacio" id="evr-resultado-vacio">
+                    Completa el formulario y presiona <strong>Verificar evento</strong> para ver el reporte.
+                </div>
+                <div id="evr-resultado-contenido" style="display:none;">
+                    <!-- 1) INPUT -->
+                    <div class="evr-reporte-seccion">
+                        <div class="evr-reporte-titulo">1. Input del evento</div>
+                        <div class="evr-input-resumen" id="evr-input-resumen"></div>
+                    </div>
+
+                    <!-- 2) METEOROLÓGICA -->
+                    <div class="evr-reporte-seccion">
+                        <div class="evr-reporte-titulo">2. Análisis meteorológico</div>
+                        <div id="evr-meteo-cont"></div>
+                    </div>
+
+                    <!-- 3) GESTIÓN DE RIESGO -->
+                    <div class="evr-reporte-seccion">
+                        <div class="evr-reporte-titulo">3. Gestión de riesgo</div>
+                        <div id="evr-mapa-gdr"></div>
+                        <div class="evr-gdr-datos" id="evr-gdr-datos"></div>
+                    </div>
+
+                    <!-- VEREDICTO: conclusión, al final del reporte -->
+                    <div class="evr-veredicto" id="evr-veredicto-box"></div>
+                </div>
+                <button id="evr-btn-imprimir" style="display:none;" onclick="window.print()">🖨️ Imprimir / Descargar Reporte (PDF)</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/evaluacion_riesgo.js') }}"></script>
+{% endblock %}

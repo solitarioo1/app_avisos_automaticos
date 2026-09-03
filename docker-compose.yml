@@ -1,0 +1,110 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    
+    container_name: mapas-avisos-senamhi
+    restart: unless-stopped
+    
+    ports:
+      - "5000:5000"
+    
+    environment:
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-procesar_aviso}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+      FLASK_ENV: production
+      FLASK_DEBUG: 'False'
+      TEMP_DIR: /app/TEMP
+      OUTPUT_DIR: /app/OUTPUT
+      JSON_DIR: /app/JSON
+      LAYOUT_DIR: /app/LAYOUT
+      SHP_BASE_DIR: /app/DELIMITACIONES
+    
+    volumes:
+      - ./JSON:/app/JSON
+      - ./TEMP:/app/TEMP
+      - ./OUTPUT:/app/OUTPUT
+      - ./DELIMITACIONES:/app/DELIMITACIONES:ro
+      - ./CAPAS:/app/CAPAS:ro
+      - ./CONFIG/geojson_cache:/app/CONFIG/geojson_cache
+      - ./logs:/app/logs
+    
+    networks:
+      - app-network
+    
+    depends_on:
+      postgres:
+        condition: service_healthy
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: mapas-avisos-db
+    restart: unless-stopped
+    
+    environment:
+      POSTGRES_DB: ${DB_NAME:-procesar_aviso}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    
+    networks:
+      - app-network
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+
+# ========================================================================
+# INSTRUCCIONES DE USO:
+# ========================================================================
+# 1. Construir imagen:
+#    docker-compose build
+#
+# 2. Iniciar contenedor:
+#    docker-compose up -d
+#
+# 3. Ver logs:
+#    docker-compose logs -f app
+#
+# 4. Ejecutar comando en el contenedor:
+#    docker-compose exec app python procesar_aviso.py 447
+#    docker-compose exec app python descargar_aviso.py 447 --procesar
+#
+# 5. Detener contenedor:
+#    docker-compose down
+#
+# 6. Detener y eliminar volúmenes:
+#    docker-compose down -v
+#
+# ========================================================================
+# ENDPOINTS DISPONIBLES (cuando Docker está corriendo):
+# ========================================================================
+# - http://localhost:5000/health
+# - http://localhost:5000/status
+# - POST http://localhost:5000/procesar-aviso
+# - GET http://localhost:5000/avisos/<numero>

@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .avisos-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+</style>
+<div class="container-fluid p-3 avisos-container">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h2">Pronósticos</h1>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label for="filtro-numero" class="form-label">Número</label>
+                            <input type="text" id="filtro-numero" class="form-control" placeholder="Ej: 4" />
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filtro-nivel" class="form-label">Nivel</label>
+                            <select id="filtro-nivel" class="form-select">
+                                <option value="">Todos</option>
+                                <option value="rojo">Rojo</option>
+                                <option value="naranja">Naranja</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filtro-orden" class="form-label">Orden</label>
+                            <select id="filtro-orden" class="form-select">
+                                <option value="desc">Más Reciente</option>
+                                <option value="asc">Más Antiguo</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button id="btnResetearFiltros" class="btn btn-secondary w-100">
+                                <i class="bi bi-arrow-clockwise"></i> Reset
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla -->
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0" id="tabla-titulo">Lista de Pronósticos</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 table-sm">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 100px;">Número Aviso</th>
+                        <th style="width: 35%;">Título</th>
+                        <th style="width: 100px;">Nivel</th>
+                        <th style="width: 110px;">Fecha</th>
+                        <th style="width: 85px;">Descargado</th>
+                        <th style="width: 85px;">Mapa Creado</th>
+                        <th style="width: 150px;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-avisos">
+                    {% for aviso in avisos %}
+                    <tr data-numero="{{ aviso.numero }}" data-nivel="{{ aviso.nivel }}" data-descargado="{{ aviso.descargado }}" data-procesado="{{ aviso.mapa_creado }}" data-fecha="{{ aviso.fecha_emision }}" data-color="{{ aviso.color }}">
+                        <td>{{ aviso.numero }}</td>
+                        <td style="text-align: left;">{{ aviso.titulo }}</td>
+                        <td>
+                            {% if aviso.color == 'rojo' %}
+                                <span class="nivel-badge nivel-rojo">ROJO</span>
+                            {% elif aviso.color == 'naranja' %}
+                                <span class="nivel-badge nivel-naranja">NARANJA</span>
+                            {% elif aviso.color == 'amarillo' %}
+                                <span class="nivel-badge nivel-amarillo">AMARILLO</span>
+                            {% elif aviso.color == 'verde' %}
+                                <span class="nivel-badge nivel-verde">VERDE</span>
+                            {% else %}
+                                <span class="nivel-badge nivel-gris">{{ aviso.nivel }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-size: 0.9rem;">{{ aviso.fecha_emision }}</td>
+                        <td style="text-align: center; font-size: 1rem;">{{ aviso.descargado }}</td>
+                        <td style="text-align: center; font-size: 1rem;">{{ aviso.mapa_creado }}</td>
+                        <td>
+                            <div class="acciones-col" style="display: flex; gap: 0.4rem; align-items: center;">
+                                <button class="btn btn-accion btn-accion-descargar btn-descargar" title="Descargar JSON" data-numero="{{ aviso.numero }}"><i class="bi bi-download"></i></button>
+                                <a href="/mapas?aviso={{ aviso.numero }}" class="btn btn-accion btn-accion-mapas" title="Ver Mapas"><i class="bi bi-eye"></i></a>
+                                <a href="/decisiones?aviso={{ aviso.numero }}" class="btn btn-accion btn-accion-decisiones" title="Decisiones"><i class="bi bi-geo"></i></a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    .nivel-badge {
+        padding: 0.35rem 0.65rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border-radius: 0.25rem;
+    }
+    .nivel-rojo { background-color: #dc3545; color: white; }
+    .nivel-naranja { background-color: #fd7e14; color: white; }
+    .nivel-amarillo { background-color: #ffc107; color: black; }
+    .nivel-verde { background-color: #198754; color: white; }
+    .nivel-gris { background-color: #6c757d; color: white; }
+
+    /* Últimos 4 pronósticos más recientes */
+    .aviso-fresco td {
+        background-color: #FEEBE6 !important;
+        --bs-table-bg: #FEEBE6;
+        --bs-table-accent-bg: #FEEBE6;
+    }
+    .aviso-fresco:hover td {
+        background-color: #fdd8cc !important;
+        --bs-table-bg: #fdd8cc;
+    }
+    
+    .spin { 
+        display: inline-block; 
+        animation: spin 1s linear infinite; 
+    }
+    @keyframes spin { 
+        from { transform: rotate(0deg); } 
+        to { transform: rotate(360deg); } 
+    }
+
+    /* Botones de acción */
+    .btn-accion {
+        padding: 0.3rem 0.55rem;
+        font-size: 0.9rem;
+        line-height: 1;
+        border-radius: 0.35rem;
+        border: none;
+        color: white;
+    }
+    .btn-accion-descargar { background-color: #04ccc4; }
+    .btn-accion-descargar:hover { background-color: #03aaa3; color: white; }
+    .btn-accion-mapas { background-color: #64d3ce; }
+    .btn-accion-mapas:hover { background-color: #3fbfb9; color: white; }
+    .btn-accion-decisiones { background-color: #fa6f4a; }
+    .btn-accion-decisiones:hover { background-color: #e05535; color: white; }
+</style>
+
+<script src="{{ url_for('static', filename='js/pronosticos.js') }}"></script>
+{% endblock %}

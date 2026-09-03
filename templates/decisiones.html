@@ -1,0 +1,915 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Decisiones - La Positiva AgroSeguros{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.min.css" />
+<style>
+    .decisiones-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    /* Barra de leyenda arriba del mapa (mismo patrón que evr-capa-legend) */
+    .mapa-clientes-legend {
+        font-size: 12px;
+        font-weight: 600;
+        color: #555;
+        margin-bottom: 0.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1rem;
+    }
+    .mapa-clientes-legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .mapa-clientes-legend .sw { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+
+    /* ===== KPI SECTION ===== */
+    .kpi-section {
+        background: white;
+        border-radius: 0;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    
+    .kpi-section-hectareas {
+        margin-bottom: 2rem;
+    }
+    
+    .kpi-grid-top {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .kpi-grid-bottom {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .kpi-card {
+        background: white;
+        border-radius: 4px;
+        padding: 1.25rem;
+        text-align: center;
+        border-left: 5px solid #007bff;
+        border: 1px solid #e9ecef;
+    }
+    
+    .kpi-grid-top .kpi-card:nth-child(1) { border-left-color: #fa6f4a; background: #FEEBE6; }
+    .kpi-grid-top .kpi-card:nth-child(2) { border-left-color: #fb9c84; background: #FEEBE6; }
+    .kpi-grid-top .kpi-card:nth-child(3) { border-left-color: #fc6c44; background: #FEEBE6; }
+    .kpi-grid-top .kpi-card:nth-child(4) { border-left-color: #2cdde4; background: #FEEBE6; }
+    .kpi-grid-top .kpi-card:nth-child(5) { border-left-color: #04ccc4; background: #FEEBE6; }
+    
+    .kpi-grid-bottom .kpi-card:nth-child(1) { border-left-color: #64d3ce; background: #FEEBE6; }
+    .kpi-grid-bottom .kpi-card:nth-child(2) { border-left-color: #b9e8e3; background: #FEEBE6; }
+    
+    .kpi-label {
+        font-size: 12px;
+        color: #6c757d;
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        letter-spacing: 0.5px;
+    }
+    
+    .kpi-value {
+        font-size: 26px;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin: 0;
+    }
+    
+    .kpi-currency {
+        font-size: 18px !important;
+    }
+    
+    @media (max-width: 1024px) {
+        .kpi-grid-top, .kpi-grid-bottom {
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+        }
+        
+        .kpi-card {
+            padding: 1rem;
+        }
+        
+        .kpi-value {
+            font-size: 20px;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .kpi-grid-top, .kpi-grid-bottom {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+        
+        .kpi-card {
+            padding: 0.75rem;
+        }
+        
+        .kpi-label {
+            font-size: 11px;
+        }
+        
+        .kpi-value {
+            font-size: 16px;
+        }
+    }
+    
+    /* ===== MODO DEL PANEL: Avisos <-> Capas de Riesgo (exclusivos) ===== */
+    .modo-tabs {
+        display: flex;
+        gap: 0.4rem;
+        margin-bottom: 1rem;
+    }
+    .modo-tab {
+        flex: 1;
+        font-size: 12.5px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        color: #888;
+        background: #f2f2f2;
+        border: none;
+        border-radius: 20px;
+        padding: 8px 10px;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .modo-tab:hover { background: #e6e6e6; }
+    .modo-tab.modo-tab-activo {
+        background: #2c3e50;
+        color: #fff;
+    }
+
+    .capas-riesgo-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .capas-riesgo-actualizar {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .capas-riesgo-fecha-txt {
+        font-size: 11px;
+        color: #999;
+        display: block;
+        margin-bottom: 0.75rem;
+    }
+
+    #btn-actualizar-cruce {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        color: #fff;
+        border: none;
+        background: #2c3e50;
+        padding: 6px 14px;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    #btn-actualizar-cruce:hover { background: #1a252f; }
+    #btn-actualizar-cruce:disabled { background: #95a5a6; cursor: wait; }
+
+    #btn-exportar-csv-general {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        color: #fff;
+        border: none;
+        background: #04ccc4;
+        padding: 10px 24px;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    #btn-exportar-csv-general:hover { background: #03a8a1; }
+    #btn-exportar-csv-general:disabled { background: #95a5a6; cursor: not-allowed; }
+
+    .capas-toggle {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .capas-toggle label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 13.5px;
+        font-weight: 500;
+        cursor: pointer;
+        background: #f8f9fa;
+        padding: 0.45rem 0.75rem;
+        border-radius: 20px;
+        border: 1px solid #e9ecef;
+        transition: background 0.15s;
+    }
+    .capas-toggle label:hover { background: #eef1f3; }
+    .capas-toggle label.capa-no-disponible { opacity: 0.45; cursor: not-allowed; }
+    .capas-toggle input[type="checkbox"] { accent-color: #2c3e50; }
+    .capas-toggle .swatch {
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
+        display: inline-block;
+        flex-shrink: 0;
+    }
+
+
+    /* ===== MAPA Y PANEL ===== */
+    .kpi-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .kpi-icon {
+        font-size: 28px;
+        margin-bottom: 0.5rem;
+    }
+    
+    .contenedor-principal {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 2rem;
+        align-items: stretch;
+    }
+
+    .contenedor-principal > div:first-child {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    #mapa-leaflet {
+        width: 100%;
+        flex: 1;
+        min-height: 600px;
+        background: #f5f5f5;
+        border-radius: 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .panel-derecho {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        position: relative;
+        z-index: 1000;
+    }
+
+    .filtro-card, .estadisticas-card, .info-hover {
+        position: relative;
+        z-index: 1000;
+        pointer-events: auto;
+    }
+    
+    .filtro-card {
+        background: #ffffff;
+        border-radius: 2px;
+        padding: 1.25rem 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        border-left: 4px solid #e07b5a;
+        border-top: 1px solid #f0f0f0;
+    }
+    
+    .filtro-label {
+        font-size: 12px;
+        font-weight: 700;
+        color: #888;
+        margin-bottom: 0.6rem;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        display: block;
+    }
+    
+    .filtro-select {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1.5px solid #e0e0e0;
+        border-radius: 2px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #222;
+        background: #fafafa;
+        max-height: 250px;
+        overflow-y: auto;
+        transition: border-color 0.2s;
+    }
+
+    .filtro-select:focus {
+        outline: none;
+        border-color: #e07b5a;
+        background: #fff;
+    }
+    
+    .filtro-select option {
+        padding: 8px;
+        line-height: 1.6;
+        font-size: 14px;
+    }
+    
+    .estadisticas-card {
+        background: #ffffff;
+        border-radius: 2px;
+        padding: 1.25rem 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        border-left: 4px solid #2cdde4;
+        border-top: 1px solid #f0f0f0;
+    }
+
+    .estadisticas-card h5 {
+        font-size: 12px;
+        font-weight: 700;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin-bottom: 1rem;
+    }
+    
+    .stat-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.85rem 0;
+        border-bottom: 1px solid #f2f2f2;
+    }
+    
+    .stat-item:last-child {
+        border-bottom: none;
+    }
+    
+    .stat-label {
+        font-size: 14px;
+        color: #555;
+        font-weight: 600;
+    }
+    
+    .stat-value {
+        font-size: 20px;
+        font-weight: 800;
+        color: #1a1a1a;
+        letter-spacing: -0.5px;
+    }
+    
+    .badge-nivel {
+        display: inline-block;
+        padding: 5px 14px;
+        border-radius: 2px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+    }
+    
+    .badge-rojo {
+        background: #c0392b;
+        color: #fff;
+        letter-spacing: 0.5px;
+    }
+    
+    .badge-naranja {
+        background: #e67e22;
+        color: #fff;
+        letter-spacing: 0.5px;
+    }
+
+    .badge-amarillo {
+        background: #d4a017;
+        color: #fff;
+        letter-spacing: 0.5px;
+    }
+
+    .badge-verde {
+        background: #27ae60;
+        color: #fff;
+        letter-spacing: 0.5px;
+    }
+
+    .badge-sin-nivel {
+        background: #95a5a6;
+        color: #fff;
+        letter-spacing: 0.5px;
+    }
+    
+    .info-hover {
+        background: #ffffff;
+        border-radius: 2px;
+        padding: 1rem 1.25rem;
+        border-left: 4px solid #e07b5a;
+        font-size: 13.5px;
+        margin-top: 0.5rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        color: #444;
+        line-height: 1.6;
+    }
+    
+    .info-hover strong {
+        display: block;
+        margin-bottom: 0.4rem;
+        color: #1a1a1a;
+        font-size: 14px;
+        font-weight: 700;
+    }
+    
+    @media (max-width: 1024px) {
+        .contenedor-principal {
+            grid-template-columns: 1fr;
+            min-height: auto;
+        }
+        
+        #mapa-leaflet {
+            height: 500px;
+        }
+    }
+    
+    /* ===== TABLAS: Zonas y Entidades ===== */
+    .tabla-card {
+        background: white;
+        border-radius: 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        overflow: hidden;
+        margin-bottom: 1rem;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .tabla-header {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        font-weight: 600;
+    }
+    
+    .tabla-header h5 {
+        color: white;
+        font-weight: 700;
+        font-size: 16px;
+    }
+    
+    .tabla-zonas,
+    .tabla-entidades {
+        font-size: 13px;
+        table-layout: fixed;
+        width: 100%;
+    }
+
+    .tabla-zonas thead,
+    .tabla-entidades thead {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #333;
+    }
+
+    /* separadores verticales en ambas tablas */
+    .tabla-zonas th,
+    .tabla-entidades th,
+    .tabla-zonas td,
+    .tabla-entidades td {
+        border-right: 1px solid #dee2e6 !important;
+    }
+    .tabla-zonas th:last-child,
+    .tabla-entidades th:last-child,
+    .tabla-zonas td:last-child,
+    .tabla-entidades td:last-child {
+        border-right: none !important;
+    }
+
+    /* filas zonas: misma altura que entidades */
+    .tabla-zonas tbody tr,
+    .tabla-entidades tbody tr {
+        border-bottom: 1px solid #e9ecef;
+        height: 40px;
+    }
+
+    .tabla-zonas tbody tr:hover,
+    .tabla-entidades tbody tr:hover {
+        background: #f0f4f8;
+    }
+
+    /* anchos columnas tabla zonas */
+    .tabla-zonas th:nth-child(1), .tabla-zonas td:nth-child(1) { width: 30%; }
+    .tabla-zonas th:nth-child(2), .tabla-zonas td:nth-child(2) { width: 22%; text-align: right; }
+    .tabla-zonas th:nth-child(3), .tabla-zonas td:nth-child(3) { width: 24%; text-align: right; }
+    .tabla-zonas th:nth-child(4), .tabla-zonas td:nth-child(4) { width: 24%; text-align: right; }
+
+    .tabla-zonas td:first-child {
+        font-weight: 600;
+    }
+    
+    .zona-rojo {
+        background: rgba(255, 0, 0, 0.1) !important;
+        border-left: 4px solid #FF0000;
+    }
+    
+    .zona-naranja {
+        background: rgba(255, 140, 0, 0.1) !important;
+        border-left: 4px solid #FF8C00;
+    }
+    
+    .zona-amarillo {
+        background: rgba(255, 255, 0, 0.15) !important;
+        border-left: 4px solid #FFFF00;
+    }
+    
+    .tabla-zonas td,
+    .tabla-entidades td {
+        vertical-align: middle;
+        padding: 0.6rem 0.75rem;
+    }
+
+    .tabla-zonas th,
+    .tabla-entidades th {
+        padding: 0.6rem 0.75rem;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    /* ── Scroll de 4 filas en tabla entidades ── */
+    .tabla-entidades {
+        table-layout: fixed;
+        width: 100%;
+    }
+    .tabla-entidades thead tr,
+    .tabla-entidades tbody tr {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+    }
+    .tabla-entidades thead {
+        display: table;
+        width: 100%;
+    }
+    /* forzar altura uniforme por fila */
+    .tabla-entidades tbody tr {
+        height: 40px;
+        cursor: pointer;
+    }
+    .tabla-entidades tbody {
+        display: block;
+        height: 160px;       /* exactamente 4 filas × 40px */
+        overflow-y: scroll;  /* scroll siempre visible */
+        overflow-x: hidden;
+    }
+    /* scrollbar visible y ancho */
+    .tabla-entidades tbody::-webkit-scrollbar {
+        width: 8px;
+    }
+    .tabla-entidades tbody::-webkit-scrollbar-track {
+        background: #e0e0e0;
+        border-radius: 4px;
+    }
+    .tabla-entidades tbody::-webkit-scrollbar-thumb {
+        background: #7a8fa6;
+        border-radius: 4px;
+    }
+    .tabla-entidades tbody::-webkit-scrollbar-thumb:hover {
+        background: #4a6fa5;
+    }
+    /* anchos de columnas — Monto Asegurado en una línea */
+    .tabla-entidades th:nth-child(1), .tabla-entidades td:nth-child(1) { width: 28%; }
+    .tabla-entidades th:nth-child(2), .tabla-entidades td:nth-child(2) { width: 15%; text-align: right; }
+    .tabla-entidades th:nth-child(3), .tabla-entidades td:nth-child(3) { width: 15%; text-align: right; }
+    .tabla-entidades th:nth-child(4), .tabla-entidades td:nth-child(4) { width: 28%; text-align: right; white-space: nowrap; }
+    .tabla-entidades th:nth-child(5), .tabla-entidades td:nth-child(5) { width: 14%; text-align: center; }
+
+    @media (max-width: 768px) {
+        .tabla-zonas,
+        .tabla-entidades {
+            font-size: 12px;
+        }
+
+        .tabla-zonas tbody tr,
+        .tabla-entidades tbody tr {
+            padding: 0.5rem;
+        }
+    }
+
+    /* ── Scroll tabla cultivos: 10 filas visibles ── */
+    .tabla-cultivos {
+        table-layout: fixed;
+        width: 100%;
+        font-size: 13px;
+    }
+    .tabla-cultivos thead tr,
+    .tabla-cultivos tbody tr {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+    }
+    .tabla-cultivos thead { display: table; width: 100%; }
+    .tabla-cultivos tbody tr { height: 40px; }
+    .tabla-cultivos tbody {
+        display: block;
+        height: 400px;  /* 10 filas × 40px */
+        overflow-y: scroll;
+        overflow-x: hidden;
+    }
+    .tabla-cultivos tbody::-webkit-scrollbar { width: 8px; }
+    .tabla-cultivos tbody::-webkit-scrollbar-track { background:#e0e0e0; border-radius:4px; }
+    .tabla-cultivos tbody::-webkit-scrollbar-thumb { background:#7a8fa6; border-radius:4px; }
+    .tabla-cultivos tbody::-webkit-scrollbar-thumb:hover { background:#4a6fa5; }
+    /* anchos columnas cultivos */
+    .tabla-cultivos th:nth-child(1),.tabla-cultivos td:nth-child(1){ width:4%;  text-align:center; }
+    .tabla-cultivos th:nth-child(2),.tabla-cultivos td:nth-child(2){ width:16%; }
+    .tabla-cultivos th:nth-child(3),.tabla-cultivos td:nth-child(3){ width:10%; text-align:center; }
+    .tabla-cultivos th:nth-child(4),.tabla-cultivos td:nth-child(4){ width:24%; }
+    .tabla-cultivos th:nth-child(5),.tabla-cultivos td:nth-child(5){ width:12%; text-align:right; }
+    .tabla-cultivos th:nth-child(6),.tabla-cultivos td:nth-child(6){ width:15%; text-align:right; white-space:nowrap; }
+    .tabla-cultivos th:nth-child(7),.tabla-cultivos td:nth-child(7){ width:19%; }
+    .tabla-cultivos td,.tabla-cultivos th { padding:0.5rem 0.6rem; vertical-align:middle; border-right:1px solid #dee2e6 !important; }
+    .tabla-cultivos td:last-child,.tabla-cultivos th:last-child { border-right:none !important; }
+    .tabla-cultivos tbody tr:hover { background:#f0f4f8; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-3 decisiones-container">
+    <!-- Header -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <h2 class="mb-0"><i class="bi bi-map-fill"></i> Analisis de riesgos climaticos</h2>
+            <p class="text-muted mb-0">Fuentes: SENAMHI,ANA,CENEPRED</p>
+        </div>
+    </div>
+
+    <!-- KPI SUPERIOR - PARTE 1: Agricultores y Pólizas -->
+    <div class="kpi-section">
+        <div class="kpi-grid-top">
+            <div class="kpi-card">
+                <div class="kpi-label">N° Polizas</div>
+                <div class="kpi-value" id="kpi-agr-totales">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">N° Polizas Por Nivel Riesgo</div>
+                <div class="kpi-value" id="kpi-agr-afectados">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">% Nivel Riesgo</div>
+                <div class="kpi-value" id="kpi-porcentaje-afectacion">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Suma asegurada total</div>
+                <div class="kpi-value kpi-currency" id="kpi-poliza-total">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Suma asegurada expuesta</div>
+                <div class="kpi-value kpi-currency" id="kpi-poliza-afectados">-</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- KPI SUPERIOR - PARTE 2: Hectáreas -->
+    <div class="kpi-section kpi-section-hectareas">
+        <div class="kpi-grid-bottom">
+            <div class="kpi-card">
+                <div class="kpi-label">Superficie Asegurada Totales</div>
+                <div class="kpi-value" id="kpi-hectareas-totales">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Superficie Asegurada Expuesto</div>
+                <div class="kpi-value" id="kpi-hectareas-afectadas">-</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Contenedor Principal: Mapa + Panel -->
+    <div class="contenedor-principal">
+        <!-- IZQUIERDA: Mapa Leaflet -->
+        <div style="display:flex; flex-direction:column;">
+            <h2 class="mb-0"> Polizas Vigentes</h2>
+            <div class="mapa-clientes-legend">
+                <span><span class="sw" style="background:#2ecc71;"></span>Bajo</span>
+                <span><span class="sw" style="background:#f1c40f;"></span>Medio</span>
+                <span><span class="sw" style="background:#e67e22;"></span>Alto</span>
+                <span><span class="sw" style="background:#c0392b;"></span>Muy Alto</span>
+            </div>
+            <div id="mapa-leaflet"></div>
+        </div>
+        
+        <!-- DERECHA: Panel de Datos -->
+        <div class="panel-derecho">
+            <!-- Modo del panel: Avisos O Capas de Riesgo (exclusivos, nunca los dos a la vez) -->
+            <div class="filtro-card modo-card">
+                <div class="modo-tabs">
+                    <button type="button" id="tab-modo-avisos" class="modo-tab modo-tab-activo" onclick="cambiarModoPanel('avisos')">Pronósticos</button>
+                    <button type="button" id="tab-modo-capas" class="modo-tab" onclick="cambiarModoPanel('capas')">Capas de Riesgo</button>
+                </div>
+
+                <!-- Vista: Avisos -->
+                <div id="modo-avisos">
+                    <label class="filtro-label">Seleccionar Aviso</label>
+                    <select id="filtro-aviso" class="filtro-select" onchange="cargarAviso()">
+                        <option value="">-- Cargando avisos --</option>
+                    </select>
+                </div>
+
+                <!-- Vista: Capas de Riesgo -->
+                <div id="modo-capas" style="display:none;">
+                    <div class="capas-riesgo-header">
+                        <label class="filtro-label" style="margin-bottom:0;">Capa</label>
+                        <div class="capas-riesgo-actualizar">
+                            <button id="btn-actualizar-cruce" onclick="actualizarCruce()">↻ Actualizar</button>
+                        </div>
+                    </div>
+                    <span id="capas-riesgo-fecha" class="capas-riesgo-fecha-txt">-- sin calcular --</span>
+                    <select id="filtro-capa-riesgo" class="filtro-select" onchange="cambiarCapaRiesgoSelect()">
+                        <option value="">-- Ninguna --</option>
+                    </select>
+
+                    <label class="filtro-label" style="margin-top:1rem;">Nivel de Riesgo</label>
+                    <div class="capas-toggle" id="filtro-niveles-capa">
+                        <label><input type="checkbox" value="Muy Alto" checked onchange="cambiarNivelesCapaRiesgo()"><span class="swatch" style="background:#c0392b;"></span>Muy Alto</label>
+                        <label><input type="checkbox" value="Alto" checked onchange="cambiarNivelesCapaRiesgo()"><span class="swatch" style="background:#e67e22;"></span>Alto</label>
+                        <label><input type="checkbox" value="Medio" checked onchange="cambiarNivelesCapaRiesgo()"><span class="swatch" style="background:#f1c40f;"></span>Medio</label>
+                        <label><input type="checkbox" value="Bajo" checked onchange="cambiarNivelesCapaRiesgo()"><span class="swatch" style="background:#2ecc71;"></span>Bajo</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtro Entidad -->
+            <div class="filtro-card">
+                <label class="filtro-label"><i class="bi bi-bank2"></i> Seleccionar Entidad</label>
+                <select id="filtro-entidad" class="filtro-select" onchange="cambiarEntidad()">
+                    <option value="">-- Todas las Entidades --</option>
+                </select>
+            </div>
+            
+            <!-- Filtro Jerárquico: Depto → Provincia → Distrito -->
+            <div class="filtro-card">
+                <label class="filtro-label"><i class="bi bi-geo-alt-fill"></i> Filtrar por Zona</label>
+                
+                <div style="margin-bottom: 0.75rem;">
+                    <select id="filtro-depto" class="filtro-select" onchange="cambiarDepartamento()">
+                        <option value="">-- Todos los Departamentos --</option>
+                    </select>
+                </div>
+                
+                <div style="margin-bottom: 0.75rem;">
+                    <select id="filtro-provincia" class="filtro-select" onchange="cambiarProvincia()" disabled>
+                        <option value="">-- Selecciona Departamento --</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <select id="filtro-distrito" class="filtro-select" onchange="cambiarDistrito()" disabled>
+                        <option value="">-- Selecciona Provincia --</option>
+                    </select>
+                </div>
+                
+                <button onclick="limpiarFiltros()" class="w-100 mt-2" style="font-size: 13px; font-weight: 700; letter-spacing: 0.6px; color: #444; border: none; background: #e0e0e0; padding: 11px 0; cursor: pointer; text-transform: uppercase; display: flex; align-items: center; justify-content: center; gap: 6px;" onmouseover="this.style.background='#d0d0d0'" onmouseout="this.style.background='#e0e0e0'">
+                    ↺ Limpiar Filtros
+                </button>
+            </div>
+            
+            <!-- Estadísticas -->
+            <div class="estadisticas-card">
+                <h6 class="mb-3" style="font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; color: #888;"><i class="bi bi-bar-chart-fill"></i> Estadísticas</h6>
+                
+                <div class="stat-item">
+                    <span class="stat-label">Nivel De Riesgo</span>
+                    <span id="stat-nivel" class="badge-nivel">-</span>
+                </div>
+                
+                <div class="stat-item">
+                    <span class="stat-label">Polizas vigentes</span>
+                    <span class="stat-value" id="stat-agricultores">0</span>
+                </div>
+                
+                <div class="stat-item">
+                    <span class="stat-label">Suma asegurada</span>
+                    <span class="stat-value" id="stat-poliza">0</span>
+                </div>
+                
+                <div class="stat-item">
+                    <span class="stat-label">Hectáreas Aseguradas</span>
+                    <span class="stat-value" id="stat-hectareas">0</span>
+                </div>
+            </div>
+            
+            <!-- Info Hover Dinámica -->
+            <div class="info-hover" id="info-hover" style="display: none;">
+                <strong>Datos de Zona Seleccionada</strong>
+                <div id="info-hover-content"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- TABLAS: Resumen por Zonas y Entidades -->
+    <div class="row mt-5 align-items-stretch">
+        <!-- Tabla Zonas: Roja / Naranja / Amarilla -->
+        <div class="col-lg-6 d-flex flex-column">
+            <div class="tabla-card">
+                <div class="tabla-header">
+                    <h5 class="mb-0"><i class="bi bi-geo-alt-fill"></i> Resumen Por Nivel de Riesgo</h5>
+                </div>
+                <table class="table table-sm tabla-zonas mb-0">
+                    <thead>
+                        <tr>
+                            <th>Nivel Riesgo</th>
+                            <th>N° Polizas</th>
+                            <th>Hectáreas Aseguradas</th>
+                            <th>Suma Asegurada</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-zonas-body">
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">Cargando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Tabla Entidades: Cajas/Financieras -->
+        <div class="col-lg-6 d-flex flex-column">
+            <div class="tabla-card">
+                <div class="tabla-header">
+                    <h5 class="mb-0"><i class="bi bi-bank2"></i> Resumen por Entidades Financieras</h5>
+                </div>
+                <table class="table table-sm tabla-entidades mb-0">
+                    <thead>
+                        <tr>
+                            <th>Entidad</th>
+                            <th>Polizas Vigentes</th>
+                            <th>Hectáreas Aseguradas</th>
+                            <th style="white-space: nowrap;">Suma Asegurada</th>
+                            <th>% Exposición(muy alto)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-entidades-body">
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">Cargando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLA: Cultivos más Afectados -->
+    <div class="row mt-5">
+        <div class="col-lg-12">
+            <div class="tabla-card">
+                <div class="tabla-header">
+                    <h5 class="mb-0"><i class="bi bi-tree-fill"></i> Cultivos Expuestos</h5>
+                </div>
+                <table class="table table-sm tabla-cultivos mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Cultivo</th>
+                            <th>Polizas</th>
+                            <th>% Exposición</th>
+                            <th>Hectáreas Expuestas</th>
+                            <th style="white-space:nowrap;">Suma Asegurada expuesta</th>
+                            <th>Regiones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-cultivos-body">
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">Cargando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exportar: un solo botón para Avisos o Capas de Riesgo (según el modo activo),
+         respeta TODOS los filtros aplicados (departamento/provincia/distrito/entidad). -->
+    <div class="row mt-4 mb-5">
+        <div class="col-lg-12">
+            <div class="tabla-card" style="padding:1.25rem 1.5rem; text-align:center;">
+                <button id="btn-exportar-csv-general" disabled onclick="exportarCsvActual()">⬇ Descargar CSV (clientes con los filtros aplicados)</button>
+                <div id="exportar-csv-hint" style="font-size:12px; color:#888; margin-top:0.5rem;">
+                    Selecciona un aviso o una capa de riesgo para poder descargar.
+                </div>
+            </div> 
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.min.js"></script>
+<script src="{{ url_for('static', filename='js/decisiones.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,152 @@
+
+
+# ========================================
+# Python
+# ========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ========================================
+# Entornos virtuales
+# ========================================
+venv/
+.venv/
+env/
+ENV/
+.venv
+
+# ========================================
+# IDE
+# ========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ========================================
+# Tests (no subir)
+# ========================================
+test_*.py
+*_test.py
+check_*.py
+debug_*.py
+*.test.py
+dev_*.py
+
+# ========================================
+# Configuración sensible (NUNCA subir)
+# ========================================
+.env
+.env.local
+.env.*.local
+.env.docker
+credentials.json
+*credentials*.json
+
+# ========================================
+# Datos temporales (no subir al repo)
+# ========================================
+JSON/*.json
+OUTPUT/*/
+TEMP/*/
+
+# ========================================
+# MCP - Codacy
+# ========================================
+.github/instructions/codacy.instructions.md
+
+# ========================================
+# Sistema
+# ========================================
+.gitkeep
+Thumbs.db
+.DS_Store
+
+#================= opcional============
+resumen.md
+*.sql
+*.txt
+*.sh
+
+# ========================================
+# Capas geoespaciales pesadas (~1GB+) y su caché generado
+# ========================================
+CAPAS/
+CONFIG/geojson_cache/
+CONFIG/bbox_departamentos.json
+
+# ========================================
+# Datos de clientes (PII: nombres, DNI, teléfono, montos asegurados)
+# ========================================
+CONFIG/plantilla_clientes.xlsx
+CONFIG/plantilla_clientes_datos.xlsx
+JUNIO_ACTULIAZADO.xlsx
+
+# ========================================
+# Salidas generadas por procesar_aviso.py (igual que TEMP/ y OUTPUT/)
+# ========================================
+SHP/*/
+
+# ========================================
+# Codacy (config/caché local del MCP, no es código del proyecto)
+# ========================================
+.codacy/
+
+# ========================================
+# Workflows de n8n (no subir a GitHub)
+# ========================================
+n8n/
+
+# ========================================
+# Scraping SENAMHI: es su PROPIO repo git (tiene .git adentro) — incluirlo acá
+# lo trataría como submódulo a medias y rompería el push. Se maneja aparte.
+# ========================================
+scraping/
+
+# ========================================
+# Salidas intermedias de geoprocesamiento en ArcGIS/Python (dissolve,
+# intersect) que quedan sueltas en la raíz del proyecto — pesan cientos de
+# MB y el resultado final ya vive en CAPAS/CAPAS_PROCESADAS/ (ya ignorado).
+# ========================================
+inundacion_disuelto.*
+inundacion_interseccion.*
+*_disuelto.*
+*_interseccion.*
+
+# ========================================
+# Reportes/exportes de prueba generados usando la app (PDFs, capturas) —
+# no son código del proyecto.
+# ========================================
+*.pdf
+
+EJEMPLO_MENSAJE_WHATSAPP.md
+colores.txt
+
+#nada de siniestros
+SINIESTROS/
+SINIESTROS/*.xlsx
+*.xlsx
+
+# Imágenes generadas para presentaciones puntuales (mapas de calor/burbujas) —
+# no son código del proyecto, se regeneran con CONFIG/generar_mapas_presentacion.py
+CONFIG/salidas_presentacion/

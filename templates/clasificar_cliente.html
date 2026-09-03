@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Clasifica tu Cliente - La Positiva AgroSeguros{% endblock %}
+
+{% block head %}
+<style>
+    .cc-container { max-width: 640px; margin: 0 auto; }
+
+    .cc-card {
+        background: #fff;
+        border-radius: 2px;
+        padding: 1.5rem 1.75rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        border-left: 4px solid #e07b5a;
+        border-top: 1px solid #f0f0f0;
+    }
+
+    .cc-label {
+        font-size: 12px;
+        font-weight: 700;
+        color: #888;
+        margin-bottom: 0.4rem;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        display: block;
+    }
+
+    .cc-select, .cc-input {
+        width: 100%;
+        padding: 9px 12px;
+        border: 1.5px solid #e0e0e0;
+        border-radius: 2px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #222;
+        background: #fafafa;
+        margin-bottom: 1.25rem;
+    }
+    .cc-select:focus, .cc-input:focus { outline: none; border-color: #e07b5a; background: #fff; }
+
+    .cc-hint { font-size: 12px; color: #888; margin: -0.75rem 0 1.25rem; line-height: 1.5; }
+    .cc-hint code { background: #f2f2f2; padding: 1px 5px; border-radius: 3px; }
+
+    #cc-btn-clasificar {
+        width: 100%;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        color: #fff;
+        border: none;
+        background: #2c3e50;
+        padding: 11px 14px;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    #cc-btn-clasificar:hover { background: #1a252f; }
+    #cc-btn-clasificar:disabled { background: #95a5a6; cursor: wait; }
+
+    #cc-status { font-size: 13px; margin-top: 1rem; text-align: center; }
+    #cc-status.ok { color: #1e8449; }
+    #cc-status.error { color: #a93226; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cc-container">
+    <h2 class="mb-1">Clasifica tu Cliente</h2>
+    <p style="color:#888; font-size:13.5px; margin-bottom:1.5rem;">
+        Sube un Excel de clientes o prospectos (no necesitan estar ya en el sistema), elige la capa de riesgo
+        y descarga el mismo archivo con el nivel de riesgo de cada uno agregado.
+    </p>
+
+    <div class="cc-card">
+        <label class="cc-label">Capa de Riesgo</label>
+        <select id="cc-capa" class="cc-select">
+            <option value="">-- Cargando capas... --</option>
+        </select>
+
+        <label class="cc-label">Excel de Clientes</label>
+        <input type="file" id="cc-archivo" accept=".xlsx,.xls" class="cc-input" style="margin-bottom:0.4rem;">
+        <p class="cc-hint">
+            Columnas requeridas: <code>lat</code>/<code>latitud</code> y <code>lon</code>/<code>longitud</code>.
+            Cualquier otra columna (nombre, DNI, etc.) se mantiene tal cual.
+        </p>
+
+        <button id="cc-btn-clasificar" onclick="ccClasificar()">⬆ Clasificar y Descargar</button>
+        <div id="cc-status"></div>
+
+        <p class="cc-hint" style="margin-top:1.25rem; margin-bottom:0;">
+            El archivo descargado trae 2 hojas: <b>Clasificados</b> (con nivel de riesgo) y
+            <b>No Clasificados</b> (filas sin coordenadas, con coordenada inválida, o fuera del Perú — con el motivo).
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/clasificar_cliente.js') }}"></script>
+{% endblock %}

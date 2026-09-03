@@ -1,0 +1,45 @@
+/* ============================================================================
+   COLORES - La Positiva AgroSeguros
+   Paleta de colores corporativa
+   ============================================================================ */
+
+:root {
+    /* Colores Corporativos La Positiva */
+    --primary-color: #04ccc4;        /* Turquesa principal */
+    --secondary-color: #64d3ce;      /* Turquesa secundario */
+    --accent-color: #fc6c44;         /* Naranja principal */
+    --accent-light: #fa6f4a;         /* Naranja claro */
+    --accent-soft: #fb9c84;          /* Naranja suave */
+    --pastel-green: #b9e8e3;         /* Verde pastel */
+    --cyan: #2cdde4;                 /* Cian */
+    --cyan-light: #88e5e4;           /* Cian claro */
+    --peach: #f5c0ab;                /* Durazno */
+    
+    /* Colores Neutros */
+    --white: #ffffff;
+    --black: #000000;
+    --gray-light: #f5f5f5;
+    --gray: #666666;
+    --gray-dark: #333333;
+    --background: #f9fafa;
+    
+    /* Colores de Estado */
+    --success: #28a745;              /* Verde éxito */
+    --warning: #ffc107;              /* Amarillo advertencia */
+    --danger: #dc3545;               /* Rojo peligro */
+    --info: #04ccc4;                 /* Información (turquesa) */
+    
+    /* Colores de Alerta */
+    --alerta-rojo: #c82333;
+    --alerta-naranja: #e67e22;
+    --alerta-amarillo: #f39c12;
+    --alerta-plomo: #6c757d;
+    
+    /* Texto */
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-muted: #999999;
+    
+    /* Bordes */
+    --border-color: #e0e0e0;
+}

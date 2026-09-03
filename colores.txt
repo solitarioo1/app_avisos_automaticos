@@ -1,0 +1,24 @@
+#f9fafa
+#64d3ce 
+#fa6f4a     
+#fb9c84 
+#b9e8e3 
+#fc6c44    
+#2cdde4    
+#88e5e4 
+#04ccc4     
+#f5c0ab
+#FEEBE6
+
+nota para apertura de .venv
+# Eliminar venv corrupto
+Remove-Item .venv -Recurse -Force
+
+# Crear nuevo venv
+python -m venv .venv
+
+# Activar
+.venv\Scripts\Activate.ps1
+
+# Reinstalar dependencias
+pip install -r requirements.txt

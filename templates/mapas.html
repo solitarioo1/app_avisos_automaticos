@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Mapas - La Positiva AgroSeguros{% endblock %}
+
+{% block content %}
+<style>
+    .mapas-container { max-width: 1200px; }
+
+    .avisos-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1rem;
+    }
+
+    /* --- Tarjeta --- */
+    .aviso-card {
+        background: white;
+        border-radius: 4px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        display: flex;
+        flex-direction: column;
+        transition: box-shadow 0.2s;
+    }
+    .aviso-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.13); }
+
+    .aviso-card.color-rojo   { background: rgba(220,53,69,0.07);   border-left: 5px solid #dc3545; }
+    .aviso-card.color-naranja{ background: rgba(255,140,0,0.07);   border-left: 5px solid #ff8c00; }
+    .aviso-card.color-plomo  { background: rgba(108,117,125,0.05); border-left: 5px solid #6c757d; }
+
+    /* --- Header de tarjeta --- */
+    .aviso-header { color: white; padding: 0.85rem 1rem; }
+    .aviso-header.color-rojo    { background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%); }
+    .aviso-header.color-naranja { background: linear-gradient(135deg, #ff8c00 0%, #e67e00 100%); }
+    .aviso-header.color-plomo   { background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); }
+
+    .aviso-titulo      { font-size: 13px; font-weight: 700; margin: 0; }
+    .aviso-numero-small{ font-size: 11px; margin: 0.2rem 0 0; opacity: 0.85; }
+
+    /* --- Body --- */
+    .aviso-body  { padding: 0.9rem 1rem; flex: 1; }
+    .info-row    { margin-bottom: 0.65rem; }
+    .info-label  { font-size: 10px; color: #6c757d; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+
+    .nivel-badge  { display: inline-block; padding: 0.2rem 0.65rem; border-radius: 20px; font-weight: 600; font-size: 11px; color: white; }
+    .nivel-rojo   { background: #dc3545; }
+    .nivel-naranja{ background: #ff8c00; }
+
+    .departamentos-list{ display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .depto-tag { background: #e9ecef; color: #333; padding: 0.2rem 0.45rem; border-radius: 4px; font-size: 10px; font-weight: 500; }
+    .depto-tag.depto-clickable { cursor: pointer; transition: background 0.15s, color 0.15s; }
+    .depto-tag.depto-clickable:hover { background: #04ccc4; color: white; }
+
+    .status-badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+    .status-ready  { background: #d4edda; color: #155724; }
+    .status-pending{ background: #fff3cd; color: #856404; }
+
+    /* --- Footer con botones --- */
+    .aviso-footer { padding: 0.75rem 1rem; border-top: 1px solid #e9ecef; display: flex; gap: 0.5rem; }
+
+    .btn-naranja-turquesa {
+        background-color: #04ccc4;
+        color: white !important;
+        border: none;
+        font-weight: 600;
+        font-size: 12px;
+        padding: 15px 14px;
+        border-radius: 4px;
+        flex: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        cursor: pointer;
+        transition: background-color 0.15s;
+    }
+    .btn-naranja-turquesa:hover:not(:disabled) { background-color: #03b0a9; }
+    .btn-naranja-turquesa:disabled { background-color: #ccc; color: #999 !important; cursor: not-allowed; }
+
+    /* --- Carrusel --- */
+    .carousel-mapas    { display: flex; align-items: center; gap: 1rem; margin: 1rem 0; }
+    .carousel-nav      { cursor: pointer; padding: 8px 12px; background: #f0f0f0; border: none; border-radius: 4px; font-size: 18px; }
+    .carousel-nav:hover{ background: #e0e0e0; }
+    .carousel-nav:disabled { opacity: 0.4; cursor: not-allowed; }
+    .carousel-container{ flex: 1; overflow: hidden; border-radius: 8px; }
+    .carousel-imagen   { max-width: 100%; height: 450px; object-fit: contain; background: #f9f9f9; cursor: zoom-in; transition: all 0.3s; }
+    .carousel-imagen.zoomed { cursor: zoom-out; }
+
+    /* --- Spinner --- */
+    @keyframes spin { from{ transform: rotate(0deg); } to{ transform: rotate(360deg); } }
+    .spin { display: inline-block; animation: spin 1s linear infinite; }
+</style>
+
+<div class="container-fluid p-3 mapas-container">
+    <h2 class="mb-1"><i class="bi bi-map"></i> Mapas Meteorológicos</h2>
+    <p class="text-muted mb-3">Gestión y visualización de mapas por aviso</p>
+    
+    <!-- Filtros -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label for="filtro-numero" class="form-label">Número</label>
+                            <input type="text" id="filtro-numero" class="form-control" placeholder="Ej: 4" oninput="aplicarFiltros()" />
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filtro-nivel" class="form-label">Nivel</label>
+                            <select id="filtro-nivel" class="form-select" onchange="aplicarFiltros()">
+                                <option value="">Todos</option>
+                                <option value="rojo">Rojo</option>
+                                <option value="naranja">Naranja</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filtro-orden" class="form-label">Orden</label>
+                            <select id="filtro-orden" class="form-select" onchange="aplicarFiltros()">
+                                <option value="desc">Más Reciente</option>
+                                <option value="asc">Más Antiguo</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button id="btnResetearFiltros" class="btn btn-secondary w-100" onclick="resetearFiltros()">
+                                <i class="bi bi-arrow-clockwise"></i> Reset
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Grid de avisos -->
+    <div class="avisos-grid" id="avisos-grid">
+        <div class="text-center py-5" style="grid-column: 1/-1;">
+            <i class="bi bi-hourglass-split display-4 text-muted spin"></i>
+            <p class="text-muted mt-3">Cargando avisos...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para visualizar mapas con carrusel -->
+<div class="modal fade" id="mapaModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header justify-content-center">
+                <div class="text-center">
+                    <h5 class="modal-title mb-0" id="mapaModalTitle">Mapas del Aviso</h5>
+                    <div class="text-muted" id="mapaModalDepto" style="font-size: 13px; margin-top: 2px;"></div>
+                </div>
+                <button type="button" class="btn-close position-absolute" style="right: 1rem;" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="carouselContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/mapas.js') }}"></script>
+{% endblock %}

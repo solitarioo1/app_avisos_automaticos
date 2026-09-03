@@ -1,0 +1,427 @@
+{% extends "base.html" %}
+
+{% block title %}Difusión de Avisos — SENAMHI{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/difusion.css') }}">
+<style>
+  .difusion-container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-3 difusion-container">
+
+  <!-- Zona de alertas -->
+  <div id="alertaZona" style="position:sticky;top:70px;z-index:999;"></div>
+
+  <!-- ── Encabezado ─────────────────────────────────────────── -->
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h4 class="mb-0 fw-bold">
+        <i class="bi bi-broadcast me-2" style="color:var(--primary-color)"></i>Difusión de Avisos
+      </h4>
+      <small class="text-muted">Genera y envía mensajes a clientes según nivel de alerta</small>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-secondary" onclick="cargarHistorial()">
+        <i class="bi bi-arrow-clockwise"></i> Actualizar historial
+      </button>
+    </div>
+  </div>
+
+  <div class="row g-3">
+
+    <!-- ════════════════════════════════════════════════════════
+         COLUMNA IZQUIERDA (8) — Formulario + Historial
+         ════════════════════════════════════════════════════════ -->
+    <div class="col-lg-8">
+
+      <!-- ── Paso 1: Selección de aviso ─────────────────────── -->
+      <div class="difusion-panel paso-panel">
+        <div class="paso-header">
+          <span class="paso-num">1</span>
+          <h5 class="paso-title">Selecciona el aviso</h5>
+          <span class="paso-hint">Solo muestra avisos con mapa generado</span>
+        </div>
+        <select id="selectAviso" class="form-select aviso-select mt-2">
+          <option value="">— Cargando avisos con mapa… —</option>
+        </select>
+        <div id="avisoInfo" class="aviso-info-bar d-none mt-2"></div>
+      </div>
+
+      <!-- ── Paso 2: Entidad ────────────────────────────────── -->
+      <div class="difusion-panel paso-panel">
+        <div class="paso-header">
+          <span class="paso-num">2</span>
+          <h5 class="paso-title">Entidad receptora</h5>
+          <span class="paso-hint">Selecciona una o varias instituciones</span>
+        </div>
+        <select id="selectEntidad" class="form-select mt-2">
+          <option value="">— Añadir entidad… —</option>
+        </select>
+        <!-- chips de entidades seleccionadas -->
+        <div id="entidadTags" class="entidad-tags-row mt-2">
+          <span class="entidad-chip entidad-chip-todas">Todas las entidades</span>
+        </div>
+      </div>
+
+      <!-- ── Paso 3: Nivel de alerta ────────────────────────── -->
+      <div class="difusion-panel paso-panel">
+        <div class="paso-header">
+          <span class="paso-num">3</span>
+          <h5 class="paso-title">Nivel de alerta</h5>
+          <span class="paso-hint">Clientes afectados por este nivel</span>
+        </div>
+        <div class="row g-2 mt-1">
+          <div class="col">
+            <div class="nivel-option selected-todos" data-nivel="todos">
+              <span class="nivel-dot" style="background:#1565c0"></span> Todos
+            </div>
+          </div>
+          <div class="col">
+            <div class="nivel-option" data-nivel="Rojo">
+              <span class="nivel-dot" style="background:#e53935"></span> Rojo
+            </div>
+          </div>
+          <div class="col">
+            <div class="nivel-option" data-nivel="Naranja">
+              <span class="nivel-dot" style="background:#fb8c00"></span> Naranja
+            </div>
+          </div>
+          <div class="col">
+            <div class="nivel-option" data-nivel="Amarillo">
+              <span class="nivel-dot" style="background:#c6a000"></span> Amarillo
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Paso 4: Método de envío ────────────────────────── -->
+      <div class="difusion-panel paso-panel">
+        <div class="paso-header">
+          <span class="paso-num">4</span>
+          <h5 class="paso-title">Método de envío</h5>
+          <span class="paso-hint">Canal, opciones de mensaje y programación</span>
+        </div>
+
+        <!-- Canal -->
+        <p class="small fw-semibold text-muted mb-2 mt-3">Canal <span class="text-danger">*</span></p>
+        <div class="row g-2 mb-3">
+          <div class="col-md-4">
+            <div class="canal-option selected-wa" data-canal="whatsapp">
+              <div class="canal-icon"><i class="bi bi-whatsapp" style="color:#25D366"></i></div>
+              <div class="canal-label">WhatsApp</div>
+              <span class="canal-count wa" id="countWa">—</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="canal-option" data-canal="sms">
+              <div class="canal-icon"><i class="bi bi-phone-fill"></i></div>
+              <div class="canal-label">SMS</div>
+              <span class="canal-count sms" id="countSms">—</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="canal-option" data-canal="email">
+              <div class="canal-icon"><i class="bi bi-envelope-fill"></i></div>
+              <div class="canal-label">Email</div>
+              <span class="canal-count email" id="countEmail">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel SMS: descarga CSV (visible solo cuando canal=SMS) -->
+        <div id="smsCsvPanel" class="sms-csv-panel d-none mt-3">
+          <div class="d-flex align-items-start gap-3">
+            <div style="font-size:2rem;line-height:1"><i class="bi bi-file-earmark-spreadsheet-fill" style="color:#28a745"></i></div>
+            <div>
+              <p class="mb-1 fw-semibold">Envío SMS vía CSV</p>
+              <p class="small text-muted mb-2">
+                Descarga el listado de números y mensajes para subirlo a tu plataforma de envío masivo.
+                Al descargar, los registros quedan marcados como <span class="estado-badge enviado">enviado</span>.
+              </p>
+              <button class="btn btn-success btn-sm" onclick="exportarCSVSms()">
+                <i class="bi bi-download"></i> Descargar CSV para SMS
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <!-- Opciones del mensaje -->
+        <p class="small fw-semibold text-muted mb-2">Opciones del mensaje</p>
+
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="incluirMapa" checked
+                 onchange="STATE.incluirMapa = this.checked; actualizarResumenConfig()">
+          <label class="form-check-label" for="incluirMapa">
+            <i class="bi bi-map-fill" style="color:var(--primary-color)"></i> Incluir mapa meteorológico
+          </label>
+        </div>
+
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="chkBloques"
+                 onchange="toggleBloques(this.checked)">
+          <label class="form-check-label" for="chkBloques">
+            <i class="bi bi-layers-fill" style="color:var(--accent-color)"></i> Envío por bloques <small class="text-muted">(evita sobrecarga)</small>
+          </label>
+        </div>
+
+        <div id="bloquesConfig" class="bloques-config-box d-none mb-3">
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label small">Mensajes por bloque</label>
+              <input type="number" class="form-control form-control-sm" id="msgsPorBloque"
+                     value="50" min="10" max="500"
+                     onchange="STATE.msgsPorBloque = +this.value; actualizarResumenConfig()">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small">Intervalo entre bloques (seg)</label>
+              <input type="number" class="form-control form-control-sm" id="intervaloBloques"
+                     value="120" min="30" max="600"
+                     onchange="STATE.intervaloBloques = +this.value; actualizarResumenConfig()">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="chkProgramar"
+                 onchange="toggleProgramar(this.checked)">
+          <label class="form-check-label" for="chkProgramar">
+            <i class="bi bi-alarm-fill" style="color:var(--warning)"></i> Programar para después
+          </label>
+        </div>
+
+        <div id="programarFechaBox" class="programar-box d-none mb-2">
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label small">📅 Fecha</label>
+              <input type="date" class="form-control form-control-sm" id="fechaProgramada"
+                     onchange="STATE.fechaProgramada = this.value + 'T' + (document.getElementById('horaProgramada').value || '08:00'); actualizarResumenConfig()">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small">🕐 Hora</label>
+              <input type="time" class="form-control form-control-sm" id="horaProgramada" value="08:00"
+                     onchange="STATE.fechaProgramada = (document.getElementById('fechaProgramada').value || '') + 'T' + this.value; actualizarResumenConfig()">
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Paso 5: Acciones ───────────────────────────────── -->
+      <div class="difusion-panel paso-panel">
+        <div class="paso-header">
+          <span class="paso-num">5</span>
+          <h5 class="paso-title">Acciones</h5>
+          <span class="paso-hint">Genera → Revisa → Envía</span>
+        </div>
+
+        <div id="spinnerGenerar" class="difusion-spinner mt-2">
+          <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+          Enviando solicitud a n8n para generar mensajes…
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          <button id="btnGenerar" class="btn-generar" onclick="generarMensajes()" disabled>
+            <i class="bi bi-lightning-charge-fill"></i> Generar mensajes
+          </button>
+          <button id="btnPreview" class="btn-preview" onclick="verPreview()" disabled>
+            <i class="bi bi-eye-fill"></i> Ver preview
+          </button>
+          <button id="btnEnviar" class="btn-enviar" onclick="confirmarEnvio()" disabled>
+            <i class="bi bi-send-fill"></i> Confirmar y enviar
+          </button>
+        </div>
+
+        <!-- Resumen de configuración actual -->
+        <div id="resumenConfig" class="resumen-config d-none mt-3"></div>
+      </div>
+
+      <!-- ── Historial de envíos ────────────────────────────── -->
+      <div class="difusion-panel">
+        <h5>Historial de envíos</h5>
+        <div class="row g-3">
+
+          <!-- Tabla izquierda -->
+          <div class="col-lg-8">
+            <div class="table-responsive">
+              <table class="table historial-table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Aviso</th>
+                    <th>Nivel</th>
+                    <th>Canal</th>
+                    <th>Enviado/Total</th>
+                    <th>Estado</th>
+                    <th>% Éxito</th>
+                  </tr>
+                </thead>
+                <tbody id="historialTbody">
+                  <tr>
+                    <td colspan="7" class="text-center text-muted py-3">
+                      Cargando historial…
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Panel derecho: resumen por canal -->
+          <div class="col-lg-4">
+            <div class="historial-panel-derecho">
+              <h6 class="fw-bold mb-3">Resumen por canal</h6>
+              <div id="historialPorCanal">
+                <p class="text-muted small">Cargando…</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- /col-lg-8 -->
+
+
+    <!-- ════════════════════════════════════════════════════════
+         COLUMNA DERECHA (4) — Sidebar estadísticas
+         ════════════════════════════════════════════════════════ -->
+    <div class="col-lg-4">
+
+      <!-- Stats clientes -->
+      <div class="difusion-panel">
+        <h6 class="fw-bold mb-3"><i class="bi bi-bar-chart-fill" style="color:var(--primary-color)"></i> Clientes por nivel</h6>
+        <div id="statsPorNivel">
+          <p class="text-muted small">Selecciona un aviso para ver estadísticas</p>
+        </div>
+        <hr class="my-2">
+        <div class="d-flex justify-content-between small">
+          <span class="text-muted">Total clientes</span>
+          <strong id="totalClientes">—</strong>
+        </div>
+        <div class="d-flex justify-content-between small mt-1">
+          <span class="text-muted">Mensajes generados</span>
+          <strong id="mensajesGenerados">—</strong>
+        </div>
+      </div>
+
+      <!-- Guía de flujo -->
+      <div class="difusion-panel">
+        <h6 class="fw-bold mb-3"><i class="bi bi-diagram-3-fill" style="color:var(--primary-color)"></i> Flujo de difusión</h6>
+        <ol class="small ps-3" style="line-height:2">
+          <li>Selecciona aviso, nivel y canal</li>
+          <li>
+            <strong>Genera mensajes</strong>
+            <br>
+            <span class="text-muted">n8n crea los textos y los guarda en BD</span>
+          </li>
+          <li>
+            <strong>Ver preview</strong>
+            <br>
+            <span class="text-muted">Revisa 4 mensajes de muestra</span>
+          </li>
+          <li>
+            <strong>Confirmar y enviar</strong>
+            <br>
+            <span class="text-muted">n8n despacha WA / SMS / Email por separado</span>
+          </li>
+          <li>Monitorea en el historial</li>
+        </ol>
+      </div>
+
+      <!-- Leyenda de estados -->
+      <div class="difusion-panel">
+        <h6 class="fw-bold mb-3"><i class="bi bi-clipboard-check-fill" style="color:var(--primary-color)"></i> Estados</h6>
+        <table class="table table-sm table-bordered estados-tabla mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Estado</th>
+              <th>Descripción</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="estado-badge pendiente">pendiente</span></td>
+              <td class="small text-muted">En cola de envío</td>
+            </tr>
+            <tr>
+              <td><span class="estado-badge enviando">enviando</span></td>
+              <td class="small text-muted">Procesando envío</td>
+            </tr>
+            <tr>
+              <td><span class="estado-badge enviado">enviado</span></td>
+              <td class="small text-muted">Entregado y confirmado</td>
+            </tr>
+            <tr>
+              <td><span class="estado-badge leido">leído</span></td>
+              <td class="small text-muted">Cliente leyó el mensaje (WA)</td>
+            </tr>
+            <tr>
+              <td><span class="estado-badge error">error</span></td>
+              <td class="small text-muted">Falló el envío — usa ↺ para reintentar</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div><!-- /col-lg-4 -->
+
+  </div><!-- /row -->
+</div><!-- /container -->
+
+
+<!-- ════════════════════════════════════════════════════════════
+     MODAL — Preview de mensajes
+     ════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-eye-fill"></i> Preview de mensajes generados</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <!-- Resumen numérico -->
+        <div class="preview-resumen" id="previewResumen">
+          <!-- JS rellena aquí -->
+        </div>
+
+        <p class="text-muted small mb-3">
+          Se muestran hasta 4 mensajes de muestra (1 por canal × nivel).
+          El texto real fue generado por n8n.
+        </p>
+
+        <!-- Cards estilo WhatsApp -->
+        <div class="preview-cards-container" id="previewCards">
+          <!-- JS rellena aquí -->
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn-enviar"
+                onclick="confirmarEnvio(); bootstrap.Modal.getInstance(document.getElementById('previewModal')).hide()">
+          <i class="bi bi-send-fill"></i> Enviar ahora
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/difusion.js') }}"></script>
+{% endblock %}

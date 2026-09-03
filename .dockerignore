@@ -1,0 +1,60 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.Python
+env/
+venv/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Desarrollo local
+.env.local
+.env.*.local
+debug/
+test_*.py
+
+# Directorios temporales
+.pytest_cache
+.coverage
+
+# Node (si existe)
+node_modules
+npm-debug.log
+
+# No excluir: credentials.json, .env (se pasan manualmente)
+
+
+# Temporal
+TEMP/
+*.zip
+*.rar
+.cache/
+
+# Documentación
+*.md
+docs/
+README.md
+
+# Docker
+docker-compose.override.yml
+Dockerfile
+
+# CI/CD
+.gitlab-ci.yml
+.github/workflows
