@@ -16,6 +16,12 @@ let agregacionesData = {};
 let filtroActual = { depto: null, provincia: null, distrito: null };
 let filtroEntidadActual = null;  // id de la entidad seleccionada (null = todas)
 let agregacionesDataOriginal = {};  // copia sin filtrar para restaurar
+// Árbol depto->provincia->distrito de TODOS los clientes (no de un aviso en
+// particular) — bug real: el filtro "Filtrar por Zona" solo se poblaba desde
+// /agregaciones de un aviso (cargarAviso), así que en modo Capas de Riesgo, o
+// en Avisos antes de elegir uno, el selector de Departamento quedaba vacío
+// (solo el placeholder "-- Todos --", sin opciones reales debajo).
+let agregacionesDataGlobal = {};
 let modoPanel = 'avisos';  // 'avisos' | 'capas' — exclusivos, nunca los dos a la vez
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -142,6 +148,11 @@ function cambiarModoPanel(modo) {
         // tablas de abajo (todavía sin capa elegida, no dejar datos del aviso).
         if (geojsonLayer) { mapa.removeLayer(geojsonLayer); geojsonLayer = null; }
         vaciarTablasCapaRiesgo();
+        // Filtrar por Zona debe ofrecer TODOS los deptos acá (no solo los de
+        // un aviso ya cargado antes, ni quedar vacío si nunca se cargó uno).
+        agregacionesData = agregacionesDataGlobal;
+        agregacionesDataOriginal = agregacionesDataGlobal;
+        poblarSelectorDepartamentos();
     }
     actualizarEstadoBotonExportar();
 }
@@ -529,6 +540,33 @@ function cargarCapaGeoJSON(numero) {
         .catch(e => console.error('❌ Error SHP:', e));
 }
 
+// Mismo shape que devuelve /api/avisos/<numero>/agregaciones (server-side),
+// armado en el cliente a partir de features GeoJSON — usado para poblar el
+// árbol depto->provincia->distrito de TODOS los clientes (agregacionesDataGlobal).
+function construirAgregacionesDesdeFeatures(features) {
+    const deptos = {};
+    features.forEach(f => {
+        const p = f.properties || {};
+        const depto = (p.departamento || 'Sin datos').toUpperCase();
+        const provincia = (p.provincia || 'Sin datos').toUpperCase();
+        const distrito = (p.distrito || 'Sin datos').toUpperCase();
+        const ha = parseFloat(p.hectareas) || 0;
+        const monto = parseFloat(p.monto ?? p.monto_asegurado) || 0;
+
+        if (!deptos[depto]) deptos[depto] = { total: 0, hectareas: 0, monto: 0, provincias: {} };
+        deptos[depto].total++; deptos[depto].hectareas += ha; deptos[depto].monto += monto;
+
+        const provs = deptos[depto].provincias;
+        if (!provs[provincia]) provs[provincia] = { total: 0, hectareas: 0, monto: 0, distritos: {} };
+        provs[provincia].total++; provs[provincia].hectareas += ha; provs[provincia].monto += monto;
+
+        const dists = provs[provincia].distritos;
+        if (!dists[distrito]) dists[distrito] = { total: 0, hectareas: 0, monto: 0 };
+        dists[distrito].total++; dists[distrito].hectareas += ha; dists[distrito].monto += monto;
+    });
+    return deptos;
+}
+
 function cargarClientesMapa(numero) {
     if (clientesLayer) {
         mapa.removeLayer(clientesLayer);
@@ -541,7 +579,18 @@ function cargarClientesMapa(numero) {
         .then(r => r.json())
         .then(geojson => {
             console.log(`✅ ${geojson.total} clientes totales en mapa`);
-            
+
+            // Poblar el árbol depto/provincia/distrito de TODOS los clientes
+            // (ver comentario en la declaración de agregacionesDataGlobal) —
+            // así el selector "Filtrar por Zona" funciona desde el arranque,
+            // sin depender de haber cargado un aviso primero.
+            agregacionesDataGlobal = construirAgregacionesDesdeFeatures(geojson.features || []);
+            if (!avisoActual) {
+                agregacionesData = agregacionesDataGlobal;
+                agregacionesDataOriginal = agregacionesDataGlobal;
+                poblarSelectorDepartamentos();
+            }
+
             clientesLayer = L.geoJSON(geojson, {
                 pointToLayer: (feature, latlng) => {
                     const estiloBase = {
