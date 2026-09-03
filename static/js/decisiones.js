@@ -192,9 +192,45 @@ function nivelesCapaSeleccionados() {
     return marcados.join(',');
 }
 
+// Igual que qsNiveles() pero además manda depto/provincia/distrito/entidad —
+// antes esos filtros no llegaban al backend en modo Capas, por eso el bloque
+// "Estadísticas" del panel derecho se quedaba siempre en cero al filtrar.
 function qsNiveles() {
+    const p = new URLSearchParams();
     const niveles = nivelesCapaSeleccionados();
-    return niveles ? `?niveles=${encodeURIComponent(niveles)}` : '';
+    if (niveles) p.set('niveles', niveles);
+    if (filtroActual.depto)     p.set('depto', filtroActual.depto);
+    if (filtroActual.provincia) p.set('provincia', filtroActual.provincia);
+    if (filtroActual.distrito)  p.set('distrito', filtroActual.distrito);
+    if (filtroEntidadActual)    p.set('entidad_id', filtroEntidadActual);
+    const qs = p.toString();
+    return qs ? `?${qs}` : '';
+}
+
+// Checkbox "Nivel de Riesgo" en modo Avisos (Rojo/Naranja/Amarillo — Verde no
+// es seleccionable, por definición es "no expuesto"). Mismo patrón que
+// nivelesCapaSeleccionados() en Capas de Riesgo.
+function nivelesAvisoSeleccionados() {
+    const marcados = Array.from(document.querySelectorAll('#filtro-niveles-aviso input:checked')).map(el => el.value);
+    return marcados.join(',');
+}
+
+// Igual patrón que qsNiveles() pero para modo Avisos — usada por el KPI
+// superior, las 3 tablas de abajo (Zonas/Entidades/Cultivos), el panel de
+// Estadísticas y el export CSV: antes ignoraban depto/provincia/distrito/
+// entidad por completo y siempre mostraban el resumen de TODO el aviso
+// (Verde incluido), sin importar el filtro puesto en pantalla.
+function qsFiltroZona() {
+    const p = new URLSearchParams();
+    if (filtroActual.depto)     p.set('depto', filtroActual.depto);
+    if (filtroActual.provincia) p.set('provincia', filtroActual.provincia);
+    if (filtroActual.distrito)  p.set('distrito', filtroActual.distrito);
+    if (filtroEntidadActual)    p.set('entidad_id', filtroEntidadActual);
+    // Siempre se manda (aunque estén los 3 tildados) para no depender de un
+    // default del backend — si el usuario destilda todo, debe dar 0, no "todos".
+    p.set('colores', nivelesAvisoSeleccionados());
+    const qs = p.toString();
+    return qs ? `?${qs}` : '';
 }
 
 function cambiarNivelesCapaRiesgo() {
@@ -227,6 +263,22 @@ function activarKPIsPorCapa(nombre) {
             if (elem('kpi-porcentaje-afectacion')) elem('kpi-porcentaje-afectacion').textContent = `${pct}%`;
             if (elem('kpi-poliza-afectados')) elem('kpi-poliza-afectados').textContent = `S/ ${data.monto_expuesto.toLocaleString('es-ES', {maximumFractionDigits: 0})}`;
             if (elem('kpi-hectareas-afectadas')) elem('kpi-hectareas-afectadas').textContent = `${data.hectareas_expuestas.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ha`;
+
+            // Bloque "Estadísticas" del panel derecho (antes se quedaba en cero
+            // en modo Capas: nada lo refrescaba al cambiar depto/provincia/distrito).
+            if (elem('stat-agricultores')) elem('stat-agricultores').textContent = data.total_expuestos.toLocaleString('es-ES');
+            if (elem('stat-poliza')) elem('stat-poliza').textContent = `S/ ${data.monto_expuesto.toLocaleString('es-ES', {maximumFractionDigits: 0})}`;
+            if (elem('stat-hectareas')) elem('stat-hectareas').textContent = `${data.hectareas_expuestas.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ha`;
+            const nivelBadge = elem('stat-nivel');
+            if (nivelBadge) {
+                const niveles = nivelesCapaSeleccionados().split(',').filter(Boolean);
+                nivelBadge.textContent = niveles.length === 4 || niveles.length === 0 ? 'TODOS' : niveles.join(' + ').toUpperCase();
+                nivelBadge.className = 'badge-nivel ' + (
+                    niveles.includes('Muy Alto') ? 'badge-rojo' :
+                    niveles.includes('Alto') ? 'badge-naranja' :
+                    niveles.includes('Medio') ? 'badge-amarillo' : 'badge-verde'
+                );
+            }
         })
         .catch(e => console.error('❌ Error activando KPIs por capa:', e));
 }
@@ -364,6 +416,8 @@ function exportarCsvActual() {
     if (modoPanel === 'capas') {
         const niveles = nivelesCapaSeleccionados();
         if (niveles) params.push(`niveles=${encodeURIComponent(niveles)}`);
+    } else if (modoPanel === 'avisos') {
+        params.push(`colores=${encodeURIComponent(nivelesAvisoSeleccionados())}`);
     }
     if (params.length) url += '?' + params.join('&');
 
@@ -711,12 +765,15 @@ function cargarAviso() {
     // Resetear selector entidad (solo el valor, no deshabilitar)
     const selEnt = document.getElementById('filtro-entidad');
     if (selEnt) { selEnt.value = ''; }
-    
+
+    // Resetear checkbox "Nivel de Riesgo" a los 3 tildados (Rojo+Naranja+Amarillo)
+    document.querySelectorAll('#filtro-niveles-aviso input').forEach(el => { el.checked = true; });
+
     console.log(`📊 Cargando aviso ${numero}`);
-    
+
     // Cargar datos en paralelo
     Promise.all([
-        fetch(`/api/avisos/${numero}/clientes-afectados`).then(r => r.json()).catch(e => {console.error('Error clientes:', e); return {};}),
+        fetch(`/api/avisos/${numero}/clientes-afectados${qsFiltroZona()}`).then(r => r.json()).catch(e => {console.error('Error clientes:', e); return {};}),
         fetch(`/api/avisos/${numero}/estadisticas`).then(r => r.json()).catch(e => {console.error('Error stats:', e); return {};}),
         fetch(`/api/avisos/${numero}/shp-geojson`).then(r => r.json()).catch(e => {console.error('Error shp:', e); return {};}),
         fetch(`/api/avisos/${numero}/agregaciones`).then(r => r.json()).catch(e => {console.error('Error agregaciones:', e); return {};})
@@ -761,28 +818,30 @@ function cargarAviso() {
 // ============================================================================
 
 function actualizarDatos() {
-    if (!avisoActual) return;
-    
-    console.log('📊 Actualizando datos:', filtroActual);
-    
-    // Construir URL con filtros
-    let url = `/api/avisos/${avisoActual}/clientes-afectados`;
-    const params = [];
-    
-    if (filtroActual.depto)     params.push(`depto=${encodeURIComponent(filtroActual.depto)}`);
-    if (filtroActual.provincia) params.push(`provincia=${encodeURIComponent(filtroActual.provincia)}`);
-    if (filtroActual.distrito)  params.push(`distrito=${encodeURIComponent(filtroActual.distrito)}`);
-    if (filtroEntidadActual)    params.push(`entidad_id=${encodeURIComponent(filtroEntidadActual)}`);
-    
-    if (params.length > 0) {
-        url += '?' + params.join('&');
+    // Modo "Capas de Riesgo": los 9 puntos que llaman actualizarDatos() (cambiar
+    // depto/provincia/distrito/entidad) antes solo cubrían modo Avisos — en
+    // Capas de Riesgo el bloque "Estadísticas" (panel derecho) se quedaba
+    // siempre en cero porque nada lo refrescaba al filtrar. Bug real, no cosmético.
+    if (modoPanel === 'capas' && capaRiesgoActiva) {
+        cambiarNivelesCapaRiesgo();  // reusa el mismo refresco (KPIs+mapa+3 tablas) con los filtros actuales
     }
-    
+
+    if (!avisoActual) return;
+
+    console.log('📊 Actualizando datos:', filtroActual);
+
+    // Construir URL con filtros (incluye depto/provincia/distrito/entidad/colores)
+    const url = `/api/avisos/${avisoActual}/clientes-afectados${qsFiltroZona()}`;
+
+    // KPI superior: depto/prov/dist siguen sin afectarlo (estático por diseño,
+    // es "todo el aviso"), pero el checkbox de colores sí lo recalcula.
+    cargarKPIsNuevos(avisoActual);
+
     fetch(url)
         .then(r => r.json())
         .then(data => {
-            // SOLO actualizar estadísticas dinámicas (panel derecho)
-            // Los KPIs superiores son ESTÁTICOS (todo el aviso)
+            // Estadísticas dinámicas del panel derecho (sí responden a TODOS
+            // los filtros: depto/provincia/distrito/entidad/colores)
             actualizarEstadisticasDinamicas(data.clientes || {});
             actualizarTituloPanel();
 
@@ -875,7 +934,7 @@ function cargarKPIsNuevos(numero) {
     if (modoPanel !== 'avisos') return;  // llegó tarde (carga en curso al cambiar de pestaña): ignorar
     console.log(`📊 Cargando KPIs para aviso ${numero}`);
 
-    fetch(`/api/avisos/${numero}/kpis`)
+    fetch(`/api/avisos/${numero}/kpis${qsFiltroZona()}`)
         .then(r => r.json())
         .then(data => {
             if (modoPanel !== 'avisos') return;  // se cambió de pestaña mientras cargaba
@@ -1065,7 +1124,9 @@ function actualizarTablaZonas() {
     if (!avisoActual) return;
     console.log('📊 Actualizando Tabla Zonas para aviso:', avisoActual);
 
-    fetch(`/api/avisos/${avisoActual}/kpis`)
+    // /zonas (no /kpis) — /kpis es el KPI superior, deliberadamente estático
+    // para todo el aviso; esta tabla sí debe respetar el filtro de pantalla.
+    fetch(`/api/avisos/${avisoActual}/zonas${qsFiltroZona()}`)
         .then(r => r.json())
         .then(data => {
             if (modoPanel !== 'avisos') return;
@@ -1138,7 +1199,7 @@ function actualizarTablaEntidades() {
     if (!avisoActual) return;
     console.log('📊 Actualizando Tabla Entidades para aviso:', avisoActual);
 
-    fetch(`/api/avisos/${avisoActual}/kpis-entidades`)
+    fetch(`/api/avisos/${avisoActual}/kpis-entidades${qsFiltroZona()}`)
         .then(r => r.json())
         .then(data => {
             if (modoPanel !== 'avisos') return;
@@ -1207,7 +1268,7 @@ function actualizarTablaCultivos() {
     if (!avisoActual) return;
     console.log('🌾 Actualizando Tabla Cultivos para aviso:', avisoActual);
 
-    fetch(`/api/avisos/${avisoActual}/kpis-cultivos`)
+    fetch(`/api/avisos/${avisoActual}/kpis-cultivos${qsFiltroZona()}`)
         .then(r => r.json())
         .then(data => {
             if (modoPanel !== 'avisos') return;

@@ -117,5 +117,43 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-    
+
+    // Evento para botón "Generar capa y clasificar clientes" — antes era "Ver
+    // Mapas" (link muerto a /mapas, página ya no se usa). Corre procesar_aviso.py:
+    // descarga el SHP del día crítico, lo copia a SHP/aviso_N/ (lo que lee
+    // Seguro Comercial para pintar la capa) y cruza clientes -> clientes_por_aviso.
+    // Sin este paso, Seguro Comercial no tiene nada que cargar para ese aviso.
+    document.querySelectorAll('.btn-procesar').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const numero = this.getAttribute('data-numero');
+            const btnIcon = this.querySelector('i');
+            const originalClass = btnIcon.className;
+
+            try {
+                this.disabled = true;
+                btnIcon.className = 'bi bi-hourglass-split spin';
+
+                const response = await fetch(`/api/avisos/${numero}/procesar`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    btnIcon.className = 'bi bi-check-circle';
+                    alert(`Capa del aviso ${numero} generada y clientes clasificados. Ya puedes verlo en Seguro Comercial.`);
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.error || 'no se pudo procesar el aviso'));
+                    btnIcon.className = originalClass;
+                    this.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al procesar: ' + error.message);
+                btnIcon.className = originalClass;
+                this.disabled = false;
+            }
+        });
+    });
+
 });

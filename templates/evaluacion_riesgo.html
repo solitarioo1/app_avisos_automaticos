@@ -84,17 +84,6 @@
         font-size: 14px;
     }
 
-    .evr-veredicto {
-        text-align: center;
-        padding: 1rem;
-        border-radius: 4px;
-        font-size: 17px;
-        font-weight: 700;
-        margin-bottom: 1.25rem;
-    }
-    .evr-veredicto.si { background: #eafaf1; color: #1e8449; border: 1px solid #a9dfbf; }
-    .evr-veredicto.no { background: #fdedec; color: #a93226; border: 1px solid #f5b7b1; }
-
     .evr-ubicacion-preview { font-size: 12.5px; color: #666; margin-top: 0.4rem; }
 
     /* ===== Toggle Manual / Foto / Excel ===== */
@@ -215,9 +204,6 @@
 
         #evr-mapa-gdr { height: 300px !important; }
         .evr-gdr-datos { font-size: 10.5px; }
-
-        .evr-veredicto { padding: 0.6rem; font-size: 13px; margin-bottom: 0; margin-top: 0.2rem; }
-        .evr-veredicto span { font-size: 10.5px !important; }
     }
 </style>
 {% endblock %}
@@ -226,8 +212,7 @@
 <div class="evr-container">
     <h2 class="mb-1 evr-titulo-pagina">Evaluación de Riesgo</h2>
     <p class="evr-intro-txt" style="color:#888; font-size:13.5px; margin-bottom:1.5rem;">
-        Verificación de eventos mediante triple cruce: capa de riesgo climático + aviso SENAMHI + estación meteorológica más cercana (percentil climatológico, no umbral manual).
-        Por ahora esta herramienta funciona solo para <strong>Piura</strong> (único departamento con estaciones con datos reales) — el mapa está recortado a esa zona.
+        Verifica un reclamo cruzando capa de riesgo, aviso SENAMHI y estación más cercana. Disponible por ahora solo en <strong>Piura</strong>.
     </p>
 
     <div class="evr-grid">
@@ -333,8 +318,6 @@
                         <div class="evr-gdr-datos" id="evr-gdr-datos"></div>
                     </div>
 
-                    <!-- VEREDICTO: conclusión, al final del reporte -->
-                    <div class="evr-veredicto" id="evr-veredicto-box"></div>
                 </div>
                 <button id="evr-btn-imprimir" style="display:none;" onclick="window.print()">🖨️ Imprimir / Descargar Reporte (PDF)</button>
             </div>

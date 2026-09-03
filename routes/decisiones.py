@@ -41,6 +41,47 @@ decisiones_bp = Blueprint('decisiones', __name__, url_prefix='')
 # FUNCIONES AUXILIARES
 # ============================================================================
 
+
+def _filtro_zona_extra(cur_condiciones, cur_params):
+    """Agrega a una condición/params ya armados (numero_aviso + nivel) los
+    filtros opcionales de zona (depto/provincia/distrito) y entidad — mismo
+    patrón que _filtro_capa_extra en routes/capas_riesgo.py. Antes las 3
+    tablas de abajo (Zonas/Entidades/Cultivos) en modo Avisos ignoraban estos
+    filtros por completo: mostraban siempre el resumen de TODO el aviso sin
+    importar qué depto/provincia/distrito estuviera seleccionado en pantalla."""
+    condiciones, params = list(cur_condiciones), list(cur_params)
+    for campo_url, columna in [('depto', 'departamento'), ('provincia', 'provincia'), ('distrito', 'distrito')]:
+        valor = request.args.get(campo_url)
+        if valor:
+            condiciones.append(f'{columna} ILIKE %s')
+            params.append(valor)
+    entidad_id = request.args.get('entidad_id')
+    if entidad_id:
+        condiciones.append('entidad_id = %s')
+        params.append(entidad_id)
+    return condiciones, params
+
+
+# Verde NO es seleccionable: por definición es "no expuesto" dentro del aviso
+# (zona dentro del área del aviso pero sin nivel de riesgo real). Solo estos 3
+# cuentan como "afectado" en cualquier cálculo — antes estaba hardcodeado así
+# en varias queries; ahora es elegible vía checkboxes (Nivel de Riesgo, modo
+# Avisos) igual que ya existía para Capas de Riesgo.
+_COLORES_VALIDOS = ['rojo', 'naranja', 'amarillo']
+
+
+def _colores_filtro():
+    """?colores=rojo,naranja — qué niveles cuentan como "expuesto" del aviso.
+    Parámetro ausente = default los 3. Parámetro presente (aunque venga vacío,
+    ej. el usuario destildó todo) = exactamente esos, sin caer a un default —
+    si no selecciona ninguno, el resultado debe ser 0, no "todos"."""
+    if 'colores' not in request.args:
+        return list(_COLORES_VALIDOS)
+    raw = request.args.get('colores', '')
+    colores = [c.strip().lower() for c in raw.split(',') if c.strip()]
+    return [c for c in colores if c in _COLORES_VALIDOS]
+
+
 def get_db_connection():
     """
     Obtener conexión a PostgreSQL
@@ -106,11 +147,14 @@ def parse_csv_avisos(numero_aviso):
         return []
 
 
-def get_clientes_afectados(numero_aviso, depto=None, provincia=None, distrito=None, entidad_id=None):
+def get_clientes_afectados(numero_aviso, depto=None, provincia=None, distrito=None, entidad_id=None, colores=None):
     """
-    Consulta BD clientes desde vista y filtra por aviso + zona afectada + entidad
-    
-    Retorna los clientes clasificados por nivel (vista v_clientes_por_aviso_completo)
+    Consulta BD clientes desde vista y filtra por aviso + zona afectada + entidad + nivel
+
+    Retorna los clientes clasificados por nivel (vista v_clientes_por_aviso_completo).
+    `colores`: lista de niveles a contar como "expuesto" (rojo/naranja/amarillo).
+    None = sin filtrar por nivel (compatibilidad con llamadas internas que
+    quieren TODOS los clientes en el área del aviso, Verde incluido).
     """
     try:
         # Obtener clientes clasificados desde BD (vista con nivel de riesgo)
@@ -131,6 +175,14 @@ def get_clientes_afectados(numero_aviso, depto=None, provincia=None, distrito=No
         agricultores = []
         for _, row in df_clientes.iterrows():
             depto_row = (str(row.get('departamento') or '')).upper().strip()
+
+            # Filtro por nivel (checkboxes Rojo/Naranja/Amarillo) — Verde nunca
+            # se puede seleccionar, así que si colores=[] (todo destildado) esto
+            # descarta también los Verde, que es lo correcto (0 seleccionados = 0 resultados).
+            if colores is not None:
+                nivel_row = (str(row.get('nivel') or '')).lower().strip()
+                if nivel_row not in colores:
+                    continue
 
             # Filtro por entidad
             if entidad_id is not None:
@@ -446,17 +498,20 @@ def decisiones():
 def api_clientes_afectados(numero):
     """
     API endpoint: Obtiene clientes afectados por aviso con estadísticas
-    
+
     Query params (opcionales):
         ?depto=TACNA&provincia=TACNA&distrito=TACNA - filtro específico
+        ?colores=rojo,naranja,amarillo - niveles a contar como "expuesto"
+          (default: los 3; Verde nunca cuenta, no es seleccionable)
     """
     try:
         depto      = request.args.get('depto')
         provincia  = request.args.get('provincia')
         distrito   = request.args.get('distrito')
         entidad_id = request.args.get('entidad_id')
-        
-        clientes = get_clientes_afectados(numero, depto, provincia, distrito, entidad_id)
+        colores    = _colores_filtro()
+
+        clientes = get_clientes_afectados(numero, depto, provincia, distrito, entidad_id, colores)
         stats = get_estadisticas_aviso(numero)
         
         response = {
@@ -488,7 +543,9 @@ def api_estadisticas(numero):
 
 @decisiones_bp.route('/api/avisos/<int:numero>/kpis-entidades', methods=['GET'])
 def get_kpis_entidades(numero):
-    """Todas las entidades con agricultores afectados (Rojo/Naranja/Amarillo), ordenadas por cantidad"""
+    """Todas las entidades con agricultores afectados (niveles seleccionados en
+    el checkbox "Nivel de Riesgo"), ordenadas por cantidad. Respeta los filtros
+    opcionales de zona/entidad (?depto=&provincia=&distrito=&entidad_id=&colores=)."""
     try:
         conn = get_db_connection()
         if not conn:
@@ -496,9 +553,14 @@ def get_kpis_entidades(numero):
 
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
+        condiciones, params = _filtro_zona_extra(
+            ['numero_aviso = %s', 'LOWER(nivel) = ANY(%s)'], [numero, _colores_filtro()]
+        )
+        where_sql = ' AND '.join(condiciones)
+
         # Afectados por entidad (Rojo/Naranja/Amarillo) + total de clientes de esa entidad en BD
         # % Daño = afectados_entidad / total_clientes_entidad * 100
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT
                 afc.entidad_id,
                 afc.entidad_nombre,
@@ -514,8 +576,7 @@ def get_kpis_entidades(numero):
                     COALESCE(SUM(hectareas),       0) AS hectareas,
                     COALESCE(SUM(monto_asegurado), 0) AS monto
                 FROM v_clientes_por_aviso_completo
-                WHERE numero_aviso = %s
-                  AND LOWER(nivel) IN ('rojo', 'naranja', 'amarillo')
+                WHERE {where_sql}
                 GROUP BY entidad_id, entidad_nombre
             ) afc
             JOIN (
@@ -524,7 +585,7 @@ def get_kpis_entidades(numero):
                 GROUP BY entidad_id
             ) tot ON tot.entidad_id = afc.entidad_id
             ORDER BY afc.agricultores_afectados DESC
-        """, (numero,))
+        """, params)
         rows = cursor.fetchall()
         cursor.close()
         conn.close()
@@ -556,7 +617,9 @@ def get_kpis_entidades(numero):
 
 @decisiones_bp.route('/api/avisos/<int:numero>/kpis-cultivos', methods=['GET'])
 def get_kpis_cultivos(numero):
-    """Cultivos afectados (Rojo/Naranja/Amarillo), ordenados por % daño DESC"""
+    """Cultivos afectados (niveles seleccionados en el checkbox "Nivel de Riesgo"),
+    ordenados por número de agricultores DESC. Respeta los filtros opcionales de
+    zona/entidad (?depto=&provincia=&distrito=&entidad_id=&colores=)."""
     try:
         conn = get_db_connection()
         if not conn:
@@ -564,8 +627,13 @@ def get_kpis_cultivos(numero):
 
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
+        condiciones, params_base = _filtro_zona_extra(
+            ['numero_aviso = %s', 'LOWER(nivel) = ANY(%s)'], [numero, _colores_filtro()]
+        )
+        where_sql = ' AND '.join(condiciones)
+
         # Afectados por cultivo + total + departamentos donde aparece ese cultivo en el aviso
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT
                 afc.cultivo_id,
                 afc.cultivo_nombre,
@@ -582,8 +650,7 @@ def get_kpis_cultivos(numero):
                     COALESCE(SUM(hectareas),       0) AS hectareas,
                     COALESCE(SUM(monto_asegurado), 0) AS monto
                 FROM v_clientes_por_aviso_completo
-                WHERE numero_aviso = %s
-                  AND LOWER(nivel) IN ('rojo', 'naranja', 'amarillo')
+                WHERE {where_sql}
                 GROUP BY cultivo_id, cultivo
             ) afc
             JOIN (
@@ -596,13 +663,12 @@ def get_kpis_cultivos(numero):
                        STRING_AGG(DISTINCT INITCAP(LOWER(departamento)), ', '
                                   ORDER BY INITCAP(LOWER(departamento))) AS departamentos
                 FROM v_clientes_por_aviso_completo
-                WHERE numero_aviso = %s
-                  AND LOWER(nivel) IN ('rojo', 'naranja', 'amarillo')
+                WHERE {where_sql}
                 GROUP BY cultivo_id
             ) dep ON dep.cultivo_id = afc.cultivo_id
-            ORDER BY ROUND(afc.agricultores_afectados::numeric / tot.total_cultivo * 100, 1) DESC
+            ORDER BY afc.agricultores_afectados DESC
             LIMIT 15
-        """, (numero, numero))
+        """, params_base + params_base)
         rows = cursor.fetchall()
         cursor.close()
         conn.close()
@@ -631,6 +697,51 @@ def get_kpis_cultivos(numero):
 
     except Exception as e:
         logger.error("Error calculando KPIs cultivos: %s", str(e))
+        return jsonify({'error': str(e)}), 500
+
+
+@decisiones_bp.route('/api/avisos/<int:numero>/zonas', methods=['GET'])
+def get_kpis_zonas(numero):
+    """Resumen por nivel de riesgo (Rojo/Naranja/Amarillo/Verde) del aviso,
+    respetando los filtros opcionales de zona/entidad puestos en pantalla.
+    Separado de /kpis (KPI superior, deliberadamente estático para todo el
+    aviso — ver comentario en decisiones.js) para no tocar ese comportamiento;
+    esto solo alimenta la tabla "Resumen Por Nivel de Riesgo" de abajo, que
+    antes se quedaba siempre en el total del aviso sin importar el filtro."""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Sin conexión a BD'}), 500
+
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        condiciones, params = _filtro_zona_extra(['numero_aviso = %s'], [numero])
+        cursor.execute(f"""
+            SELECT nivel, COUNT(*) AS agricultores,
+                   COALESCE(SUM(hectareas), 0) AS hectareas,
+                   COALESCE(SUM(monto_asegurado), 0) AS monto
+            FROM v_clientes_por_aviso_completo
+            WHERE {' AND '.join(condiciones)}
+            GROUP BY nivel
+        """, params)
+        rows = cursor.fetchall()
+        cursor.close(); conn.close()
+
+        # Normaliza capitalización (la vista puede traer distinto case) a las
+        # 4 llaves fijas que espera el frontend (Rojo/Naranja/Amarillo/Verde).
+        cap = {'rojo': 'Rojo', 'naranja': 'Naranja', 'amarillo': 'Amarillo', 'verde': 'Verde'}
+        zonas = {}
+        for r in rows:
+            nivel_std = cap.get((r['nivel'] or '').lower())
+            if not nivel_std:
+                continue
+            zonas[nivel_std] = {
+                'agricultores': int(r['agricultores']),
+                'hectareas': round(float(r['hectareas'] or 0), 2),
+                'poliza': round(float(r['monto'] or 0), 2),
+            }
+        return jsonify({'numero_aviso': numero, 'zonas_por_color': zonas})
+    except Exception as e:
+        logger.error("Error zonas por aviso %s: %s", numero, str(e))
         return jsonify({'error': str(e)}), 500
 
 
@@ -675,16 +786,13 @@ def get_kpis(numero):
         total_hectareas  = float(totales_bd['total_hectareas'] or 0)
         total_poliza     = float(totales_bd['total_poliza'] or 0)
 
-        # Afectados = Rojo + Naranja + Amarillo del aviso
-        afectados = int((row['clientes_nivel_rojo']    or 0) +
-                        (row['clientes_nivel_naranja']  or 0) +
-                        (row['clientes_nivel_amarillo'] or 0))
-        ha_afect  = round(float(row['hectareas_nivel_rojo']    or 0) +
-                          float(row['hectareas_nivel_naranja']  or 0) +
-                          float(row['hectareas_nivel_amarillo'] or 0), 2)
-        pol_afect = round(float(row['monto_nivel_rojo']    or 0) +
-                          float(row['monto_nivel_naranja']  or 0) +
-                          float(row['monto_nivel_amarillo'] or 0), 2)
+        # Afectados = niveles seleccionados en el checkbox "Nivel de Riesgo"
+        # (?colores=rojo,naranja,amarillo — default los 3; Verde nunca cuenta,
+        # no es seleccionable, por definición es "no expuesto").
+        colores = _colores_filtro()
+        afectados = sum(int(row.get(f'clientes_nivel_{c}') or 0) for c in colores)
+        ha_afect  = round(sum(float(row.get(f'hectareas_nivel_{c}') or 0) for c in colores), 2)
+        pol_afect = round(sum(float(row.get(f'monto_nivel_{c}') or 0) for c in colores), 2)
 
         porcentaje = round(afectados / total_clientes * 100, 1) if total_clientes > 0 else 0
 
@@ -729,25 +837,18 @@ def get_kpis(numero):
 
 @decisiones_bp.route('/api/avisos/<int:numero>/exportar-csv', methods=['GET'])
 def api_exportar_csv_aviso(numero):
-    """CSV descargable de los clientes afectados (Rojo/Naranja/Amarillo) por
-    el aviso, respetando los mismos filtros puestos en pantalla (departamento/
-    provincia/distrito/entidad) — igual que el export de Capas de Riesgo."""
+    """CSV descargable de los clientes afectados (niveles seleccionados en el
+    checkbox "Nivel de Riesgo") por el aviso, respetando los mismos filtros
+    puestos en pantalla (departamento/provincia/distrito/entidad/colores) —
+    igual que el export de Capas de Riesgo."""
     try:
         conn = get_db_connection()
         if not conn:
             return jsonify({'error': 'Sin conexión a BD'}), 500
 
-        condiciones = ['numero_aviso = %s', "LOWER(nivel) IN ('rojo', 'naranja', 'amarillo')"]
-        params = [numero]
-        for campo_url, columna in [('depto', 'departamento'), ('provincia', 'provincia'), ('distrito', 'distrito')]:
-            valor = request.args.get(campo_url)
-            if valor:
-                condiciones.append(f'{columna} ILIKE %s')
-                params.append(valor)
-        entidad_id = request.args.get('entidad_id')
-        if entidad_id:
-            condiciones.append('entidad_id = %s')
-            params.append(entidad_id)
+        condiciones, params = _filtro_zona_extra(
+            ['numero_aviso = %s', 'LOWER(nivel) = ANY(%s)'], [numero, _colores_filtro()]
+        )
 
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute(f"""

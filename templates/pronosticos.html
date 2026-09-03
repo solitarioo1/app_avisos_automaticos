@@ -93,8 +93,8 @@
                         <td>
                             <div class="acciones-col" style="display: flex; gap: 0.4rem; align-items: center;">
                                 <button class="btn btn-accion btn-accion-descargar btn-descargar" title="Descargar JSON" data-numero="{{ aviso.numero }}"><i class="bi bi-download"></i></button>
-                                <a href="/mapas?aviso={{ aviso.numero }}" class="btn btn-accion btn-accion-mapas" title="Ver Mapas"><i class="bi bi-eye"></i></a>
-                                <a href="/decisiones?aviso={{ aviso.numero }}" class="btn btn-accion btn-accion-decisiones" title="Decisiones"><i class="bi bi-geo"></i></a>
+                                <button class="btn btn-accion btn-accion-procesar btn-procesar" title="Generar capa y clasificar clientes" data-numero="{{ aviso.numero }}"><i class="bi bi-diagram-3"></i></button>
+                                <a href="/decisiones?aviso={{ aviso.numero }}" class="btn btn-accion btn-accion-decisiones" title="Seguro Comercial"><i class="bi bi-geo"></i></a>
                             </div>
                         </td>
                     </tr>
@@ -149,8 +149,8 @@
     }
     .btn-accion-descargar { background-color: #04ccc4; }
     .btn-accion-descargar:hover { background-color: #03aaa3; color: white; }
-    .btn-accion-mapas { background-color: #64d3ce; }
-    .btn-accion-mapas:hover { background-color: #3fbfb9; color: white; }
+    .btn-accion-procesar { background-color: #64d3ce; }
+    .btn-accion-procesar:hover { background-color: #3fbfb9; color: white; }
     .btn-accion-decisiones { background-color: #fa6f4a; }
     .btn-accion-decisiones:hover { background-color: #e05535; color: white; }
 </style>

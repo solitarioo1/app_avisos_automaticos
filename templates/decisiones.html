@@ -477,6 +477,18 @@
         color: #333;
     }
 
+    /* Cabeceras se sobrecruzaban con columnas angostas (Póliza Vigentes,
+       Hectáreas Aseguradas, etc.) — se deja envolver en 2 líneas en vez de
+       forzarlas en una sola y que se corten/superpongan. */
+    .tabla-zonas th,
+    .tabla-entidades th {
+        font-size: 10.5px;
+        line-height: 1.25;
+        white-space: normal;
+        padding: 6px 5px;
+        vertical-align: middle;
+    }
+
     /* separadores verticales en ambas tablas */
     .tabla-zonas th,
     .tabla-entidades th,
@@ -534,12 +546,8 @@
         padding: 0.6rem 0.75rem;
     }
 
-    .tabla-zonas th,
-    .tabla-entidades th {
-        padding: 0.6rem 0.75rem;
-        vertical-align: middle;
-        white-space: nowrap;
-    }
+    /* (regla duplicada de abajo eliminada — volvía a forzar white-space:nowrap
+       y pisaba el fix de arriba de las cabeceras cruzadas/superpuestas) */
 
     /* ── Scroll de 4 filas en tabla entidades ── */
     .tabla-entidades {
@@ -718,6 +726,15 @@
                     <select id="filtro-aviso" class="filtro-select" onchange="cargarAviso()">
                         <option value="">-- Cargando avisos --</option>
                     </select>
+
+                    <!-- Verde no es seleccionable: por definición es "no expuesto",
+                         no cuenta como afectado en ningún cálculo de este panel. -->
+                    <label class="filtro-label" style="margin-top:1rem;">Nivel de Riesgo</label>
+                    <div class="capas-toggle" id="filtro-niveles-aviso">
+                        <label><input type="checkbox" value="rojo" checked onchange="actualizarDatos()"><span class="swatch" style="background:#dc3545;"></span>Rojo</label>
+                        <label><input type="checkbox" value="naranja" checked onchange="actualizarDatos()"><span class="swatch" style="background:#fd7e14;"></span>Naranja</label>
+                        <label><input type="checkbox" value="amarillo" checked onchange="actualizarDatos()"><span class="swatch" style="background:#ffc107;"></span>Amarillo</label>
+                    </div>
                 </div>
 
                 <!-- Vista: Capas de Riesgo -->
@@ -850,7 +867,7 @@
                             <th>Polizas Vigentes</th>
                             <th>Hectáreas Aseguradas</th>
                             <th style="white-space: nowrap;">Suma Asegurada</th>
-                            <th>% Exposición(muy alto)</th>
+                            <th>% Exposición</th>
                         </tr>
                     </thead>
                     <tbody id="tabla-entidades-body">

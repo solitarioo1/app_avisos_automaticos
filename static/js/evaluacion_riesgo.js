@@ -293,14 +293,6 @@ function evrRenderResultado(data) {
         day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false
     });
 
-    const veredictoClass = data.veredicto ? 'si' : 'no';
-    const veredictoTxt = data.veredicto
-        ? '✅ El cliente pudo verse afectado durante el evento'
-        : '❌ No hay evidencia suficiente de afectación';
-    const veredictoBox = document.getElementById('evr-veredicto-box');
-    veredictoBox.className = `evr-veredicto ${veredictoClass}`;
-    veredictoBox.innerHTML = `${veredictoTxt}<br><span style="font-size:12px; font-weight:500;">${data.señales_positivas}/3 señales a favor</span>`;
-
     document.getElementById('evr-input-resumen').innerHTML = evrInputResumenHtml(data);
     document.getElementById('evr-meteo-cont').innerHTML = evrMeteoHtml(data);
     document.getElementById('evr-gdr-datos').innerHTML = evrGdrDatosHtml(data);

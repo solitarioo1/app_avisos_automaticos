@@ -38,6 +38,29 @@ def _filtro_niveles():
     niveles_raw = request.args.get('niveles', '')
     return [n.strip() for n in niveles_raw.split(',') if n.strip()]
 
+
+def _filtro_capa_extra(cur_condiciones, cur_params):
+    """Agrega a una condición/params ya armados (que ya trae 'r.capa = %s') los
+    filtros opcionales de zona (depto/provincia/distrito) y entidad — los mismos
+    que ya se usan en Mapa Clientes para Avisos, ahora también en Capas de
+    Riesgo: antes elegir depto/provincia/distrito en modo Capas no filtraba
+    nada (el bloque "Estadísticas" del panel se quedaba siempre en cero)."""
+    condiciones, params = list(cur_condiciones), list(cur_params)
+    niveles = _filtro_niveles()
+    if niveles:
+        condiciones.append('r.nivel = ANY(%s)')
+        params.append(niveles)
+    for campo_url, columna in [('depto', 'c.departamento'), ('provincia', 'c.provincia'), ('distrito', 'c.distrito')]:
+        valor = request.args.get(campo_url)
+        if valor:
+            condiciones.append(f'{columna} ILIKE %s')
+            params.append(valor)
+    entidad_id = request.args.get('entidad_id')
+    if entidad_id:
+        condiciones.append('c.entidad_id = %s')
+        params.append(entidad_id)
+    return condiciones, params
+
 # Registro de capas disponibles para el selector del Mapa Clientes.
 # campo_categoria: columna del GeoJSON con severidad/nivel (None si no aplica).
 CAPAS_DISPONIBLES = {
@@ -282,12 +305,7 @@ def api_kpis_por_capa(nombre):
         """)
         totales = cur.fetchone()
 
-        niveles = _filtro_niveles()
-        condiciones = ['r.capa = %s']
-        params = [nombre]
-        if niveles:
-            condiciones.append('r.nivel = ANY(%s)')
-            params.append(niveles)
+        condiciones, params = _filtro_capa_extra(['r.capa = %s'], [nombre])
         cur.execute(f"""
             SELECT r.nivel, c.departamento, c.hectareas, c.monto_asegurado
             FROM clientes_riesgo_capa r
@@ -331,12 +349,7 @@ def api_clientes_por_capa_geojson(nombre):
     try:
         conn = get_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        niveles = _filtro_niveles()
-        condiciones = ['r.capa = %s']
-        params = [nombre]
-        if niveles:
-            condiciones.append('r.nivel = ANY(%s)')
-            params.append(niveles)
+        condiciones, params = _filtro_capa_extra(['r.capa = %s'], [nombre])
         cur.execute(f"""
             SELECT c.id, c.nombre, c.apellido, c.latitud, c.longitud,
                    c.departamento, c.provincia, c.distrito,
@@ -383,21 +396,7 @@ def api_exportar_csv_capa(nombre):
         # Mismos filtros que están puestos en pantalla (Mapa Clientes) — el
         # CSV tiene que salir acotado igual que lo que se está viendo, no el
         # cruce completo sin filtrar.
-        condiciones = ['r.capa = %s']
-        params = [nombre]
-        for campo_url, columna in [('depto', 'c.departamento'), ('provincia', 'c.provincia'), ('distrito', 'c.distrito')]:
-            valor = request.args.get(campo_url)
-            if valor:
-                condiciones.append(f'{columna} ILIKE %s')
-                params.append(valor)
-        entidad_id = request.args.get('entidad_id')
-        if entidad_id:
-            condiciones.append('c.entidad_id = %s')
-            params.append(entidad_id)
-        niveles = _filtro_niveles()
-        if niveles:
-            condiciones.append('r.nivel = ANY(%s)')
-            params.append(niveles)
+        condiciones, params = _filtro_capa_extra(['r.capa = %s'], [nombre])
 
         conn = get_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -609,12 +608,7 @@ def api_zonas_por_capa(nombre):
     try:
         conn = get_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        niveles = _filtro_niveles()
-        condiciones = ['r.capa = %s']
-        params = [nombre]
-        if niveles:
-            condiciones.append('r.nivel = ANY(%s)')
-            params.append(niveles)
+        condiciones, params = _filtro_capa_extra(['r.capa = %s'], [nombre])
         cur.execute(f"""
             SELECT COALESCE(r.nivel, 'Expuesto') AS nivel,
                    COUNT(*) AS agricultores,
@@ -648,12 +642,7 @@ def api_entidades_por_capa(nombre):
     try:
         conn = get_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        niveles = _filtro_niveles()
-        condiciones = ['r.capa = %s']
-        params = [nombre]
-        if niveles:
-            condiciones.append('r.nivel = ANY(%s)')
-            params.append(niveles)
+        condiciones, params = _filtro_capa_extra(['r.capa = %s'], [nombre])
         cur.execute(f"""
             SELECT afc.entidad_id, afc.entidad_nombre, afc.agricultores_afectados,
                    afc.hectareas, afc.monto, tot.total_clientes_entidad
@@ -708,12 +697,7 @@ def api_cultivos_por_capa(nombre):
     try:
         conn = get_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        niveles = _filtro_niveles()
-        condiciones = ['r.capa = %s']
-        params_base = [nombre]
-        if niveles:
-            condiciones.append('r.nivel = ANY(%s)')
-            params_base.append(niveles)
+        condiciones, params_base = _filtro_capa_extra(['r.capa = %s'], [nombre])
         where_sql = ' AND '.join(condiciones)
         cur.execute(f"""
             SELECT afc.cultivo_id, afc.cultivo_nombre, afc.agricultores_afectados,
@@ -742,7 +726,7 @@ def api_cultivos_por_capa(nombre):
                 WHERE {where_sql}
                 GROUP BY c.cultivo_id
             ) dep ON dep.cultivo_id = afc.cultivo_id
-            ORDER BY ROUND(afc.agricultores_afectados::numeric / tot.total_cultivo * 100, 1) DESC
+            ORDER BY afc.agricultores_afectados DESC
             LIMIT 15
         """, params_base + params_base)
         rows = cur.fetchall()

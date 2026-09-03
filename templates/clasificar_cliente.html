@@ -4,7 +4,10 @@
 
 {% block head %}
 <style>
-    .cc-container { max-width: 640px; margin: 0 auto; }
+    .cc-container { max-width: 1300px; margin: 0 auto; }
+
+    .cc-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 2rem; align-items: start; }
+    @media (max-width: 900px) { .cc-grid { grid-template-columns: 1fr; } }
 
     .cc-card {
         background: #fff;
@@ -38,9 +41,6 @@
     }
     .cc-select:focus, .cc-input:focus { outline: none; border-color: #e07b5a; background: #fff; }
 
-    .cc-hint { font-size: 12px; color: #888; margin: -0.75rem 0 1.25rem; line-height: 1.5; }
-    .cc-hint code { background: #f2f2f2; padding: 1px 5px; border-radius: 3px; }
-
     #cc-btn-clasificar {
         width: 100%;
         font-size: 13px;
@@ -49,18 +49,41 @@
         text-transform: uppercase;
         color: #fff;
         border: none;
-        background: #2c3e50;
+        background: #04ccc4;
         padding: 11px 14px;
         border-radius: 20px;
         cursor: pointer;
         transition: background 0.15s;
     }
-    #cc-btn-clasificar:hover { background: #1a252f; }
+    #cc-btn-clasificar:hover { background: #03a8a1; }
     #cc-btn-clasificar:disabled { background: #95a5a6; cursor: wait; }
 
     #cc-status { font-size: 13px; margin-top: 1rem; text-align: center; }
     #cc-status.ok { color: #1e8449; }
     #cc-status.error { color: #a93226; }
+
+    /* Card de instrucciones — columnas puntuales, no párrafos */
+    .cc-info-card {
+        background: #fff;
+        border-radius: 2px;
+        padding: 1.5rem 1.75rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        border-left: 4px solid #2cdde4;
+        border-top: 1px solid #f0f0f0;
+    }
+    .cc-info-card h5 {
+        font-size: 12px; font-weight: 700; color: #888;
+        text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 1rem;
+    }
+    .cc-col-item { display: flex; align-items: baseline; gap: 0.6rem; padding: 0.55rem 0; border-bottom: 1px solid #f2f2f2; }
+    .cc-col-item:last-child { border-bottom: none; }
+    .cc-col-tag {
+        font-family: monospace; font-size: 12px; font-weight: 700; color: #04ccc4;
+        background: #eafffe; padding: 2px 8px; border-radius: 3px; white-space: nowrap;
+    }
+    .cc-col-tag.req { color: #a93226; background: #fdedec; }
+    .cc-col-desc { font-size: 13px; color: #555; }
+    .cc-req-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #a93226; letter-spacing: 0.4px; }
 </style>
 {% endblock %}
 
@@ -72,26 +95,44 @@
         y descarga el mismo archivo con el nivel de riesgo de cada uno agregado.
     </p>
 
-    <div class="cc-card">
-        <label class="cc-label">Capa de Riesgo</label>
-        <select id="cc-capa" class="cc-select">
-            <option value="">-- Cargando capas... --</option>
-        </select>
+    <div class="cc-grid">
+        <div class="cc-card">
+            <label class="cc-label">Capa de Riesgo</label>
+            <select id="cc-capa" class="cc-select">
+                <option value="">-- Cargando capas... --</option>
+            </select>
 
-        <label class="cc-label">Excel de Clientes</label>
-        <input type="file" id="cc-archivo" accept=".xlsx,.xls" class="cc-input" style="margin-bottom:0.4rem;">
-        <p class="cc-hint">
-            Columnas requeridas: <code>lat</code>/<code>latitud</code> y <code>lon</code>/<code>longitud</code>.
-            Cualquier otra columna (nombre, DNI, etc.) se mantiene tal cual.
-        </p>
+            <label class="cc-label">Excel de Clientes</label>
+            <input type="file" id="cc-archivo" accept=".xlsx,.xls" class="cc-input" style="margin-bottom:0.4rem;">
 
-        <button id="cc-btn-clasificar" onclick="ccClasificar()">⬆ Clasificar y Descargar</button>
-        <div id="cc-status"></div>
+            <button id="cc-btn-clasificar" onclick="ccClasificar()">⬆ Clasificar y Descargar</button>
+            <div id="cc-status"></div>
+        </div>
 
-        <p class="cc-hint" style="margin-top:1.25rem; margin-bottom:0;">
-            El archivo descargado trae 2 hojas: <b>Clasificados</b> (con nivel de riesgo) y
-            <b>No Clasificados</b> (filas sin coordenadas, con coordenada inválida, o fuera del Perú — con el motivo).
-        </p>
+        <div class="cc-info-card">
+            <h5>Columnas del Excel</h5>
+            <div class="cc-col-item">
+                <span class="cc-col-tag req">lat</span> / <span class="cc-col-tag req">latitud</span>
+                <span class="cc-col-desc">Requerida <span class="cc-req-badge">obligatorio</span></span>
+            </div>
+            <div class="cc-col-item">
+                <span class="cc-col-tag req">lon</span> / <span class="cc-col-tag req">longitud</span>
+                <span class="cc-col-desc">Requerida <span class="cc-req-badge">obligatorio</span></span>
+            </div>
+            <div class="cc-col-item">
+                <span class="cc-col-tag">cualquier otra</span>
+                <span class="cc-col-desc">Nombre, DNI, teléfono, etc. — se mantienen tal cual, sin límite de cuántas</span>
+            </div>
+            <h5 style="margin-top:1.5rem;">Descarga (2 hojas)</h5>
+            <div class="cc-col-item">
+                <span class="cc-col-tag">Clasificados</span>
+                <span class="cc-col-desc">Con el nivel de riesgo agregado</span>
+            </div>
+            <div class="cc-col-item">
+                <span class="cc-col-tag">No Clasificados</span>
+                <span class="cc-col-desc">Sin coordenada, coordenada inválida, o fuera del Perú — con el motivo</span>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

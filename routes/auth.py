@@ -1,6 +1,6 @@
 """
 routes/auth.py — Autenticación básica para testing
-Usuario hardcodeado: admin / admin  (NO USAR EN PRODUCCIÓN)
+Usuario hardcodeado: solitario / solitario  (NO USAR EN PRODUCCIÓN)
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import UserMixin, login_user, logout_user, login_required
@@ -16,8 +16,8 @@ class User(UserMixin):
 
 
 # Usuario único para testing
-_TEST_USER = User(id='1', username='admin')
-_TEST_PASSWORD = 'admin'
+_TEST_USER = User(id='1', username='solitario')
+_TEST_PASSWORD = 'solitario'
 
 
 def get_user(user_id: str):

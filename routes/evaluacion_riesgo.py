@@ -249,10 +249,14 @@ def _aviso_para(departamento, fecha):
 
 
 def _estacion_mas_cercana_con_dato(cur, departamento, lat, lon, fecha, variable, acumulado_mensual):
-    """Ordena estaciones del departamento por distancia y devuelve la primera con dato
-    utilizable (valor puntual +-2 días, o total del mes si es acumulado)."""
-    cur.execute("SELECT id, nombre, codigo, latitud, longitud FROM estaciones WHERE departamento ILIKE %s",
-                (departamento,))
+    """Ordena estaciones por distancia REAL al punto (sin filtrar por departamento
+    — la estación físicamente más cercana puede estar del otro lado de un límite
+    departamental; filtrar por 'departamento' del punto excluía esas y terminaba
+    devolviendo una estación más lejana del mismo departamento, dato incorrecto)
+    y devuelve la primera con dato utilizable (valor puntual +-2 días, o total
+    del mes si es acumulado). `departamento` queda sin usar, se mantiene en la
+    firma porque _verificar_punto ya lo tiene calculado."""
+    cur.execute("SELECT id, nombre, codigo, latitud, longitud FROM estaciones")
     estaciones = cur.fetchall()
     for e in estaciones:
         e['_dist'] = _haversine_km(lat, lon, float(e['latitud']), float(e['longitud']))
