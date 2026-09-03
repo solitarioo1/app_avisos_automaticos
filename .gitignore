@@ -142,6 +142,12 @@ inundacion_interseccion.*
 EJEMPLO_MENSAJE_WHATSAPP.md
 colores.txt
 
+# ========================================
+# Ningún .md se sube salvo README.md (regla explícita del usuario)
+# ========================================
+*.md
+!README.md
+
 #nada de siniestros
 SINIESTROS/
 SINIESTROS/*.xlsx
