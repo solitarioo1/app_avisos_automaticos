@@ -178,11 +178,15 @@ def procesar_aviso(numero_aviso, desde_db=False):
     
     for dia in range(1, dias_evento + 1):
         url_key = f"link_shp_dia{dia}"
-        if url_key not in datos_aviso:
-            logger.warning(f"⚠ URL de SHP para día {dia} no encontrada en datos")
+        url = datos_aviso.get(url_key)
+        # No basta con "la clave no está" — SENAMHI a veces manda la clave
+        # presente pero en null (ej. aviso 339, evento de temperatura sin SHP
+        # generado ese día). requests.get(None) revienta con MissingSchema y
+        # tumbaba TODO el procesamiento del aviso en vez de saltar ese día.
+        if not url:
+            logger.warning(f"⚠ URL de SHP para día {dia} no disponible (null/vacía) — se salta ese día")
             continue
-            
-        url = datos_aviso[url_key]
+
         zip_path = f"{temp_dir}/shp_dia{dia}.zip"
         extract_dir = f"{temp_dir}/dia{dia}"
         
@@ -367,7 +371,14 @@ if __name__ == "__main__":
         sys.exit(1)
 
     try:
-        procesar_aviso(numero_aviso, desde_db)
+        resultado = procesar_aviso(numero_aviso, desde_db)
+        # procesar_aviso() devuelve None cuando no hay SHP para ningún día
+        # (ej. avisos de "Incremento de Temperatura Diurna", que a veces no
+        # traen shapefile de SENAMHI) — antes eso salía con éxito silencioso
+        # (exit code 0) y la web decía "generado" sin haber generado nada.
+        if resultado is None:
+            logger.error("❌ No se pudo generar la capa: sin SHP disponible para este aviso")
+            sys.exit(1)
     except Exception as e:
         logger.error(f"❌ Error inesperado: {e}", exc_info=True)
         sys.exit(1)
