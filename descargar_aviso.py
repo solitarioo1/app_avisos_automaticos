@@ -89,16 +89,20 @@ if __name__ == "__main__":
         logger.info(f"  python {os.path.basename(__file__)} 447 --procesar")
         sys.exit(1)
     
+    # int() en su propio try/except, separado de descargar_aviso() — mismo
+    # bug que en procesar_aviso.py: compartir el bloque hace que cualquier
+    # ValueError interno (no relacionado al número) se muestre como "'X' no
+    # es un número válido", un mensaje falso que tapa el error real.
     try:
         numero_aviso = int(sys.argv[1])
-        procesar = "--procesar" in sys.argv
-        
-        exito = descargar_aviso(numero_aviso, procesar)
-        sys.exit(0 if exito else 1)
-        
     except ValueError:
         logger.error(f"❌ Error: '{sys.argv[1]}' no es un número válido")
         sys.exit(1)
+
+    try:
+        procesar = "--procesar" in sys.argv
+        exito = descargar_aviso(numero_aviso, procesar)
+        sys.exit(0 if exito else 1)
     except Exception as e:
         logger.error(f"❌ Error inesperado: {e}", exc_info=True)
         sys.exit(1)

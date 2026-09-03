@@ -351,15 +351,23 @@ if __name__ == "__main__":
         logger.info(f"  python {os.path.basename(__file__)} 447 --from-db")
         sys.exit(1)
     
-    numero_aviso = sys.argv[1]
+    numero_aviso_raw = sys.argv[1]
     desde_db = '--from-db' in sys.argv
-    
+
+    # OJO: el int() va en su propio try/except, separado de procesar_aviso().
+    # Antes compartían el mismo bloque, así que un ValueError CUALQUIERA
+    # dentro de procesar_aviso() (ej. max() de una secuencia vacía si el
+    # aviso no trae departamentos afectados) se mostraba como "'339' no es
+    # un número válido" — mensaje falso que no tiene nada que ver con el
+    # error real y hace imposible diagnosticar qué pasó de verdad.
     try:
-        numero_aviso = int(numero_aviso)
-        procesar_aviso(numero_aviso, desde_db)
+        numero_aviso = int(numero_aviso_raw)
     except ValueError:
-        logger.error(f"❌ Error: '{numero_aviso}' no es un número válido")
+        logger.error(f"❌ Error: '{numero_aviso_raw}' no es un número válido")
         sys.exit(1)
+
+    try:
+        procesar_aviso(numero_aviso, desde_db)
     except Exception as e:
         logger.error(f"❌ Error inesperado: {e}", exc_info=True)
         sys.exit(1)
