@@ -46,7 +46,16 @@ EVENTOS = {
     'sequia':     {'label': 'Sequía',               'capa': 'sequia',    'variable': 'precipitacion', 'cola': 'inferior', 'unidad': 'mm',   'acumulado_mensual': True},
     'viento':     {'label': 'Viento Fuerte',        'capa': 'viento',    'variable': 'vel_viento',    'cola': 'superior', 'unidad': 'km/h', 'acumulado_mensual': False},
     'incendios':  {'label': 'Incendios Forestales', 'capa': 'incendios', 'variable': 'temp_max',      'cola': 'superior', 'unidad': '°C',   'acumulado_mensual': False},
-    'inundacion': {'label': 'Lluvias / Inundación', 'capa': 'inundacion', 'variable': 'precipitacion', 'cola': 'superior', 'unidad': 'mm',   'acumulado_mensual': False},
+    # Inundación cruza 2 capas (pedido explícito, 3 sep 2026): la propia capa
+    # de Inundación Y Río/Faja Marginal — la cercanía al río también es señal
+    # de riesgo de desborde, no solo estar dentro del polígono de inundación.
+    'inundacion': {'label': 'Lluvias / Inundación', 'capa': ['inundacion', 'rio'], 'variable': 'precipitacion', 'cola': 'superior', 'unidad': 'mm', 'acumulado_mensual': False},
+    # Sin capa propia (no existe capa de "ola de calor"/estrés térmico en
+    # cultivos — reusar "incendios" no tendría lógica, es susceptibilidad a
+    # incendio forestal, no calor sobre el cultivo). El veredicto se apoya
+    # solo en estación (percentil de temp_max) + aviso SENAMHI, 2 señales
+    # en vez de 3 — capa=[] es válido, ver _capas_en_punto.
+    'temperatura_alta': {'label': 'Temperatura Alta', 'capa': [], 'variable': 'temp_max', 'cola': 'superior', 'unidad': '°C', 'acumulado_mensual': False},
 }
 
 # Las estaciones AUTOMATICA/EMA registran por hora (hasta 24 filas/día); las
@@ -202,24 +211,39 @@ def _serie_diaria(cur, estacion_id, variable, anio, mes):
     return [{'dia': row['dia'], 'valor': float(row['valor'])} for row in cur.fetchall()]
 
 
-def _capa_en_punto(evento, punto):
-    nombre_capa = evento['capa']
-    capa_gdf = _cargar_capa_preview(nombre_capa)
-    capa_info = CAPAS_DISPONIBLES.get(nombre_capa, {})
-    en_capa, nivel_capa = False, None
-    if capa_gdf is not None and not capa_gdf.empty:
-        campo_cat = capa_info.get('campo_categoria')
-        match_capa = capa_gdf[capa_gdf.contains(punto)]
-        if not match_capa.empty:
-            en_capa = True
-            valor_crudo = match_capa.iloc[0][campo_cat] if campo_cat else None
-            nivel_capa = _nivel_estandar(nombre_capa, valor_crudo)  # Muy Alto/Alto/Medio/Bajo
-    return {
-        'nombre': nombre_capa, 'label': capa_info.get('label', nombre_capa),
-        'disponible': capa_gdf is not None,
-        'en_capa': en_capa, 'nivel': nivel_capa,
-        'color': _COLOR_NIVEL_ESTANDAR.get(nivel_capa) if nivel_capa else None,
-    }
+def _capas_en_punto(evento, punto):
+    """Devuelve una lista de resultados de capa. La mayoría de eventos cruzan
+    una sola (evento['capa'] es str); Inundación cruza 2 (evento['capa'] es
+    list: Inundación + Río) — ver comentario en EVENTOS."""
+    nombres = evento['capa'] if isinstance(evento['capa'], list) else [evento['capa']]
+    resultados = []
+    for nombre_capa in nombres:
+        capa_gdf = _cargar_capa_preview(nombre_capa)
+        capa_info = CAPAS_DISPONIBLES.get(nombre_capa, {})
+        en_capa, nivel_capa = False, None
+        if capa_gdf is not None and not capa_gdf.empty:
+            campo_cat = capa_info.get('campo_categoria')
+            match_capa = capa_gdf[capa_gdf.contains(punto)]
+            if not match_capa.empty:
+                en_capa = True
+                valor_crudo = match_capa.iloc[0][campo_cat] if campo_cat else None
+                nivel_capa = _nivel_estandar(nombre_capa, valor_crudo)  # Muy Alto/Alto/Medio/Bajo
+            elif nombre_capa == 'rio':
+                # El archivo solo trae 3 bandas explícitas (Muy Alto/Alto/Medio,
+                # hasta 1km — si se dibujara "Bajo" como polígono saldría
+                # gigante/pesado). Todo punto que NO cae en esas 3 bandas es
+                # Bajo por definición (sin importar si está a 3km o 50km) —
+                # para verificar un reclamo de seguro todo punto necesita
+                # veredicto, no puede quedar "sin clasificar".
+                en_capa = True
+                nivel_capa = 'Bajo'
+        resultados.append({
+            'nombre': nombre_capa, 'label': capa_info.get('label', nombre_capa),
+            'disponible': capa_gdf is not None,
+            'en_capa': en_capa, 'nivel': nivel_capa,
+            'color': _COLOR_NIVEL_ESTANDAR.get(nivel_capa) if nivel_capa else None,
+        })
+    return resultados
 
 
 def _aviso_para(departamento, fecha):
@@ -307,7 +331,13 @@ def _verificar_punto(evento_id, fecha, lat, lon, severidad, con_detalle_meteo=Fa
         'unidad': evento['unidad'], 'cola': evento['cola'], 'severidad': severidad,
     }
 
-    resultado['capa'] = _capa_en_punto(evento, punto)
+    capas = _capas_en_punto(evento, punto)
+    # capas=[] es válido (ej. Temperatura Alta, sin capa geoespacial propia) —
+    # placeholder seguro para que el frontend no truene leyendo data.capa.disponible.
+    resultado['capa'] = capas[0] if capas else {
+        'nombre': None, 'label': None, 'disponible': False, 'en_capa': False, 'nivel': None, 'color': None,
+    }
+    resultado['capas'] = capas     # lista completa (0 para eventos sin capa, 2 para Inundación, 1 el resto)
     resultado['aviso'] = _aviso_para(departamento, fecha)
 
     estacion_resultado = None
@@ -347,7 +377,10 @@ def _verificar_punto(evento_id, fecha, lat, lon, severidad, con_detalle_meteo=Fa
         cur.close(); conn.close()
     resultado['estacion'] = estacion_resultado
 
-    señales = [resultado['capa']['en_capa'], resultado['aviso'] is not None,
+    # any(): en Inundación basta con caer en CUALQUIERA de las 2 capas
+    # (Inundación o Río) para que cuente como señal — para el resto de
+    # eventos "capas" trae un solo elemento, se comporta igual que antes.
+    señales = [any(c['en_capa'] for c in capas), resultado['aviso'] is not None,
                bool(estacion_resultado and estacion_resultado['supera_percentil'])]
     resultado['señales_positivas'] = sum(señales)
     resultado['veredicto'] = resultado['señales_positivas'] >= 2

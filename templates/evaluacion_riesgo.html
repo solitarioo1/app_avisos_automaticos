@@ -251,7 +251,7 @@
                         <label class="evr-label">Tipo de evento</label>
                         <select id="evr-evento" class="evr-select">
                             {% for ev in eventos %}
-                            <option value="{{ ev.id }}" data-unidad="{{ ev.unidad }}" data-cola="{{ ev.cola }}" data-capa="{{ ev.capa }}">{{ ev.label }}</option>
+                            <option value="{{ ev.id }}" data-unidad="{{ ev.unidad }}" data-cola="{{ ev.cola }}" data-capa="{{ ev.capa if ev.capa is string else ev.capa|join(',') }}">{{ ev.label }}</option>
                             {% endfor %}
                         </select>
                     </div>

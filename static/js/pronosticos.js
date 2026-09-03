@@ -6,6 +6,28 @@
 const AVISOS_ORIGINALES = [];
 const AVISOS_FRESCOS = new Set();
 
+// ── Toast (reemplaza alert() del navegador para las acciones de esta página) ──
+let pronToastTimer = null;
+
+function mostrarPronToast(tipo, titulo, mensaje) {
+    const toast = document.getElementById('pron-toast');
+    if (!toast) { alert(`${titulo}\n${mensaje}`); return; }  // fallback por si el markup no cargó
+
+    document.getElementById('pron-toast-icon').textContent = tipo === 'error' ? '❌' : '✅';
+    document.getElementById('pron-toast-title').textContent = titulo;
+    document.getElementById('pron-toast-msg').textContent = mensaje;
+    toast.className = `pron-toast ${tipo === 'error' ? 'toast-error' : ''}`;
+    toast.style.display = 'flex';
+
+    if (pronToastTimer) clearTimeout(pronToastTimer);
+    pronToastTimer = setTimeout(cerrarPronToast, 6000);
+}
+
+function cerrarPronToast() {
+    const toast = document.getElementById('pron-toast');
+    if (toast) toast.style.display = 'none';
+}
+
 function guardarAvisosOriginales() {
     const filas = document.querySelectorAll('#tabla-avisos tr');
     filas.forEach(fila => {
@@ -105,13 +127,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Actualizar tabla
                     location.reload();
                 } else {
-                    alert('Error: ' + data.error);
+                    mostrarPronToast('error', 'Error al descargar', data.error || 'No se pudo descargar el aviso.');
                     btnIcon.className = originalClass;
                     this.disabled = false;
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error al descargar: ' + error.message);
+                mostrarPronToast('error', 'Error al descargar', error.message);
                 btnIcon.className = originalClass;
                 this.disabled = false;
             }
@@ -140,16 +162,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (response.ok && data.success) {
                     btnIcon.className = 'bi bi-check-circle';
-                    alert(`Capa del aviso ${numero} generada y clientes clasificados. Ya puedes verlo en Seguro Comercial.`);
-                    location.reload();
+                    mostrarPronToast('success', 'Capa generada', `Aviso ${numero}: clientes clasificados. Ya puedes verlo en Seguro Comercial.`);
+                    setTimeout(() => location.reload(), 2200);  // deja ver el toast antes de refrescar
                 } else {
-                    alert('Error: ' + (data.error || 'no se pudo procesar el aviso'));
+                    mostrarPronToast('error', 'Error al procesar', data.error || 'No se pudo procesar el aviso.');
                     btnIcon.className = originalClass;
                     this.disabled = false;
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error al procesar: ' + error.message);
+                mostrarPronToast('error', 'Error al procesar', error.message);
                 btnIcon.className = originalClass;
                 this.disabled = false;
             }

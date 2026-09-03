@@ -125,7 +125,10 @@ function evrActualizarUbicacionPreview(lat, lon) {
 }
 
 // ============================================================================
-// Polígono de la capa de riesgo del evento seleccionado, dibujado sobre el mapa
+// Polígono(s) de la capa de riesgo del evento seleccionado, dibujado sobre el
+// mapa — la mayoría de eventos traen 1 capa (data-capa="helada"), Inundación
+// trae 2 separadas por coma (data-capa="inundacion,rio"), y eventos sin capa
+// asociada (ej. Temperatura Alta) traen data-capa="" — no se dibuja nada.
 // ============================================================================
 function evrCargarCapaEnMapa(nombreCapa) {
     if (!nombreCapa) {
@@ -137,31 +140,41 @@ function evrCargarCapaEnMapa(nombreCapa) {
         evrMap.removeLayer(evrCapaLayer);
         evrCapaLayer = null;
     }
-    document.getElementById('evr-capa-legend').innerHTML = '';
+    const legendEl = document.getElementById('evr-capa-legend');
+    legendEl.innerHTML = '';
 
-    fetch(`/api/capas-riesgo/${nombreCapa}/geometria`)
-        .then(r => { if (!r.ok) throw new Error('no disponible'); return r.json(); })
-        .then(geojson => {
-            evrCapaLayer = L.geoJSON(geojson, {
-                style: f => ({
-                    color: f.properties.color_display || '#999',
-                    weight: 1,
-                    fillColor: f.properties.color_display || '#999',
-                    fillOpacity: 0.35
-                })
-            }).addTo(evrMap);
-            evrCapaLayer.bringToBack();
+    const capas = (nombreCapa || '').split(',').map(c => c.trim()).filter(Boolean);
+    if (!capas.length) return;  // evento sin capa geoespacial asociada
 
-            const niveles = new Map();
-            geojson.features.forEach(f => {
-                const n = f.properties.nivel_display ?? 'Zona de riesgo';
-                if (!niveles.has(n)) niveles.set(n, f.properties.color_display || '#999');
-            });
-            const legend = document.getElementById('evr-capa-legend');
-            legend.innerHTML = [...niveles.entries()].map(([n, c]) =>
-                `<span><span class="sw" style="background:${c}"></span>${n}</span>`).join('');
-        })
-        .catch(() => { /* capa no disponible todavía (ej. viento/incendios en proceso) */ });
+    const niveles = new Map();
+    const layers = [];
+
+    Promise.all(capas.map(nombre =>
+        fetch(`/api/capas-riesgo/${nombre}/geometria`)
+            .then(r => { if (!r.ok) throw new Error('no disponible'); return r.json(); })
+            .then(geojson => {
+                const layer = L.geoJSON(geojson, {
+                    style: f => ({
+                        color: f.properties.color_display || '#999',
+                        weight: 1,
+                        fillColor: f.properties.color_display || '#999',
+                        fillOpacity: 0.35
+                    })
+                });
+                layers.push(layer);
+                geojson.features.forEach(f => {
+                    const n = f.properties.nivel_display ?? 'Zona de riesgo';
+                    if (!niveles.has(n)) niveles.set(n, f.properties.color_display || '#999');
+                });
+            })
+            .catch(() => { /* esa capa no disponible todavía (ej. viento/incendios en proceso) */ })
+    )).then(() => {
+        if (!layers.length) return;
+        evrCapaLayer = L.layerGroup(layers).addTo(evrMap);
+        layers.forEach(l => l.bringToBack());
+        legendEl.innerHTML = [...niveles.entries()].map(([n, c]) =>
+            `<span><span class="sw" style="background:${c}"></span>${n}</span>`).join('');
+    });
 }
 
 // ============================================================================
@@ -303,19 +316,23 @@ function evrRenderResultado(data) {
     requestAnimationFrame(() => evrRenderGdrMap(data));
 }
 
+function evrCapaTxt(c) {
+    if (!c.disponible) return `${c.label} — no disponible todavía`;
+    return c.en_capa ? `${c.label} — Nivel ${c.nivel ?? 'N/A'}` : `${c.label} — fuera de zona`;
+}
+
 function evrInputResumenHtml(data) {
-    const capaTxt = !data.capa.disponible
-        ? `${data.capa.label} — no disponible todavía`
-        : data.capa.en_capa
-            ? `${data.capa.label} — Nivel ${data.capa.nivel ?? 'N/A'}`
-            : `${data.capa.label} — fuera de zona`;
+    // Inundación trae 2 capas (Inundación + Río); Temperatura Alta no trae
+    // ninguna (sin capa geoespacial propia, se apoya solo en estación+aviso).
+    const capasLista = data.capas || (data.capa ? [data.capa] : []);
+    const capaTxt = capasLista.length ? capasLista.map(evrCapaTxt).join('  ·  ') : 'No aplica (evento sin capa geoespacial propia)';
     const ubicacionTxt = data.departamento ? `${data.distrito}, ${data.provincia}, ${data.departamento}` : 'No reconocida';
     const avisoTxt = data.aviso ? `Nº ${data.aviso.numero_aviso} (${data.aviso.nivel})` : 'Sin aviso vigente/posterior';
 
     const items = [
         ['Fecha del evento', data.fecha],
         ['Tipo de evento', data.evento],
-        ['Capa cruzada', capaTxt],
+        [capasLista.length > 1 ? 'Capas cruzadas' : 'Capa cruzada', capaTxt],
         ['Aviso SENAMHI', avisoTxt],
         ['Coordenadas', `${data.lat.toFixed(4)}, ${data.lon.toFixed(4)}`],
         ['Ubicación', ubicacionTxt],
@@ -427,11 +444,19 @@ function evrGdrDatosHtml(data) {
         return '<p>Sin estación con datos meteorológicos cerca de este punto.</p>';
     }
     const e = data.estacion;
-    const capaTxt = data.capa.disponible
-        ? (data.capa.en_capa ? `nivel <b>${data.capa.nivel ?? 'N/A'}</b> en el punto reportado` : 'el punto queda fuera de la zona de riesgo mapeada')
-        : 'capa aún no disponible';
+    const capasLista = data.capas || (data.capa ? [data.capa] : []);
+    if (!capasLista.length) {
+        return `<p>Estación más cercana: <b>${e.estacion}</b> (código ${e.codigo}) a <b>${e.distancia_km} km</b> del punto reportado.
+            El evento "${data.evento}" no tiene capa geoespacial propia — el veredicto se basa solo en estación y aviso SENAMHI.</p>`;
+    }
+    const capasTxt = capasLista.map(c => {
+        const estado = c.disponible
+            ? (c.en_capa ? `nivel <b>${c.nivel ?? 'N/A'}</b>` : 'fuera de la zona mapeada')
+            : 'aún no disponible';
+        return `"${c.label}" — ${estado}`;
+    }).join('; ');
     return `<p>Estación más cercana: <b>${e.estacion}</b> (código ${e.codigo}) a <b>${e.distancia_km} km</b> del punto reportado.
-        Capa "${data.capa.label}" clasificada según el evento "${data.evento}" — ${capaTxt}.</p>`;
+        ${capasLista.length > 1 ? 'Capas' : 'Capa'} clasificada${capasLista.length > 1 ? 's' : ''} según el evento "${data.evento}": ${capasTxt}.</p>`;
 }
 
 function evrRenderGdrMap(data) {
@@ -465,10 +490,12 @@ function evrRenderGdrMap(data) {
     // descargar el mapa a medio pintar.
     let tareasIniciadas = 0;
 
-    if (data.capa.disponible) {
+    // Inundación trae 2 capas (Inundación + Río) — se pintan ambas.
+    const capasLista = data.capas || [data.capa];
+    capasLista.filter(c => c.disponible).forEach(c => {
         tareasIniciadas++;
         evrTareaInicio();
-        fetch(`/api/capas-riesgo/${data.capa.nombre}/geometria`)
+        fetch(`/api/capas-riesgo/${c.nombre}/geometria`)
             .then(r => r.ok ? r.json() : null)
             .then(geojson => {
                 if (!geojson || !geojson.features || !geojson.features.length) return;
@@ -478,7 +505,7 @@ function evrRenderGdrMap(data) {
             })
             .catch(() => {})
             .finally(evrTareaFin);
-    }
+    });
 
     if (data.departamento) {
         tareasIniciadas++;

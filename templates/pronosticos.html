@@ -6,7 +6,51 @@
         max-width: 1200px;
         margin: 0 auto;
     }
+
+    /* ── Toast de acciones (reemplaza el alert() feo del navegador) ── */
+    .pron-toast {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+        padding: 14px 18px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        z-index: 1200;
+        min-width: 300px;
+        max-width: 420px;
+        border-left: 4px solid #04ccc4;
+        animation: pronToastIn 0.25s ease;
+    }
+    @keyframes pronToastIn {
+        from { opacity: 0; transform: translateX(24px); }
+        to   { opacity: 1; transform: translateX(0); }
+    }
+    .pron-toast.toast-error { border-left-color: #dc3545; }
+    .pron-toast .toast-icon { font-size: 22px; flex-shrink: 0; line-height: 1; }
+    .pron-toast .toast-body { flex: 1; }
+    .pron-toast .toast-body strong { display: block; font-size: 14px; color: #222; margin-bottom: 2px; }
+    .pron-toast .toast-body span { display: block; font-size: 12.5px; color: #666; line-height: 1.4; }
+    .pron-toast .toast-close {
+        background: none; border: none; color: #aaa; cursor: pointer;
+        font-size: 18px; line-height: 1; padding: 0 2px; flex-shrink: 0;
+    }
+    .pron-toast .toast-close:hover { color: #333; }
+    @media (max-width: 576px) {
+        .pron-toast { right: 12px; left: 12px; bottom: 12px; min-width: unset; max-width: unset; }
+    }
 </style>
+<div id="pron-toast" class="pron-toast" style="display:none;">
+    <span class="toast-icon" id="pron-toast-icon">✅</span>
+    <div class="toast-body">
+        <strong id="pron-toast-title"></strong>
+        <span id="pron-toast-msg"></span>
+    </div>
+    <button type="button" class="toast-close" onclick="cerrarPronToast()">×</button>
+</div>
 <div class="container-fluid p-3 avisos-container">
     <!-- Encabezado -->
     <div class="row mb-4">

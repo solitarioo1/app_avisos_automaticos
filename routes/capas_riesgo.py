@@ -201,10 +201,23 @@ def _recalcular_capa(nombre, clientes_gdf):
 
     campo_cat = info.get('campo_categoria')
     filas = []
+    ids_expuestos = set()
     for _, row in cruce.iterrows():
         valor_crudo = row.get(campo_cat) if campo_cat and campo_cat in cruce.columns else None
         nivel = _nivel_estandar(nombre, valor_crudo)  # guardado ya estandarizado (Muy Alto/Alto/Medio/Bajo)
         filas.append((int(row['id']), nombre, nivel))
+        ids_expuestos.add(int(row['id']))
+
+    # Río: el archivo solo trae 3 bandas explícitas (Muy Alto/Alto/Medio,
+    # hasta 1km) — dibujar "Bajo" como polígono nacional sería gigante/pesado.
+    # Todo cliente que no cayó en esas 3 bandas es Bajo por definición (mismo
+    # criterio que evaluacion_riesgo.py y clasificar-excel): en Mapa Clientes,
+    # "Bajo" para río termina cubriendo a casi todos, y eso es correcto — es
+    # justamente el punto, la mayoría no está cerca de un río.
+    if nombre == 'rio':
+        for _, row in clientes_gdf.iterrows():
+            if int(row['id']) not in ids_expuestos:
+                filas.append((int(row['id']), nombre, 'Bajo'))
 
     # Reemplazar todo lo anterior de esta capa por el resultado fresco.
     cur.execute("DELETE FROM clientes_riesgo_capa WHERE capa = %s", (nombre,))
@@ -529,7 +542,13 @@ def api_clasificar_excel(nombre):
             fila_ok[f'Nivel de Riesgo ({info["label"]})'] = 'Capa no disponible'
         else:
             match = capa_gdf[capa_gdf.contains(Point(lon, lat))]
-            if match.empty:
+            if match.empty and nombre == 'rio':
+                # Archivo de río solo trae 3 bandas explícitas hasta 1km —
+                # todo lo que no cae ahí es Bajo por definición (ver mismo
+                # criterio en routes/evaluacion_riesgo.py::_capas_en_punto).
+                fila_ok['Dentro de la Capa'] = 'Sí'
+                fila_ok[f'Nivel de Riesgo ({info["label"]})'] = 'Bajo'
+            elif match.empty:
                 fila_ok['Dentro de la Capa'] = 'No'
                 fila_ok[f'Nivel de Riesgo ({info["label"]})'] = 'Fuera de zona'
             else:
