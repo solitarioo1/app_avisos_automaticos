@@ -9,7 +9,8 @@ const WEBHOOKS = window.MENSAJERIA_CONFIG || {
     afiliaciones:    '',
     resultados:      '',
     indemnizaciones: '',
-    alertas:         ''
+    alertas:         '',
+    polizas:         ''
 };
 
 // Estado global de gráficos

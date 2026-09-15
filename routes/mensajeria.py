@@ -29,14 +29,19 @@ WEBHOOKS = {
     'resultados':      os.getenv('N8N_WEBHOOK_RESULTADOS', ''),
     'indemnizaciones': os.getenv('N8N_WEBHOOK_INDEMNIZACIONES', ''),
     'alertas':         os.getenv('N8N_WEBHOOK_ALERTAS', ''),
+    'polizas':         os.getenv('N8N_WEBHOOK_POLIZAS', ''),
 }
 
 # ── Mapeo tipo → nombre de hoja en Google Sheets ──
+# OJO "polizas": nombre de pestaña sin tilde asumido igual al resto (todo
+# minúscula) — si en el Sheet real la pestaña se llama distinto (ej. "Pólizas"
+# con tilde/mayúscula), hay que ajustar este valor para que coincida exacto.
 HOJAS = {
     'afiliaciones':    'afiliaciones',
     'resultados':      'resultados',
     'indemnizaciones': 'indemnizaciones',
     'alertas':         'alertas',
+    'polizas':         'polizas',
 }
 
 
@@ -78,6 +83,7 @@ def index():
         'resultados':      bool(WEBHOOKS.get('resultados')),
         'indemnizaciones': bool(WEBHOOKS.get('indemnizaciones')),
         'alertas':         bool(WEBHOOKS.get('alertas')),
+        'polizas':         bool(WEBHOOKS.get('polizas')),
     }
     return render_template('mensajeria.html', config=config)
 
@@ -157,11 +163,14 @@ def historial():
                     todos.append({
                         'tipo':       tipo,
                         'nombre':     r.get('nombre', ''),
-                        'numero':     r.get('numero', ''),
+                        # "polizas" usa columna "celular" en vez de "numero" (mismo
+                        # dato, nombre distinto) — se cae a esa si "numero" no existe.
+                        'numero':     r.get('numero') or r.get('celular', ''),
                         'entidad':    r.get('entidad', ''),
                         'estado':     str(r.get('estado', 'pendiente')).lower(),
                         'fecha_envio': r.get('fecha_envio', ''),
-                        'mensaje':    r.get('asunto', '')[:80] + '...' if r.get('asunto', '') else ''
+                        'mensaje':    r.get('asunto', '')[:80] + '...' if r.get('asunto', '') else '',
+                        'adjunto':    r.get('nombre_poliza', ''),
                     })
             except gspread.exceptions.WorksheetNotFound:
                 continue

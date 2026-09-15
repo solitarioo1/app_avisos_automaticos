@@ -65,7 +65,7 @@ def load_user(user_id: str):
 # Rutas base
 BASE_DIR = Path(__file__).parent
 OUTPUT_DIR = BASE_DIR / os.getenv('OUTPUT_DIR', 'OUTPUT')
-DOMAIN = os.getenv('DOMAIN', 'https://mapas.miagentepersonal.me')
+DOMAIN = os.getenv('DOMAIN', 'https://mapas.intismart.com')
 
 # Diccionario global para procesos activos
 active_processes = {}

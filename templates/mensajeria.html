@@ -120,6 +120,28 @@
                 </div>
             </div>
 
+            <!-- Pólizas (con PDF adjunto) -->
+            <div class="msg-card" id="card-polizas">
+                <div class="msg-card-stripe stripe-turquesa"></div>
+                <div class="msg-card-content">
+                    <div class="msg-card-icon icon-turquesa">
+                        <i class="bi bi-file-earmark-pdf-fill"></i>
+                    </div>
+                    <div class="msg-card-info">
+                        <h3>Pólizas</h3>
+                        <p>Envía la póliza en PDF al cliente, adjunta al mensaje de WhatsApp.</p>
+                        <div class="msg-preview">
+                            <i class="bi bi-chat-quote"></i>
+                            "Sr(a) {nombre}, La Positiva Seguros le hace llegar su póliza {nombre_poliza}..." + PDF adjunto
+                        </div>
+                    </div>
+                    <button class="btn-enviar" id="btn-polizas" onclick="enviarMensaje('polizas', this)">
+                        <i class="bi bi-whatsapp"></i>
+                        <span class="btn-label">Enviar</span>
+                    </button>
+                </div>
+            </div>
+
             <!-- Alertas SENAMHI -->
             <div class="msg-card" id="card-alertas">
                 <div class="msg-card-stripe stripe-amarillo"></div>
@@ -156,6 +178,7 @@
                     <option value="resultados">Resultados</option>
                     <option value="indemnizaciones">Indemnizaciones</option>
                     <option value="alertas">Alertas SENAMHI</option>
+                    <option value="polizas">Pólizas</option>
                 </select>
                 <select class="filtro-select" id="filtroEstado" onchange="filtrarHistorial()">
                     <option value="">Todos los estados</option>
