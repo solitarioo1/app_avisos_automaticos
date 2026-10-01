@@ -209,14 +209,15 @@ _VARIABLES_GRAFICA = {
 }
 
 
-def _grafica_estacion(cur, estacion_id, mes):
-    """PP/Tmax/Tmin mensual de la estación (promedio histórico Ene-Dic) + P90
-    y P95 del mes del evento, para graficar en el detalle del siniestro —
-    pedido explícito del inspector, no solo el resumen de 1 variable."""
+def _grafica_estacion(cur, estacion_id, anio, mes):
+    """PP/Tmax/Tmin DÍA A DÍA del mes/año del evento reportado (no promedio
+    histórico Ene-Dic) + P90/P95 de ese mes calendario, para graficar en el
+    detalle del siniestro — mismo criterio que ya usa la verificación manual
+    de 1 punto (Evaluación de Riesgo > Coordenada), pedido explícito."""
     out = {}
     for variable, acumulado in _VARIABLES_GRAFICA.items():
         out[variable] = {
-            'mensual': _promedios_mensuales(cur, estacion_id, variable, acumulado),
+            'diaria': _serie_diaria(cur, estacion_id, variable, anio, mes),
             'p90': _percentil_mensual(cur, estacion_id, variable, mes, 0.90, acumulado),
             'p95': _percentil_mensual(cur, estacion_id, variable, mes, 0.95, acumulado),
         }
@@ -424,7 +425,7 @@ def _verificar_punto(evento_id, fecha, lat, lon, severidad, con_detalle_meteo=Fa
                 estacion_resultado['dia_evento'] = fecha.day
                 # PP/Tmax/Tmin juntos (no solo la variable del evento) con P90/P95
                 # del mes — pedido explícito para graficar en el detalle del caso.
-                estacion_resultado['grafica'] = _grafica_estacion(cur, e['id'], fecha.month)
+                estacion_resultado['grafica'] = _grafica_estacion(cur, e['id'], fecha.year, fecha.month)
 
         cur.close(); conn.close()
     resultado['estacion'] = estacion_resultado

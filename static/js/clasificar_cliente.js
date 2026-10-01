@@ -167,7 +167,7 @@ const CC_COLOR_ESTADO = { 'Verificado': '#dc3545', 'Rechazado': '#6c757d', 'Pend
 function ccInicializarMapa() {
     if (ccMapaFoto) return ccMapaFoto;
     ccMapaFoto = L.map('cc-mapa-foto').setView([-9.19, -75.02], 5.5);  // Perú completo por defecto
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>' }).addTo(ccMapaFoto);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri' }).addTo(ccMapaFoto);
     setTimeout(() => ccMapaFoto.invalidateSize(), 200);
     return ccMapaFoto;
 }
