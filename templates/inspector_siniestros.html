@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Siniestros - Evaluación de Riesgo{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0"><i class="bi bi-clipboard2-pulse text-info"></i> Siniestros reportados</h4>
+        <a href="/evaluacion-riesgo/" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Verificación manual
+        </a>
+    </div>
+
+    <ul class="nav nav-pills mb-3" id="filtroEstado">
+        <li class="nav-item"><button class="nav-link active" data-estado="">Todos</button></li>
+        <li class="nav-item"><button class="nav-link" data-estado="Pendiente">Pendientes</button></li>
+        <li class="nav-item"><button class="nav-link" data-estado="Verificado">Verificados</button></li>
+        <li class="nav-item"><button class="nav-link" data-estado="Rechazado">Rechazados</button></li>
+    </ul>
+
+    <div class="table-responsive bg-white rounded shadow-sm">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>N°</th><th>Fecha reporte</th><th>DNI</th><th>Agricultor</th>
+                    <th>Cultivo</th><th>Evento</th><th>Fecha evento</th><th>Fotos</th><th>Estado</th><th></th>
+                </tr>
+            </thead>
+            <tbody id="tablaBody">
+                <tr><td colspan="10" class="text-center text-muted py-4">Cargando...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+const tablaBody = document.getElementById('tablaBody');
+const badgeEstado = (e) => ({
+    'Pendiente': 'bg-warning text-dark', 'Verificado': 'bg-success', 'Rechazado': 'bg-danger'
+}[e] || 'bg-secondary');
+
+function cargar(estado) {
+    tablaBody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">Cargando...</td></tr>';
+    fetch(`/evaluacion-riesgo/api/siniestros${estado ? '?estado=' + estado : ''}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.siniestros || data.siniestros.length === 0) {
+                tablaBody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">No hay siniestros</td></tr>';
+                return;
+            }
+            tablaBody.innerHTML = data.siniestros.map(s => `
+                <tr onclick="location.href='/evaluacion-riesgo/siniestros/${s.id}'" style="cursor:pointer;">
+                    <td>#${s.id}</td>
+                    <td>${new Date(s.creado_en).toLocaleDateString('es-PE')}</td>
+                    <td>${s.dni}</td>
+                    <td>${s.nombre_completo}</td>
+                    <td>${s.cultivo_afectado}</td>
+                    <td>${s.evento}</td>
+                    <td>${new Date(s.fecha_evento + 'T00:00:00').toLocaleDateString('es-PE')}</td>
+                    <td><i class="bi bi-camera"></i> ${s.total_fotos}</td>
+                    <td><span class="badge ${badgeEstado(s.estado)}">${s.estado}</span></td>
+                    <td><i class="bi bi-chevron-right text-muted"></i></td>
+                </tr>
+            `).join('');
+        });
+}
+
+document.querySelectorAll('#filtroEstado .nav-link').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#filtroEstado .nav-link').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        cargar(btn.dataset.estado);
+    });
+});
+
+cargar('');
+</script>
+{% endblock %}

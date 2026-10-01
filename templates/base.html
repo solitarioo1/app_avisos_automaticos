@@ -46,6 +46,9 @@
     <!-- Navegación Sobresaliente -->
     <nav class="main-navigation">
         <ul class="nav nav-pills justify-content-center w-100">
+            {% if current_user.is_authenticated and current_user.role == 'inspector' %}
+            <li class="nav-item"><a class="nav-link" href="/evaluacion-riesgo/">Evaluación de Riesgo</a></li>
+            {% else %}
             <li class="nav-item"><a class="nav-link" href="/avisos">Pronósticos</a></li>
             <li class="nav-item"><a class="nav-link" href="/decisiones">Seguro Comercial</a></li>
             <li class="nav-item"><a class="nav-link" href="/evaluacion-riesgo/">Evaluación de Riesgo</a></li>
@@ -56,6 +59,7 @@
             <li class="nav-item d-none"><a class="nav-link" href="/mapas">Mapas</a></li>
             <li class="nav-item"><a class="nav-link" href="/difusion">Difusión</a></li>
             <li class="nav-item"><a class="nav-link" href="/mensajeria">Mensajería</a></li>
+            {% endif %}
         </ul>
     </nav>
 

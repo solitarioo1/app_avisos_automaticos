@@ -58,3 +58,5 @@ Dockerfile
 # CI/CD
 .gitlab-ci.yml
 .github/workflows
+
+FUERA_PROYECTO/

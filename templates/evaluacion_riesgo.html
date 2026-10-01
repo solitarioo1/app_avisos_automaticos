@@ -210,10 +210,17 @@
 
 {% block content %}
 <div class="evr-container">
-    <h2 class="mb-1 evr-titulo-pagina">Evaluación de Riesgo</h2>
-    <p class="evr-intro-txt" style="color:#888; font-size:13.5px; margin-bottom:1.5rem;">
-        Verifica un reclamo cruzando capa de riesgo, aviso SENAMHI y estación más cercana. Disponible por ahora solo en <strong>Piura</strong>.
-    </p>
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h2 class="mb-1 evr-titulo-pagina">Evaluación de Riesgo</h2>
+            <p class="evr-intro-txt" style="color:#888; font-size:13.5px; margin-bottom:1.5rem;">
+                Verifica un reclamo cruzando capa de riesgo, aviso SENAMHI y estación más cercana. Disponible por ahora solo en <strong>Piura</strong>.
+            </p>
+        </div>
+        <a href="/evaluacion-riesgo/siniestros" class="btn btn-sm text-white" style="background:#039e97;white-space:nowrap;">
+            <i class="bi bi-clipboard2-pulse"></i> Siniestros reportados
+        </a>
+    </div>
 
     <div class="evr-grid">
         <!-- Columna izquierda: formulario -->

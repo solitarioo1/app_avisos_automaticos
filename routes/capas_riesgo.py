@@ -30,6 +30,7 @@ capas_riesgo_bp = Blueprint('capas_riesgo', __name__, url_prefix='')
 
 BASE_DIR = Path(__file__).parent.parent
 CLIP_DIR = BASE_DIR / 'CAPAS' / 'CAPAS_PROCESADAS'
+DEPARTAMENTOS_SHP = BASE_DIR / 'DELIMITACIONES' / 'DEPARTAMENTOS' / 'DEPARTAMENTOS.shp'
 
 
 def _filtro_niveles():
@@ -64,27 +65,33 @@ def _filtro_capa_extra(cur_condiciones, cur_params):
 # Registro de capas disponibles para el selector del Mapa Clientes.
 # campo_categoria: columna del GeoJSON con severidad/nivel (None si no aplica).
 CAPAS_DISPONIBLES = {
-    'friaje':     {'label': 'Friaje',              'archivo': 'friaje_clip.geojson',          'campo_categoria': 'susc_friaj', 'color': '#d35400'},
-    'helada':     {'label': 'Helada',               'archivo': 'helada_clip.geojson',          'campo_categoria': 'gridcode',   'color': '#3498db'},
-    'sequia':     {'label': 'Sequía Meteorológica', 'archivo': 'sequia_clip.geojson',          'campo_categoria': 'nivel',      'color': '#e67e22'},
-    'viento':     {'label': 'Viento Fuerte',        'archivo': 'viento_clip.geojson',          'campo_categoria': 'nivel',      'color': '#16a085'},
-    'incendios':  {'label': 'Incendios Forestales', 'archivo': 'incendios_clip.geojson',       'campo_categoria': 'cod_niv',    'color': '#c0392b'},
+    # friaje/helada/sequia/viento/incendios: *_raw.geojson = capa cruda de SENAMHI/CENPRED
+    # (sin cruzar con zona agrícola) — el cruce generaba huecos/recortes falsos
+    # en los polígonos (ver feedback_no_cruzar_capa_agraria). Son livianas (<10k
+    # features), se leen enteras sin necesidad de fragmentar.
+    'friaje':     {'label': 'Friaje',              'archivo': 'friaje_raw.geojson',           'campo_categoria': 'susc_friaj', 'color': '#d35400'},
+    'helada':     {'label': 'Helada',               'archivo': 'helada_raw.geojson',           'campo_categoria': 'gridcode',   'color': '#3498db'},
+    'sequia':     {'label': 'Sequía Meteorológica', 'archivo': 'sequia_raw.geojson',           'campo_categoria': 'nivel',      'color': '#e67e22'},
+    'viento':     {'label': 'Viento Fuerte',        'archivo': 'viento_raw.geojson',           'campo_categoria': 'nivel',      'color': '#16a085'},
+    'incendios':  {'label': 'Incendios Forestales', 'archivo': 'incendios_raw.geojson',        'campo_categoria': 'cod_niv',    'color': '#c0392b'},
     'rio':        {'label': 'Faja Marginal (Río)',  'archivo': 'rio_principal_buffer.geojson', 'campo_categoria': 'nivel',      'color': '#2980b9'},
-    'inundacion': {'label': 'Inundación',           'archivo': 'inundacion_clip.geojson',      'campo_categoria': 'nsief_pfen', 'color': '#2c3e50'},
-    # Pendiente de ArcGIS Pro (se agrega acá cuando el usuario deje el archivo en CAPAS_PROCESADAS/):
-    'mov_masa':   {'label': 'Movimiento de Masa',   'archivo': 'mov_masa_clip.geojson',        'campo_categoria': None,         'color': '#7f8c8d'},
+    'inundacion': {'label': 'Inundación',           'archivo': 'inundacion_raw.gpkg',          'campo_categoria': 'nsief_pfen', 'color': '#2c3e50'},
+    'mov_masa':   {'label': 'Movimiento de Masa',   'archivo': 'mov_masa_raw.gpkg',            'campo_categoria': 'nsmm_pfen',  'color': '#7f8c8d'},
 }
 
 # Versión liviana (disuelta por nivel + simplificada) de cada capa, para pintar
 # el polígono de la zona de peligro en el mapa (no solo los puntos de clientes).
+# Para friaje/helada/sequia/viento/incendios ya es tan liviana (<10k features)
+# que se reusa el mismo *_raw.geojson tal cual, sin necesidad de un preview aparte.
 ARCHIVO_PREVIEW = {
-    'friaje': 'friaje_preview.geojson',
-    'helada': 'helada_preview.geojson',
-    'sequia': 'sequia_preview.geojson',
-    'viento': 'viento_preview.geojson',
-    'incendios': 'incendios_preview.geojson',
+    'friaje': 'friaje_raw.geojson',
+    'helada': 'helada_raw.geojson',
+    'sequia': 'sequia_raw.geojson',
+    'viento': 'viento_raw.geojson',
+    'incendios': 'incendios_raw.geojson',
     'rio': 'rio_principal_buffer.geojson',  # bandas por distancia (<10/50/100/300/500m), ya liviana
-    'inundacion': 'inundacion_preview.geojson',
+    'inundacion': 'inundacion_raw_preview.geojson',
+    'mov_masa': 'mov_masa_raw_preview.geojson',
 }
 
 # ============================================================================
@@ -574,28 +581,62 @@ def api_clasificar_excel(nombre):
     return resp
 
 
-_cache_preview = {}  # nombre -> GeoJSON dict ya coloreado (livianas, se cachean en memoria)
+_cache_preview = {}  # nombre -> GeoDataFrame SIN filtrar (se cachea una vez, liviana)
+_cache_geometria_depto = {}  # (nombre, depto) -> GeoJSON dict ya recortado+coloreado
+
+
+def _cargar_capa_preview_gdf_nacional(nombre):
+    if nombre in _cache_preview:
+        return _cache_preview[nombre]
+    archivo = ARCHIVO_PREVIEW.get(nombre)
+    ruta = CLIP_DIR / archivo if archivo else None
+    gdf = gpd.read_file(ruta) if ruta and ruta.exists() else None
+    # OJO: la geometría YA viene reparada desde el archivo (mapshaper -clean
+    # al generarlo) — hacer esto en Python con make_valid()/buffer(0) acá
+    # tardaba 13-15 MIN para Inundación (demasiados vértices para GEOS en
+    # Python); mapshaper lo resuelve en ~1 min. Si vuelve a salir
+    # TopologyException al hacer clip(), hay que re-generar el archivo con
+    # `mapshaper <preview.geojson> -clean -o <preview.geojson> force`,
+    # no agregar reparación acá de nuevo.
+    _cache_preview[nombre] = gdf
+    return gdf
 
 
 @capas_riesgo_bp.route('/api/capas-riesgo/<nombre>/geometria', methods=['GET'])
 def api_geometria_capa(nombre):
     """Polígono de la zona de peligro en sí (disuelto por nivel, simplificado),
     coloreado verde->rojo según severidad. Esto es lo que se ve como 'mancha'
-    en el mapa — separado de clientes-geojson, que son los puntos de clientes."""
+    en el mapa — separado de clientes-geojson, que son los puntos de clientes.
+
+    OJO: requiere `depto` — mandar la capa completa (todo el Perú) de una sola
+    vez reventaba el servidor/navegador (Inundación: ~26MB de geojson, varios
+    cientos de miles de vértices) — ver feedback del 1 oct 2026. Sin `depto`
+    no se devuelve geometría (el frontend no debe pintar nada a nivel nacional)."""
     info = CAPAS_DISPONIBLES.get(nombre)
     if info is None:
         return jsonify({'error': f'Capa "{nombre}" no existe'}), 404
 
-    if nombre in _cache_preview:
-        return jsonify(_cache_preview[nombre])
+    depto = (request.args.get('depto') or '').strip().upper()
+    if not depto:
+        return jsonify({'error': 'Selecciona un departamento para ver la capa', 'type': 'FeatureCollection', 'features': []}), 200
 
-    archivo = ARCHIVO_PREVIEW.get(nombre)
-    ruta = CLIP_DIR / archivo if archivo else None
-    if not ruta or not ruta.exists():
+    cache_key = (nombre, depto)
+    if cache_key in _cache_geometria_depto:
+        return jsonify(_cache_geometria_depto[cache_key])
+
+    gdf_nacional = _cargar_capa_preview_gdf_nacional(nombre)
+    if gdf_nacional is None or gdf_nacional.empty:
         return jsonify({'error': f'Geometría de "{nombre}" no disponible todavía'}), 404
 
     try:
-        gdf = gpd.read_file(ruta)
+        deptos_gdf = gpd.read_file(DEPARTAMENTOS_SHP)[['DPTONOM02', 'geometry']]
+        if deptos_gdf.crs is None or deptos_gdf.crs.to_epsg() != 4326:
+            deptos_gdf = deptos_gdf.to_crs(4326)
+        match = deptos_gdf[deptos_gdf['DPTONOM02'].str.upper() == depto]
+        if match.empty:
+            return jsonify({'error': f'Departamento "{depto}" no reconocido'}), 400
+
+        gdf = gpd.clip(gdf_nacional, match)
         campo_cat = info.get('campo_categoria')
         geojson = gdf.__geo_interface__
         for feature in geojson['features']:
@@ -603,10 +644,10 @@ def api_geometria_capa(nombre):
             nivel_std = _nivel_estandar(nombre, valor) if campo_cat else None
             feature['properties']['color_display'] = _COLOR_NIVEL_ESTANDAR.get(nivel_std, info['color']) if campo_cat else info['color']
             feature['properties']['nivel_display'] = nivel_std or valor
-        _cache_preview[nombre] = geojson
+        _cache_geometria_depto[cache_key] = geojson
         return jsonify(geojson)
     except Exception as e:
-        logger.error("Error cargando geometría de %s: %s", nombre, str(e))
+        logger.error("Error cargando geometría de %s (depto=%s): %s", nombre, depto, str(e))
         return jsonify({'error': str(e)}), 500
 
 

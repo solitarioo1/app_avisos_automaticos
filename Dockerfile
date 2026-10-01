@@ -31,6 +31,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libproj-dev \
     libssl-dev \
     libffi-dev \
+    tesseract-ocr \
+    tesseract-ocr-spa \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

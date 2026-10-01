@@ -46,6 +46,10 @@ EVENTOS = {
     'sequia':     {'label': 'Sequía',               'capa': 'sequia',    'variable': 'precipitacion', 'cola': 'inferior', 'unidad': 'mm',   'acumulado_mensual': True},
     'viento':     {'label': 'Viento Fuerte',        'capa': 'viento',    'variable': 'vel_viento',    'cola': 'superior', 'unidad': 'km/h', 'acumulado_mensual': False},
     'incendios':  {'label': 'Incendios Forestales', 'capa': 'incendios', 'variable': 'temp_max',      'cola': 'superior', 'unidad': '°C',   'acumulado_mensual': False},
+    # Huayco/movimiento de masa: sin estación propia que mida esto, se usa
+    # precipitación acumulada como proxy (los huaycos en Perú se disparan por
+    # lluvia intensa) — igual criterio que Sequía pero de cola superior.
+    'huayco':     {'label': 'Huayco',               'capa': 'mov_masa', 'variable': 'precipitacion', 'cola': 'superior', 'unidad': 'mm',   'acumulado_mensual': True},
     # Inundación cruza 2 capas (pedido explícito, 3 sep 2026): la propia capa
     # de Inundación Y Río/Faja Marginal — la cercanía al río también es señal
     # de riesgo de desborde, no solo estar dentro del polígono de inundación.
@@ -277,41 +281,64 @@ def _estacion_mas_cercana_con_dato(cur, departamento, lat, lon, fecha, variable,
     — la estación físicamente más cercana puede estar del otro lado de un límite
     departamental; filtrar por 'departamento' del punto excluía esas y terminaba
     devolviendo una estación más lejana del mismo departamento, dato incorrecto)
-    y devuelve la primera con dato utilizable (valor puntual +-2 días, o total
+    y devuelve la más cercana con dato utilizable (valor puntual +-2 días, o total
     del mes si es acumulado). `departamento` queda sin usar, se mantiene en la
-    firma porque _verificar_punto ya lo tiene calculado."""
+    firma porque _verificar_punto ya lo tiene calculado.
+
+    UNA sola consulta cubriendo TODAS las estaciones (no una por estación) —
+    con la BD remota en el VPS, iterar estación por estación (como antes)
+    significaba un viaje de ida y vuelta por cada una; si el punto cae lejos
+    de Piura (única zona con datos reales hoy) terminaba recorriéndolas casi
+    todas y tardaba 1-3 minutos por caso. Acá se trae el dato de todas de un
+    tiro y se elige en Python."""
     cur.execute("SELECT id, nombre, codigo, latitud, longitud FROM estaciones")
     estaciones = cur.fetchall()
     for e in estaciones:
         e['_dist'] = _haversine_km(lat, lon, float(e['latitud']), float(e['longitud']))
-    estaciones.sort(key=lambda e: e['_dist'])
+    ids_estaciones = [e['id'] for e in estaciones]
+    if not ids_estaciones:
+        return None, None, None, None
 
-    for e in estaciones:
-        if acumulado_mensual:
-            cur.execute(f"""
-                SELECT COALESCE(SUM({variable}), 0) AS total, COUNT(DISTINCT fecha) AS n
-                FROM registros_meteorologicos
-                WHERE estacion_id = %s AND EXTRACT(YEAR FROM fecha) = %s AND EXTRACT(MONTH FROM fecha) = %s
-                      AND {variable} IS NOT NULL {_filtro_rango(variable)}
-            """, (e['id'], fecha.year, fecha.month))
-            r = cur.fetchone()
-            if r['n'] > 0:
-                return e, float(r['total']), None, r['n']
-        else:
-            # Agrega por día (las estaciones AUTOMATICA registran por hora) y
-            # toma el día más cercano a la fecha del evento dentro de la ventana.
-            agg = _AGREGACION[variable]
-            cur.execute(f"""
-                SELECT fecha, {agg}({variable}) AS valor FROM registros_meteorologicos
-                WHERE estacion_id = %s AND fecha BETWEEN %s AND %s
-                      AND {variable} IS NOT NULL {_filtro_rango(variable)}
-                GROUP BY fecha
-                ORDER BY ABS(fecha - %s) LIMIT 1
-            """, (e['id'], fecha - timedelta(days=2), fecha + timedelta(days=2), fecha))
-            r = cur.fetchone()
-            if r:
-                return e, float(r['valor']), r['fecha'], None
-    return None, None, None, None
+    if acumulado_mensual:
+        cur.execute(f"""
+            SELECT estacion_id, COALESCE(SUM({variable}), 0) AS total, COUNT(DISTINCT fecha) AS n
+            FROM registros_meteorologicos
+            WHERE estacion_id = ANY(%s) AND EXTRACT(YEAR FROM fecha) = %s AND EXTRACT(MONTH FROM fecha) = %s
+                  AND {variable} IS NOT NULL {_filtro_rango(variable)}
+            GROUP BY estacion_id
+            HAVING COUNT(DISTINCT fecha) > 0
+        """, (ids_estaciones, fecha.year, fecha.month))
+        por_estacion = {r['estacion_id']: r for r in cur.fetchall()}
+        con_dato = [e for e in estaciones if e['id'] in por_estacion]
+        if not con_dato:
+            return None, None, None, None
+        e = min(con_dato, key=lambda e: e['_dist'])
+        r = por_estacion[e['id']]
+        return e, float(r['total']), None, r['n']
+    else:
+        # Agrega por día (las estaciones AUTOMATICA registran por hora) y
+        # toma, por estación, el día más cercano a la fecha del evento.
+        agg = _AGREGACION[variable]
+        cur.execute(f"""
+            SELECT estacion_id, fecha, {agg}({variable}) AS valor FROM registros_meteorologicos
+            WHERE estacion_id = ANY(%s) AND fecha BETWEEN %s AND %s
+                  AND {variable} IS NOT NULL {_filtro_rango(variable)}
+            GROUP BY estacion_id, fecha
+        """, (ids_estaciones, fecha - timedelta(days=2), fecha + timedelta(days=2)))
+        filas = cur.fetchall()
+        mejor_por_estacion = {}
+        for fila in filas:
+            eid = fila['estacion_id']
+            dist_dias = abs((fila['fecha'] - fecha).days)
+            actual = mejor_por_estacion.get(eid)
+            if actual is None or dist_dias < actual[0]:
+                mejor_por_estacion[eid] = (dist_dias, fila)
+        con_dato = [e for e in estaciones if e['id'] in mejor_por_estacion]
+        if not con_dato:
+            return None, None, None, None
+        e = min(con_dato, key=lambda e: e['_dist'])
+        fila = mejor_por_estacion[e['id']][1]
+        return e, float(fila['valor']), fila['fecha'], None
 
 
 def _verificar_punto(evento_id, fecha, lat, lon, severidad, con_detalle_meteo=False):
@@ -596,3 +623,306 @@ def api_verificar_lote():
             resultados.append({'referencia': referencia, 'error': str(e)})
 
     return jsonify({'total': len(resultados), 'resultados': resultados})
+
+
+# ============================================================================
+# PERFIL INSPECTOR — cola de siniestros reportados por agricultores (/siniestro/
+# reportar), verificación caso por caso reusando el mismo motor de triple
+# cruce (_verificar_punto), cruce con la tabla clientes por DNI, siniestros
+# cercanos, y PDF de reporte.
+# ============================================================================
+
+# El agricultor elige el evento en español/con mayúscula (ver
+# routes/siniestros_agricultor.py::EVENTOS_VALIDOS); EVENTOS (arriba) usa
+# claves en minúscula para el motor de verificación. "Otro" no tiene capa de
+# riesgo asociada — no se puede auto-verificar, el inspector decide a mano.
+MAPA_EVENTO_SINIESTRO = {
+    'Inundación': 'inundacion',
+    'Huayco': 'huayco',
+    'Sequía': 'sequia',
+    'Helada': 'helada',
+    'Friaje': 'friaje',
+    'Viento Fuerte': 'viento',
+    'Incendio Forestal': 'incendios',
+    'Otro': None,
+}
+
+RADIO_CERCANOS_KM = 5
+
+
+def _cliente_por_dni(dni):
+    """Cruza el DNI del siniestro contra la tabla clientes: vigencia de
+    póliza, cultivo, hectáreas, etc. — para que el inspector vea si quien
+    reportó es realmente un cliente asegurado, y si lo que reportó cuadra."""
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        SELECT c.dni_ruc, c.nombre, c.apellido, c.departamento, c.provincia, c.distrito,
+               c.hectareas, c.monto_asegurado, c.estado, e.nombre AS entidad_nombre,
+               tc.nombre AS cultivo_nombre
+        FROM clientes c
+        LEFT JOIN entidades e ON e.id = c.entidad_id
+        LEFT JOIN tabla_cultivos tc ON tc.id = c.cultivo_id
+        WHERE c.dni_ruc = %s
+    """, (dni,))
+    row = cur.fetchone()
+    cur.close(); conn.close()
+    if not row:
+        return None
+    row['vigente'] = (row.get('estado') == 'activo')
+    return row
+
+
+def _siniestros_cercanos(siniestro_id, lat, lon, radio_km=RADIO_CERCANOS_KM):
+    """Otros siniestros dentro de radio_km — le sirve al inspector para ver
+    si hay un patrón (varios reclamos del mismo evento en la misma zona) o
+    una señal rara (un reclamo aislado lejos de todo lo demás)."""
+    if lat is None or lon is None:
+        return []
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    # Caja de +-1 grado (~110km) como pre-filtro barato antes del haversine exacto.
+    cur.execute("""
+        SELECT id, dni, nombre_completo, cultivo_afectado, evento, fecha_evento,
+               latitud, longitud, estado
+        FROM siniestros_agricultor
+        WHERE id != %s AND latitud IS NOT NULL AND longitud IS NOT NULL
+          AND latitud BETWEEN %s - 1 AND %s + 1
+          AND longitud BETWEEN %s - 1 AND %s + 1
+    """, (siniestro_id, lat, lat, lon, lon))
+    candidatos = cur.fetchall()
+    cur.close(); conn.close()
+
+    cercanos = []
+    for c in candidatos:
+        dist = _haversine_km(lat, lon, float(c['latitud']), float(c['longitud']))
+        if dist <= radio_km:
+            c['distancia_km'] = round(dist, 1)
+            c['fecha_evento'] = c['fecha_evento'].isoformat()
+            c['latitud'] = float(c['latitud'])
+            c['longitud'] = float(c['longitud'])
+            cercanos.append(c)
+    cercanos.sort(key=lambda c: c['distancia_km'])
+    return cercanos
+
+
+def _obtener_siniestro(siniestro_id):
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM siniestros_agricultor WHERE id = %s", (siniestro_id,))
+    siniestro = cur.fetchone()
+    if not siniestro:
+        cur.close(); conn.close()
+        return None
+    cur.execute("""
+        SELECT id, url_drive, latitud, longitud, subido_en
+        FROM siniestros_agricultor_fotos WHERE siniestro_id = %s ORDER BY id
+    """, (siniestro_id,))
+    fotos = cur.fetchall()
+    cur.close(); conn.close()
+    return siniestro, fotos
+
+
+@evaluacion_riesgo_bp.route('/siniestros', methods=['GET'])
+@login_required
+def siniestros_lista():
+    return render_template('inspector_siniestros.html')
+
+
+@evaluacion_riesgo_bp.route('/siniestros/<int:siniestro_id>', methods=['GET'])
+@login_required
+def siniestros_detalle(siniestro_id):
+    return render_template('inspector_siniestro_detalle.html', siniestro_id=siniestro_id)
+
+
+@evaluacion_riesgo_bp.route('/api/siniestros', methods=['GET'])
+@login_required
+def api_siniestros_lista():
+    estado = request.args.get('estado', '').strip()
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    condiciones, params = [], []
+    if estado:
+        condiciones.append('estado = %s')
+        params.append(estado)
+    where = f"WHERE {' AND '.join(condiciones)}" if condiciones else ''
+    cur.execute(f"""
+        SELECT s.id, s.dni, s.nombre_completo, s.cultivo_afectado, s.alcance_dano,
+               s.evento, s.fecha_evento, s.estado, s.creado_en,
+               (SELECT count(*) FROM siniestros_agricultor_fotos f WHERE f.siniestro_id = s.id) AS total_fotos
+        FROM siniestros_agricultor s
+        {where}
+        ORDER BY s.creado_en DESC
+    """, params)
+    filas = cur.fetchall()
+    cur.close(); conn.close()
+    for f in filas:
+        f['fecha_evento'] = f['fecha_evento'].isoformat()
+        f['creado_en'] = f['creado_en'].isoformat()
+    return jsonify({'total': len(filas), 'siniestros': filas})
+
+
+@evaluacion_riesgo_bp.route('/api/siniestros/<int:siniestro_id>', methods=['GET'])
+@login_required
+def api_siniestro_detalle(siniestro_id):
+    datos = _obtener_siniestro(siniestro_id)
+    if not datos:
+        return jsonify({'error': 'Siniestro no encontrado'}), 404
+    siniestro, fotos = datos
+
+    resultado = dict(siniestro)
+    resultado['fecha_evento'] = siniestro['fecha_evento'].isoformat()
+    resultado['creado_en'] = siniestro['creado_en'].isoformat()
+    resultado['evaluado_en'] = siniestro['evaluado_en'].isoformat() if siniestro['evaluado_en'] else None
+    resultado['latitud'] = float(siniestro['latitud']) if siniestro['latitud'] is not None else None
+    resultado['longitud'] = float(siniestro['longitud']) if siniestro['longitud'] is not None else None
+    resultado['fotos'] = [
+        {'id': f['id'], 'url_drive': f['url_drive'], 'subido_en': f['subido_en'].isoformat()}
+        for f in fotos
+    ]
+
+    resultado['cliente'] = _cliente_por_dni(siniestro['dni'])
+    resultado['cercanos'] = _siniestros_cercanos(siniestro_id, resultado['latitud'], resultado['longitud'])
+
+    evento_id = MAPA_EVENTO_SINIESTRO.get(siniestro['evento'])
+    if evento_id and resultado['latitud'] is not None:
+        try:
+            # con_detalle_meteo=False: la vista de caso no grafica la serie
+            # diaria/promedios mensuales, solo el resumen — pedirlo completo
+            # fue lo que hacía tardar ~2-3 min por caso (consulta pesada
+            # sobre registros_meteorologicos sin necesidad real).
+            resultado['verificacion'] = _verificar_punto(
+                evento_id, siniestro['fecha_evento'], resultado['latitud'], resultado['longitud'],
+                90, con_detalle_meteo=False)
+        except Exception as e:
+            logger.error('Error verificando siniestro %s: %s', siniestro_id, str(e))
+            resultado['verificacion'] = {'error': str(e)}
+    else:
+        resultado['verificacion'] = None  # "Otro" o sin ubicación: no se puede auto-verificar
+
+    return jsonify(resultado)
+
+
+@evaluacion_riesgo_bp.route('/api/siniestros/<int:siniestro_id>/evaluar', methods=['POST'])
+@login_required
+def api_siniestro_evaluar(siniestro_id):
+    data = request.get_json(force=True, silent=True) or {}
+    estado = data.get('estado', '').strip()
+    comentario = data.get('comentario', '').strip() or None
+
+    if estado not in ('Verificado', 'Rechazado', 'Pendiente'):
+        return jsonify({'error': 'Estado inválido'}), 400
+
+    from flask_login import current_user
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        UPDATE siniestros_agricultor
+        SET estado = %s, comentario_inspector = %s, evaluado_por = %s, evaluado_en = now()
+        WHERE id = %s
+    """, (estado, comentario, current_user.username, siniestro_id))
+    if cur.rowcount == 0:
+        conn.rollback(); cur.close(); conn.close()
+        return jsonify({'error': 'Siniestro no encontrado'}), 404
+    conn.commit()
+    cur.close(); conn.close()
+    return jsonify({'status': 'ok'})
+
+
+@evaluacion_riesgo_bp.route('/siniestros/<int:siniestro_id>/pdf', methods=['GET'])
+@login_required
+def siniestro_pdf(siniestro_id):
+    from io import BytesIO
+    from flask import send_file
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import cm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+    datos = _obtener_siniestro(siniestro_id)
+    if not datos:
+        return jsonify({'error': 'Siniestro no encontrado'}), 404
+    siniestro, fotos = datos
+
+    cliente = _cliente_por_dni(siniestro['dni'])
+    lat = float(siniestro['latitud']) if siniestro['latitud'] is not None else None
+    lon = float(siniestro['longitud']) if siniestro['longitud'] is not None else None
+    verificacion = None
+    evento_id = MAPA_EVENTO_SINIESTRO.get(siniestro['evento'])
+    if evento_id and lat is not None:
+        try:
+            verificacion = _verificar_punto(evento_id, siniestro['fecha_evento'], lat, lon, 90)
+        except Exception:
+            verificacion = None
+
+    styles = getSampleStyleSheet()
+    titulo = ParagraphStyle('titulo', parent=styles['Heading1'], textColor=colors.HexColor('#039e97'))
+    subt = ParagraphStyle('subt', parent=styles['Heading2'], textColor=colors.HexColor('#2c3e50'), fontSize=12)
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=2*cm, bottomMargin=2*cm)
+    elementos = [
+        Paragraph('Reporte de Siniestro — La Positiva AgroSeguros', titulo),
+        Paragraph(f'Siniestro N° {siniestro_id} &nbsp;&nbsp;|&nbsp;&nbsp; Estado: {siniestro["estado"]}', styles['Normal']),
+        Spacer(1, 0.5*cm),
+        Paragraph('Datos del agricultor', subt),
+        Table([
+            ['DNI', siniestro['dni']],
+            ['Nombre completo', siniestro['nombre_completo']],
+            ['Celular(es)', f"{siniestro['celular1']}" + (f" / {siniestro['celular2']}" if siniestro['celular2'] else '')],
+            ['Correo', siniestro['correo'] or '-'],
+        ], colWidths=[5*cm, 11*cm], style=TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey), ('BACKGROUND', (0,0), (0,-1), colors.whitesmoke)])),
+        Spacer(1, 0.4*cm),
+        Paragraph('Evento reportado', subt),
+        Table([
+            ['Cultivo afectado', siniestro['cultivo_afectado']],
+            ['Alcance del daño', siniestro['alcance_dano']],
+            ['Evento', siniestro['evento']],
+            ['Fecha del evento', siniestro['fecha_evento'].strftime('%d/%m/%Y')],
+            ['Ubicación (lat, lon)', f'{lat}, {lon}' if lat is not None else 'No disponible'],
+            ['Cantidad de fotos', str(len(fotos))],
+        ], colWidths=[5*cm, 11*cm], style=TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey), ('BACKGROUND', (0,0), (0,-1), colors.whitesmoke)])),
+        Spacer(1, 0.4*cm),
+    ]
+
+    elementos.append(Paragraph('Cruce con póliza (tabla clientes)', subt))
+    if cliente:
+        elementos.append(Table([
+            ['¿Es cliente asegurado?', 'Sí'],
+            ['Vigente', 'Sí' if cliente['vigente'] else 'No'],
+            ['Nombre registrado', f"{cliente['nombre']} {cliente['apellido']}"],
+            ['Cultivo registrado', cliente['cultivo_nombre'] or '-'],
+            ['Hectáreas aseguradas', str(cliente['hectareas']) if cliente['hectareas'] else '-'],
+            ['Suma asegurada', f"S/ {cliente['monto_asegurado']}" if cliente['monto_asegurado'] else '-'],
+            ['Entidad financiera', cliente['entidad_nombre'] or '-'],
+        ], colWidths=[5*cm, 11*cm], style=TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey), ('BACKGROUND', (0,0), (0,-1), colors.whitesmoke)])))
+    else:
+        elementos.append(Paragraph('⚠️ El DNI no se encuentra en la base de clientes asegurados.', styles['Normal']))
+    elementos.append(Spacer(1, 0.4*cm))
+
+    elementos.append(Paragraph('Verificación automática (capa de riesgo + aviso SENAMHI + estación)', subt))
+    if verificacion and 'error' not in verificacion:
+        elementos.append(Table([
+            ['Veredicto', 'RESPALDADO por datos' if verificacion['veredicto'] else 'NO respaldado por datos'],
+            ['Señales positivas', f"{verificacion['señales_positivas']} de 3"],
+            ['Capa de riesgo', ', '.join(f"{c['label']}: {'Sí, nivel ' + c['nivel'] if c['en_capa'] else 'No expuesto'}" for c in verificacion['capas']) or '-'],
+            ['Aviso SENAMHI vigente', 'Sí' if verificacion['aviso'] else 'No'],
+            ['Estación meteorológica', f"{verificacion['estacion']['estacion']} ({verificacion['estacion']['distancia_km']} km)" if verificacion['estacion'] else 'Sin dato cercano'],
+        ], colWidths=[5*cm, 11*cm], style=TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey), ('BACKGROUND', (0,0), (0,-1), colors.whitesmoke)])))
+    else:
+        elementos.append(Paragraph('No se pudo calcular (evento "Otro" o sin ubicación) — requiere evaluación manual.', styles['Normal']))
+    elementos.append(Spacer(1, 0.4*cm))
+
+    elementos.append(Paragraph('Evaluación del inspector', subt))
+    elementos.append(Table([
+        ['Estado', siniestro['estado']],
+        ['Evaluado por', siniestro['evaluado_por'] or '-'],
+        ['Fecha de evaluación', siniestro['evaluado_en'].strftime('%d/%m/%Y %H:%M') if siniestro['evaluado_en'] else '-'],
+        ['Comentario', siniestro['comentario_inspector'] or '-'],
+    ], colWidths=[5*cm, 11*cm], style=TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey), ('BACKGROUND', (0,0), (0,-1), colors.whitesmoke)])))
+
+    doc.build(elementos)
+    buf.seek(0)
+    return send_file(buf, mimetype='application/pdf', as_attachment=True,
+                      download_name=f'siniestro_{siniestro_id}_reporte.pdf')

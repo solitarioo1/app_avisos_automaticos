@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}Siniestro #{{ siniestro_id }} - Evaluación de Riesgo{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<style>
+    #mapaSiniestro { height: 360px; border-radius: 10px; }
+    .card-seccion { background: #fff; border-radius: 12px; padding: 1.1rem; box-shadow: 0 1px 4px rgba(0,0,0,.06); margin-bottom: 1rem; }
+    .card-seccion h6 { font-weight: 700; color: #039e97; margin-bottom: .8rem; }
+    .fila-dato { display: flex; justify-content: space-between; padding: .3rem 0; border-bottom: 1px solid #f0f0f0; font-size: .9rem; }
+    .fila-dato:last-child { border-bottom: none; }
+    .fila-dato span:first-child { color: #777; }
+    .fotos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px,1fr)); gap: .5rem; }
+    .fotos-grid a { display: block; aspect-ratio: 1; background: #eee; border-radius: 8px; display: flex;
+        align-items: center; justify-content: center; color: #999; text-decoration: none; font-size: .75rem; text-align: center; padding: .3rem; }
+    .senal-ok { color: #198754; } .senal-no { color: #dc3545; }
+    .veredicto-si { background: #d1f5e0; color: #0f5132; }
+    .veredicto-no { background: #f8d7da; color: #842029; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3" id="app" data-id="{{ siniestro_id }}">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0"><i class="bi bi-file-earmark-text"></i> Siniestro #{{ siniestro_id }}</h4>
+        <div>
+            <a href="/evaluacion-riesgo/siniestros" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
+            <a href="/evaluacion-riesgo/siniestros/{{ siniestro_id }}/pdf" class="btn btn-sm btn-outline-danger"><i class="bi bi-file-pdf"></i> Descargar PDF</a>
+        </div>
+    </div>
+
+    <div id="cargando" class="text-center text-muted py-5">Cargando...</div>
+
+    <div id="contenido" style="display:none;">
+        <div class="row">
+            <div class="col-lg-7">
+                <div class="card-seccion">
+                    <h6><i class="bi bi-person"></i> Agricultor</h6>
+                    <div id="datosAgricultor"></div>
+                </div>
+
+                <div class="card-seccion">
+                    <h6><i class="bi bi-cloud-lightning-rain"></i> Evento reportado</h6>
+                    <div id="datosEvento"></div>
+                </div>
+
+                <div class="card-seccion">
+                    <h6><i class="bi bi-shield-check"></i> Cruce con póliza</h6>
+                    <div id="datosCliente"></div>
+                </div>
+
+                <div class="card-seccion">
+                    <h6><i class="bi bi-camera"></i> Fotos</h6>
+                    <div class="fotos-grid" id="fotosGrid"></div>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="card-seccion">
+                    <h6><i class="bi bi-geo-alt"></i> Ubicación y siniestros cercanos</h6>
+                    <div id="mapaSiniestro"></div>
+                    <div class="small text-muted mt-2">
+                        <span style="color:#dc3545;">●</span> Verificado (indemnizado) &nbsp;
+                        <span style="color:#6c757d;">●</span> Rechazado &nbsp;
+                        <span style="color:#ffc107;">●</span> Pendiente
+                    </div>
+                    <div id="cercanosLista" class="mt-2 small"></div>
+                </div>
+
+                <div class="card-seccion">
+                    <h6><i class="bi bi-clipboard-data"></i> Verificación automática</h6>
+                    <div id="verificacion"></div>
+                </div>
+
+                <div class="card-seccion">
+                    <h6><i class="bi bi-pencil-square"></i> Evaluación del Inspector</h6>
+                    <div class="mb-2">
+                        <label class="form-label small">Estado</label>
+                        <select id="selEstado" class="form-select form-select-sm">
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="Verificado">Verificado</option>
+                            <option value="Rechazado">Rechazado</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Comentario</label>
+                        <textarea id="txtComentario" class="form-control form-control-sm" rows="3"></textarea>
+                    </div>
+                    <button class="btn btn-sm btn-success w-100" onclick="guardarEvaluacion()">
+                        <i class="bi bi-check-lg"></i> Guardar evaluación
+                    </button>
+                    <div id="evaluacionInfo" class="small text-muted mt-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const siniestroId = document.getElementById('app').dataset.id;
+let mapa = null;
+
+function fila(label, valor) {
+    return `<div class="fila-dato"><span>${label}</span><strong>${valor ?? '-'}</strong></div>`;
+}
+
+fetch(`/evaluacion-riesgo/api/siniestros/${siniestroId}`)
+    .then(r => r.json())
+    .then(d => {
+        document.getElementById('cargando').style.display = 'none';
+        document.getElementById('contenido').style.display = 'block';
+
+        document.getElementById('datosAgricultor').innerHTML =
+            fila('DNI', d.dni) + fila('Nombre completo', d.nombre_completo) +
+            fila('Celular principal', d.celular1) + fila('Celular secundario', d.celular2) +
+            fila('Correo', d.correo);
+
+        document.getElementById('datosEvento').innerHTML =
+            fila('Cultivo afectado', d.cultivo_afectado) + fila('Alcance del daño', d.alcance_dano) +
+            fila('Evento', d.evento) + fila('Fecha del evento', new Date(d.fecha_evento + 'T00:00:00').toLocaleDateString('es-PE')) +
+            fila('Reportado el', new Date(d.creado_en).toLocaleString('es-PE'));
+
+        if (d.cliente) {
+            document.getElementById('datosCliente').innerHTML =
+                fila('¿Cliente asegurado?', '<span class="senal-ok">Sí</span>') +
+                fila('Vigente', d.cliente.vigente ? '<span class="senal-ok">Sí</span>' : '<span class="senal-no">No</span>') +
+                fila('Nombre registrado', `${d.cliente.nombre} ${d.cliente.apellido}`) +
+                fila('Cultivo registrado', d.cliente.cultivo_nombre) +
+                fila('Hectáreas aseguradas', d.cliente.hectareas) +
+                fila('Suma asegurada', d.cliente.monto_asegurado ? 'S/ ' + d.cliente.monto_asegurado : '-') +
+                fila('Entidad financiera', d.cliente.entidad_nombre);
+        } else {
+            document.getElementById('datosCliente').innerHTML =
+                '<div class="alert alert-warning py-2 mb-0 small">⚠️ Este DNI no está en la base de clientes asegurados.</div>';
+        }
+
+        document.getElementById('fotosGrid').innerHTML = d.fotos.length
+            ? d.fotos.map(f => f.url_drive
+                ? `<a href="${f.url_drive}" target="_blank"><i class="bi bi-image" style="font-size:1.5rem;"></i></a>`
+                : `<a href="#" class="text-warning">⏳ Subiendo...</a>`).join('')
+            : '<span class="text-muted small">Sin fotos</span>';
+
+        // Mapa
+        mapa = L.map('mapaSiniestro');
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(mapa);
+        if (d.latitud != null) {
+            mapa.setView([d.latitud, d.longitud], 12);
+            L.marker([d.latitud, d.longitud]).addTo(mapa).bindPopup(`Siniestro #${siniestroId}`);
+            const colorEstado = { 'Verificado': '#dc3545', 'Rechazado': '#6c757d', 'Pendiente': '#ffc107' };
+            d.cercanos.forEach(c => {
+                const color = colorEstado[c.estado] || '#fc6c44';
+                L.circleMarker([c.latitud, c.longitud], { radius: 7, color, fillColor: color, fillOpacity: .8 })
+                    .addTo(mapa).bindPopup(`#${c.id} — ${c.evento}<br>${c.estado} · ${c.distancia_km} km`);
+            });
+        } else {
+            mapa.setView([-9.19, -75.02], 5);
+        }
+
+        document.getElementById('cercanosLista').innerHTML = d.cercanos.length
+            ? `<strong>${d.cercanos.length} siniestro(s) cercano(s) (≤5km):</strong><br>` +
+              d.cercanos.map(c => `<a href="/evaluacion-riesgo/siniestros/${c.id}">#${c.id}</a> ${c.evento} — ${c.distancia_km}km`).join('<br>')
+            : '<span class="text-muted">Sin otros siniestros cerca</span>';
+
+        // Verificación
+        if (d.verificacion && !d.verificacion.error) {
+            const v = d.verificacion;
+            document.getElementById('verificacion').innerHTML = `
+                <div class="p-2 rounded mb-2 text-center fw-bold ${v.veredicto ? 'veredicto-si' : 'veredicto-no'}">
+                    ${v.veredicto ? '✓ RESPALDADO por los datos' : '✗ NO respaldado por los datos'}
+                    <div class="small fw-normal">${v.señales_positivas} de 3 señales positivas</div>
+                </div>
+                ${fila('Capa de riesgo', v.capas.map(c => `${c.label}: ${c.en_capa ? 'Sí (' + c.nivel + ')' : 'No'}`).join(', ') || '-')}
+                ${fila('Aviso SENAMHI', v.aviso ? 'Sí' : 'No')}
+                ${v.estacion ? fila('Estación (' + v.estacion.distancia_km + 'km)', v.estacion.valor + ' ' + v.unidad + (v.estacion.supera_percentil ? ' (supera percentil)' : '')) : fila('Estación', 'Sin dato cercano')}
+            `;
+        } else {
+            document.getElementById('verificacion').innerHTML =
+                '<div class="text-muted small">No se puede auto-verificar (evento "Otro" o sin ubicación GPS) — evalúa manualmente con las fotos.</div>';
+        }
+
+        document.getElementById('selEstado').value = d.estado;
+        document.getElementById('txtComentario').value = d.comentario_inspector || '';
+        if (d.evaluado_por) {
+            document.getElementById('evaluacionInfo').textContent = `Última evaluación: ${d.evaluado_por}, ${new Date(d.evaluado_en).toLocaleString('es-PE')}`;
+        }
+    });
+
+function guardarEvaluacion() {
+    const estado = document.getElementById('selEstado').value;
+    const comentario = document.getElementById('txtComentario').value;
+    fetch(`/evaluacion-riesgo/api/siniestros/${siniestroId}/evaluar`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado, comentario })
+    }).then(r => r.json()).then(d => {
+        if (d.status === 'ok') { alert('Evaluación guardada'); location.reload(); }
+        else alert('Error: ' + (d.error || 'desconocido'));
+    });
+}
+</script>
+{% endblock %}

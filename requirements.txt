@@ -10,6 +10,7 @@ mapclassify
 pyproj
 flask
 flask-login
+flask-compress
 gunicorn
 python-dotenv
 requests
@@ -19,3 +20,5 @@ pandas
 openpyxl
 gspread
 google-auth
+reportlab
+pytesseract

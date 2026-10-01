@@ -156,3 +156,5 @@ SINIESTROS/*.xlsx
 # Imágenes generadas para presentaciones puntuales (mapas de calor/burbujas) —
 # no son código del proyecto, se regeneran con CONFIG/generar_mapas_presentacion.py
 CONFIG/salidas_presentacion/
+# Archivos fuera del proyecto (no son de la web)
+FUERA_PROYECTO/

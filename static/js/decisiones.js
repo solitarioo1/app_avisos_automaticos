@@ -248,6 +248,7 @@ function cambiarNivelesCapaRiesgo() {
     if (!capaRiesgoActiva) return;
     activarKPIsPorCapa(capaRiesgoActiva);
     cargarCapaRiesgoEnMapa(capaRiesgoActiva);
+    cargarPoligonoCapaRiesgo(capaRiesgoActiva);  // recarga la "mancha" para el depto elegido (o la quita si no hay depto)
     actualizarTablaZonasPorCapa(capaRiesgoActiva);
     actualizarTablaEntidadesPorCapa(capaRiesgoActiva);
     actualizarTablaCultivosPorCapa(capaRiesgoActiva);
@@ -316,11 +317,14 @@ function cargarPoligonoCapaRiesgo(nombre) {
         mapa.removeLayer(capasRiesgoPoligonos[nombre]);
         delete capasRiesgoPoligonos[nombre];
     }
-    fetch(`/api/capas-riesgo/${nombre}/geometria`)
+    // Sin departamento elegido no se pide geometría — mandar la capa completa
+    // (todo el Perú) de una sola vez reventaba el servidor/navegador.
+    if (!filtroActual.depto) return;
+    fetch(`/api/capas-riesgo/${nombre}/geometria?depto=${encodeURIComponent(filtroActual.depto)}`)
         .then(r => r.json())
         .then(geojson => {
             if (modoPanel !== 'capas' || capaRiesgoActiva !== nombre) return;  // llegó tarde
-            if (geojson.error || !geojson.features) return;
+            if (geojson.error || !geojson.features || !geojson.features.length) return;
             const layer = L.geoJSON(geojson, {
                 style: (feature) => ({
                     fillColor: feature.properties.color_display || '#999',
