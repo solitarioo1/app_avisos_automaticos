@@ -4,8 +4,12 @@
 
 {% block head %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
     #mapaSiniestro { height: 360px; border-radius: 10px; }
+    #capaSelectorWrap { display: flex; gap: .4rem; margin-bottom: .5rem; }
+    .exposicion-row { display: flex; justify-content: space-between; padding: .25rem 0; font-size: .85rem; border-bottom: 1px solid #f5f5f5; }
+    .nivel-chip { font-size: .72rem; font-weight: 700; padding: 1px 8px; border-radius: 8px; color: #fff; }
     .card-seccion { background: #fff; border-radius: 12px; padding: 1.1rem; box-shadow: 0 1px 4px rgba(0,0,0,.06); margin-bottom: 1rem; }
     .card-seccion h6 { font-weight: 700; color: #039e97; margin-bottom: .8rem; }
     .fila-dato { display: flex; justify-content: space-between; padding: .3rem 0; border-bottom: 1px solid #f0f0f0; font-size: .9rem; }
@@ -58,7 +62,12 @@
 
             <div class="col-lg-5">
                 <div class="card-seccion">
-                    <h6><i class="bi bi-geo-alt"></i> Ubicación y siniestros cercanos</h6>
+                    <h6><i class="bi bi-geo-alt"></i> Ubicación, siniestros cercanos y estaciones</h6>
+                    <div id="capaSelectorWrap">
+                        <select id="selCapaMapa" class="form-select form-select-sm">
+                            <option value="">-- Sin capa de riesgo --</option>
+                        </select>
+                    </div>
                     <div id="mapaSiniestro"></div>
                     <div class="small text-muted mt-2">
                         <span style="color:#dc3545;">●</span> Verificado (indemnizado) &nbsp;
@@ -69,8 +78,14 @@
                 </div>
 
                 <div class="card-seccion">
+                    <h6><i class="bi bi-layers"></i> Exposición precalculada del cliente</h6>
+                    <div id="exposicionPrecalculada"></div>
+                </div>
+
+                <div class="card-seccion">
                     <h6><i class="bi bi-clipboard-data"></i> Verificación automática</h6>
                     <div id="verificacion"></div>
+                    <canvas id="graficaEstacion" height="160" class="mt-2" style="display:none;"></canvas>
                 </div>
 
                 <div class="card-seccion">
@@ -122,18 +137,40 @@ fetch(`/evaluacion-riesgo/api/siniestros/${siniestroId}`)
             fila('Evento', d.evento) + fila('Fecha del evento', new Date(d.fecha_evento + 'T00:00:00').toLocaleDateString('es-PE')) +
             fila('Reportado el', new Date(d.creado_en).toLocaleString('es-PE'));
 
+        const fFecha = (s) => s ? new Date(s + 'T00:00:00').toLocaleDateString('es-PE') : '-';
         if (d.cliente) {
+            const c = d.cliente;
             document.getElementById('datosCliente').innerHTML =
                 fila('¿Cliente asegurado?', '<span class="senal-ok">Sí</span>') +
-                fila('Vigente', d.cliente.vigente ? '<span class="senal-ok">Sí</span>' : '<span class="senal-no">No</span>') +
-                fila('Nombre registrado', `${d.cliente.nombre} ${d.cliente.apellido}`) +
-                fila('Cultivo registrado', d.cliente.cultivo_nombre) +
-                fila('Hectáreas aseguradas', d.cliente.hectareas) +
-                fila('Suma asegurada', d.cliente.monto_asegurado ? 'S/ ' + d.cliente.monto_asegurado : '-') +
-                fila('Entidad financiera', d.cliente.entidad_nombre);
+                fila('Vigente', c.vigente ? '<span class="senal-ok">Sí</span>' : '<span class="senal-no">No</span>') +
+                fila('Nombre registrado', `${c.nombre} ${c.apellido}`) +
+                fila('Teléfono registrado', c.telefono) +
+                fila('Entidad financiera', c.entidad_nombre) +
+                fila('Cultivo / Variedad', [c.cultivo_nombre, c.variedad].filter(Boolean).join(' / ')) +
+                fila('Siembra → Cosecha', `${fFecha(c.fecha_siembra)} → ${fFecha(c.fecha_cosecha)}`) +
+                fila('Vigencia póliza', `${fFecha(c.mes_inicio_vigencia)} → ${fFecha(c.mes_fin_vigencia)}`) +
+                fila('Hectáreas (total / aseguradas)', `${c.hectareas ?? '-'} / ${c.area_asegurada ?? '-'}`) +
+                fila('Suma asegurada', c.monto_asegurado ? 'S/ ' + c.monto_asegurado : '-') +
+                fila('Prima neta', c.prima_neta ? 'S/ ' + c.prima_neta : '-') +
+                fila('Tasa reaseguro', c.tasa_reaseguro ? (c.tasa_reaseguro * 100).toFixed(2) + '%' : '-');
         } else {
             document.getElementById('datosCliente').innerHTML =
                 '<div class="alert alert-warning py-2 mb-0 small">⚠️ Este DNI no está en la base de clientes asegurados.</div>';
+        }
+
+        // Exposición ya precalculada del cliente (botón "Actualizar Cruce" de Mapa Clientes)
+        const colorNivel = { 'Muy Alto': '#c0392b', 'Alto': '#e67e22', 'Medio': '#f1c40f', 'Bajo': '#2ecc71' };
+        if (d.cliente && d.cliente.exposicion_precalculada && Object.keys(d.cliente.exposicion_precalculada).length) {
+            document.getElementById('exposicionPrecalculada').innerHTML =
+                Object.entries(d.cliente.exposicion_precalculada).map(([capa, nivel]) => `
+                    <div class="exposicion-row">
+                        <span>${capa}</span>
+                        <span class="nivel-chip" style="background:${colorNivel[nivel] || '#999'};">${nivel || '-'}</span>
+                    </div>
+                `).join('');
+        } else {
+            document.getElementById('exposicionPrecalculada').innerHTML =
+                '<span class="text-muted small">Sin cliente asegurado o sin cruce calculado todavía ("Actualizar Cruce" en Mapa Clientes).</span>';
         }
 
         document.getElementById('fotosGrid').innerHTML = d.fotos.length
@@ -158,6 +195,50 @@ fetch(`/evaluacion-riesgo/api/siniestros/${siniestroId}`)
             mapa.setView([-9.19, -75.02], 5);
         }
 
+        // Estaciones meteorológicas: SIEMPRE visibles (obligatorio, no opcional).
+        fetch('/evaluacion-riesgo/api/estaciones')
+            .then(r => r.json())
+            .then(geo => {
+                (geo.features || []).forEach(f => {
+                    const [lon, lat] = f.geometry.coordinates;
+                    const p = f.properties;
+                    L.circleMarker([lat, lon], {
+                        radius: 4, color: p.tiene_datos ? '#0d6efd' : '#adb5bd',
+                        fillColor: p.tiene_datos ? '#0d6efd' : '#adb5bd', fillOpacity: .6, weight: 1,
+                    }).bindTooltip(`${p.nombre} (${p.codigo})${p.tiene_datos ? '' : ' — sin histórico'}`)
+                      .addTo(mapa);
+                });
+            })
+            .catch(() => {});
+
+        // Selector de capa de riesgo sobre el mapa (recorta por el departamento del siniestro).
+        const departamentoSiniestro = (d.verificacion && d.verificacion.departamento) || '';
+        let capaLayerActual = null;
+        fetch('/api/capas-riesgo/disponibles')
+            .then(r => r.json())
+            .then(capas => {
+                const sel = document.getElementById('selCapaMapa');
+                (capas || []).filter(c => c.disponible).forEach(c => {
+                    const op = document.createElement('option');
+                    op.value = c.id; op.textContent = c.label;
+                    sel.appendChild(op);
+                });
+                sel.addEventListener('change', () => {
+                    if (capaLayerActual) { mapa.removeLayer(capaLayerActual); capaLayerActual = null; }
+                    if (!sel.value || !departamentoSiniestro) return;
+                    fetch(`/api/capas-riesgo/${sel.value}/geometria?depto=${encodeURIComponent(departamentoSiniestro)}`)
+                        .then(r => r.json())
+                        .then(gj => {
+                            if (gj.error || !gj.features || !gj.features.length) return;
+                            capaLayerActual = L.geoJSON(gj, {
+                                style: (f) => ({ fillColor: f.properties.color_display || '#999', fillOpacity: .45, color: '#555', weight: .4 })
+                            }).addTo(mapa);
+                            capaLayerActual.bringToBack();
+                        });
+                });
+            })
+            .catch(() => {});
+
         document.getElementById('cercanosLista').innerHTML = d.cercanos.length
             ? `<strong>${d.cercanos.length} siniestro(s) cercano(s) (≤5km):</strong><br>` +
               d.cercanos.map(c => `<a href="/evaluacion-riesgo/siniestros/${c.id}">#${c.id}</a> ${c.evento} — ${c.distancia_km}km`).join('<br>')
@@ -175,6 +256,7 @@ fetch(`/evaluacion-riesgo/api/siniestros/${siniestroId}`)
                 ${fila('Aviso SENAMHI', v.aviso ? 'Sí' : 'No')}
                 ${v.estacion ? fila('Estación (' + v.estacion.distancia_km + 'km)', v.estacion.valor + ' ' + v.unidad + (v.estacion.supera_percentil ? ' (supera percentil)' : '')) : fila('Estación', 'Sin dato cercano')}
             `;
+            if (v.estacion && v.estacion.grafica) graficarEstacion(v.estacion.grafica);
         } else {
             document.getElementById('verificacion').innerHTML =
                 '<div class="text-muted small">No se puede auto-verificar (evento "Otro" o sin ubicación GPS) — evalúa manualmente con las fotos.</div>';
@@ -186,6 +268,37 @@ fetch(`/evaluacion-riesgo/api/siniestros/${siniestroId}`)
             document.getElementById('evaluacionInfo').textContent = `Última evaluación: ${d.evaluado_por}, ${new Date(d.evaluado_en).toLocaleString('es-PE')}`;
         }
     });
+
+function graficarEstacion(grafica) {
+    const canvas = document.getElementById('graficaEstacion');
+    canvas.style.display = 'block';
+    const meses = (grafica.precipitacion?.mensual || []).map(m => m.mes);
+    const linea = (serie) => (serie?.mensual || []).map(m => m.valor);
+    const lineaPlano = (valor, n) => valor == null ? [] : Array(n).fill(valor);
+
+    new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: meses,
+            datasets: [
+                { type: 'bar', label: 'PP (mm)', data: linea(grafica.precipitacion), backgroundColor: '#1f6feb', yAxisID: 'y' },
+                { type: 'line', label: 'Tmax (°C)', data: linea(grafica.temp_max), borderColor: '#e67e22', yAxisID: 'y1', tension: .3 },
+                { type: 'line', label: 'Tmin (°C)', data: linea(grafica.temp_min), borderColor: '#2980b9', yAxisID: 'y1', tension: .3 },
+                { type: 'line', label: 'PP P90', data: lineaPlano(grafica.precipitacion?.p90, meses.length), borderColor: '#1f6feb', borderDash: [5,5], pointRadius: 0, yAxisID: 'y' },
+                { type: 'line', label: 'PP P95', data: lineaPlano(grafica.precipitacion?.p95, meses.length), borderColor: '#0b3d91', borderDash: [2,2], pointRadius: 0, yAxisID: 'y' },
+            ],
+        },
+        options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { labels: { font: { size: 10 } } } },
+            scales: {
+                y:  { position: 'left',  title: { display: true, text: 'PP (mm)' } },
+                y1: { position: 'right', title: { display: true, text: '°C' }, grid: { drawOnChartArea: false } },
+            },
+        },
+    });
+}
 
 function guardarEvaluacion() {
     const estado = document.getElementById('selEstado').value;

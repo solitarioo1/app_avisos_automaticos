@@ -201,6 +201,28 @@ def _promedios_mensuales(cur, estacion_id, variable, acumulado_mensual):
     return [{'mes': MESES[m], 'valor': valores.get(m)} for m in range(1, 13)]
 
 
+# variable -> (acumulado_mensual, cola para el percentil)
+_VARIABLES_GRAFICA = {
+    'precipitacion': True,
+    'temp_max': False,
+    'temp_min': False,
+}
+
+
+def _grafica_estacion(cur, estacion_id, mes):
+    """PP/Tmax/Tmin mensual de la estación (promedio histórico Ene-Dic) + P90
+    y P95 del mes del evento, para graficar en el detalle del siniestro —
+    pedido explícito del inspector, no solo el resumen de 1 variable."""
+    out = {}
+    for variable, acumulado in _VARIABLES_GRAFICA.items():
+        out[variable] = {
+            'mensual': _promedios_mensuales(cur, estacion_id, variable, acumulado),
+            'p90': _percentil_mensual(cur, estacion_id, variable, mes, 0.90, acumulado),
+            'p95': _percentil_mensual(cur, estacion_id, variable, mes, 0.95, acumulado),
+        }
+    return out
+
+
 def _serie_diaria(cur, estacion_id, variable, anio, mes):
     """Valores día a día de ese mes/año específico (agregados, 1 punto por día),
     para graficar junto al percentil."""
@@ -400,6 +422,9 @@ def _verificar_punto(evento_id, fecha, lat, lon, severidad, con_detalle_meteo=Fa
                     cur, e['id'], variable, evento['acumulado_mensual'])
                 estacion_resultado['serie_diaria'] = _serie_diaria(cur, e['id'], variable, fecha.year, fecha.month)
                 estacion_resultado['dia_evento'] = fecha.day
+                # PP/Tmax/Tmin juntos (no solo la variable del evento) con P90/P95
+                # del mes — pedido explícito para graficar en el detalle del caso.
+                estacion_resultado['grafica'] = _grafica_estacion(cur, e['id'], fecha.month)
 
         cur.close(); conn.close()
     resultado['estacion'] = estacion_resultado
@@ -657,19 +682,34 @@ def _cliente_por_dni(dni):
     conn = get_connection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("""
-        SELECT c.dni_ruc, c.nombre, c.apellido, c.departamento, c.provincia, c.distrito,
-               c.hectareas, c.monto_asegurado, c.estado, e.nombre AS entidad_nombre,
-               tc.nombre AS cultivo_nombre
+        SELECT c.id, c.dni_ruc, c.nombre, c.apellido, c.telefono,
+               c.departamento, c.provincia, c.distrito,
+               c.hectareas, c.area_asegurada, c.monto_asegurado, c.suma_asegurada_tasa,
+               c.variedad, c.fecha_siembra, c.fecha_cosecha,
+               c.mes_inicio_vigencia, c.mes_fin_vigencia, c.tasa_reaseguro, c.prima_neta,
+               c.estado, e.nombre AS entidad_nombre, tc.nombre AS cultivo_nombre
         FROM clientes c
         LEFT JOIN entidades e ON e.id = c.entidad_id
         LEFT JOIN tabla_cultivos tc ON tc.id = c.cultivo_id
         WHERE c.dni_ruc = %s
     """, (dni,))
     row = cur.fetchone()
-    cur.close(); conn.close()
     if not row:
+        cur.close(); conn.close()
         return None
     row['vigente'] = (row.get('estado') == 'activo')
+    for campo in ('fecha_siembra', 'fecha_cosecha', 'mes_inicio_vigencia', 'mes_fin_vigencia'):
+        if row.get(campo):
+            row[campo] = row[campo].isoformat()
+
+    # Exposición YA precalculada del cliente (botón "Actualizar Cruce" en Mapa
+    # Clientes) — no se recalcula de nuevo acá, se reusa lo que ya existe.
+    cur.execute("""
+        SELECT capa, nivel FROM clientes_riesgo_capa WHERE cliente_id = %s
+    """, (row['id'],))
+    row['exposicion_precalculada'] = {r['capa']: r['nivel'] for r in cur.fetchall()}
+
+    cur.close(); conn.close()
     return row
 
 
@@ -787,13 +827,14 @@ def api_siniestro_detalle(siniestro_id):
     evento_id = MAPA_EVENTO_SINIESTRO.get(siniestro['evento'])
     if evento_id and resultado['latitud'] is not None:
         try:
-            # con_detalle_meteo=False: la vista de caso no grafica la serie
-            # diaria/promedios mensuales, solo el resumen — pedirlo completo
-            # fue lo que hacía tardar ~2-3 min por caso (consulta pesada
-            # sobre registros_meteorologicos sin necesidad real).
+            # con_detalle_meteo=True: ahora sí se pide completo (gráfica
+            # mensual PP/Tmax/Tmin + percentil) — antes se evitaba porque la
+            # búsqueda de estación hacía 1 consulta POR estación (lento); eso
+            # ya se arregló (1 sola consulta para todas), así que pedir el
+            # detalle acá ya no cuesta los 2-3 min de antes.
             resultado['verificacion'] = _verificar_punto(
                 evento_id, siniestro['fecha_evento'], resultado['latitud'], resultado['longitud'],
-                90, con_detalle_meteo=False)
+                90, con_detalle_meteo=True)
         except Exception as e:
             logger.error('Error verificando siniestro %s: %s', siniestro_id, str(e))
             resultado['verificacion'] = {'error': str(e)}
