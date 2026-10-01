@@ -144,7 +144,7 @@ fetch(`/evaluacion-riesgo/api/siniestros/${siniestroId}`)
 
         // Mapa
         mapa = L.map('mapaSiniestro');
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(mapa);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>' }).addTo(mapa);
         if (d.latitud != null) {
             mapa.setView([d.latitud, d.longitud], 12);
             L.marker([d.latitud, d.longitud]).addTo(mapa).bindPopup(`Siniestro #${siniestroId}`);

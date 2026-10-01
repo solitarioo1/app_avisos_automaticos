@@ -19,8 +19,8 @@ const MCS_BURBUJA_BORDE = '#0d7377';
 
 document.addEventListener('DOMContentLoaded', () => {
     mcsMapa = L.map('mcs-mapa', { preferCanvas: true }).setView([-9.2, -75.0], 5.5);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap',
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
         maxZoom: 18
     }).addTo(mcsMapa);
 
