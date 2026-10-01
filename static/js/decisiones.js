@@ -10,6 +10,13 @@ let geojsonLayer = null;
 let clientesLayer = null;
 let capasRiesgoPoligonos = {};// nombre -> layer Leaflet de la ZONA de peligro en sí (polígono coloreado)
 let capasRiesgoInfo = {};     // nombre -> {label, color, disponible, ...} desde /disponibles
+
+// Popup al hacer click en un punto de cliente: nombre, apellido, teléfono, cultivo.
+function popupInfoCliente(p) {
+    return `<b>${p.nombre || ''} ${p.apellido || ''}</b><br>` +
+        `Tel: ${p.telefono || '-'}<br>` +
+        `Cultivo: ${p.cultivo || '-'}`;
+}
 let delimitacionesLayers = {};
 let nivelSeleccionado = 'nacional';
 let agregacionesData = {};
@@ -375,13 +382,13 @@ function pintarClientesPorCapa() {
                 radius: 6, fillColor: '#0066FF', color: '#003399',
                 weight: 1.2, opacity: 1, fillOpacity: 0.9
             });
-            layer.bindPopup(`<b>${layer.feature.properties.nombre || ''}</b><br>Nivel: ${nivel || '-'}`);
+            layer.bindPopup(popupInfoCliente(layer.feature.properties) + `<br>Nivel: ${nivel || '-'}`);
         } else {
             pintarMarcadorCliente(layer, {
                 radius: 2, fillColor: '#999999', color: '#777777',
                 weight: 0.3, opacity: 0.3, fillOpacity: 0.2
             });
-            layer.unbindPopup();
+            layer.bindPopup(popupInfoCliente(layer.feature.properties) + '<br>No expuesto a esta capa');
         }
     });
     clientesLayer.bringToFront();
@@ -405,7 +412,7 @@ function restaurarColorClientesBase() {
             radius: 3, fillColor: '#0066FF', color: '#003399',
             weight: 0.5, opacity: 0.8, fillOpacity: 0.6
         });
-        layer.unbindPopup();
+        layer.bindPopup(popupInfoCliente(layer.feature.properties));
     });
 }
 
@@ -616,6 +623,8 @@ function cargarClientesMapa(numero) {
                     marker.on('mouseout', function() {
                         this.setStyle(this._estiloBase || estiloBase);
                     });
+
+                    marker.bindPopup(popupInfoCliente(feature.properties));
 
                     return marker;
                 }

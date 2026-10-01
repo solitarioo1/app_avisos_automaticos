@@ -326,13 +326,15 @@ def api_todos_clientes_geojson():
 
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute("""
-            SELECT c.id, c.nombre, c.apellido, c.dni_ruc,
+            SELECT c.id, c.nombre, c.apellido, c.dni_ruc, c.telefono,
                    c.latitud, c.longitud,
                    c.departamento, c.provincia, c.distrito,
                    c.hectareas, c.monto_asegurado,
-                   c.entidad_id, e.nombre AS entidad_nombre
+                   c.entidad_id, e.nombre AS entidad_nombre,
+                   tc.nombre AS cultivo_nombre
             FROM clientes c
             LEFT JOIN entidades e ON e.id = c.entidad_id
+            LEFT JOIN tabla_cultivos tc ON tc.id = c.cultivo_id
             WHERE c.latitud IS NOT NULL
               AND c.longitud IS NOT NULL
               AND c.estado = 'activo'
@@ -351,8 +353,11 @@ def api_todos_clientes_geojson():
                 },
                 'properties': {
                     'id':             r['id'],  # para cruzar contra clientes-geojson por capa y pintar azul/plomo
-                    'nombre':         f"{r.get('nombre','')} {r.get('apellido','')}",
+                    'nombre':         r.get('nombre', ''),
+                    'apellido':       r.get('apellido', ''),
                     'dni_ruc':        r.get('dni_ruc', ''),
+                    'telefono':       r.get('telefono', ''),
+                    'cultivo':        r.get('cultivo_nombre', ''),
                     'departamento':   r.get('departamento', ''),
                     'provincia':      r.get('provincia', ''),
                     'distrito':       r.get('distrito', ''),
