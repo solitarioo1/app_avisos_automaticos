@@ -335,6 +335,7 @@ def api_todos_clientes_geojson():
             LEFT JOIN entidades e ON e.id = c.entidad_id
             WHERE c.latitud IS NOT NULL
               AND c.longitud IS NOT NULL
+              AND c.estado = 'activo'
         """)
         rows = cursor.fetchall()
         cursor.close()
@@ -582,6 +583,7 @@ def get_kpis_entidades(numero):
             JOIN (
                 SELECT entidad_id, COUNT(*) AS total_clientes_entidad
                 FROM clientes
+                WHERE estado = 'activo'
                 GROUP BY entidad_id
             ) tot ON tot.entidad_id = afc.entidad_id
             ORDER BY afc.agricultores_afectados DESC
@@ -656,6 +658,7 @@ def get_kpis_cultivos(numero):
             JOIN (
                 SELECT cultivo_id, COUNT(*) AS total_cultivo
                 FROM clientes
+                WHERE estado = 'activo'
                 GROUP BY cultivo_id
             ) tot ON tot.cultivo_id = afc.cultivo_id
             JOIN (
@@ -766,6 +769,7 @@ def get_kpis(numero):
                 COALESCE(SUM(hectareas),       0) AS total_hectareas,
                 COALESCE(SUM(monto_asegurado), 0) AS total_poliza
             FROM clientes
+            WHERE estado = 'activo'
         """)
         totales_bd = cursor.fetchone()
 

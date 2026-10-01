@@ -168,6 +168,7 @@ def _cargar_clientes_gdf():
         SELECT c.id, c.latitud, c.longitud
         FROM clientes c
         WHERE c.latitud IS NOT NULL AND c.longitud IS NOT NULL
+          AND c.estado = 'activo'
     """)
     rows = cur.fetchall()
     cols = [d[0] for d in cur.description]
@@ -322,6 +323,7 @@ def api_kpis_por_capa(nombre):
         cur.execute("""
             SELECT COUNT(*) AS total, COALESCE(SUM(hectareas), 0) AS ha, COALESCE(SUM(monto_asegurado), 0) AS monto
             FROM clientes
+            WHERE estado = 'activo'
         """)
         totales = cur.fetchone()
 
@@ -719,7 +721,7 @@ def api_entidades_por_capa(nombre):
             ) afc
             JOIN (
                 SELECT entidad_id, COUNT(*) AS total_clientes_entidad
-                FROM clientes GROUP BY entidad_id
+                FROM clientes WHERE estado = 'activo' GROUP BY entidad_id
             ) tot ON tot.entidad_id = afc.entidad_id
             ORDER BY afc.agricultores_afectados DESC
         """, params)
@@ -775,7 +777,7 @@ def api_cultivos_por_capa(nombre):
             ) afc
             JOIN (
                 SELECT cultivo_id, COUNT(*) AS total_cultivo
-                FROM clientes GROUP BY cultivo_id
+                FROM clientes WHERE estado = 'activo' GROUP BY cultivo_id
             ) tot ON tot.cultivo_id = afc.cultivo_id
             LEFT JOIN (
                 SELECT c.cultivo_id,
