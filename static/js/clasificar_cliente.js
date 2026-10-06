@@ -62,14 +62,76 @@ function ccInicializarMapa() {
     fetch('/api/delimitaciones/departamentos')
         .then(r => r.json())
         .then(geojson => {
-            L.geoJSON(geojson, {
+            ccCapaDepartamentos = L.geoJSON(geojson, {
                 style: { fillColor: 'transparent', fillOpacity: 0, color: '#333', weight: 1.5, opacity: .8 },
             }).addTo(ccMapa);
+            ccCapaDepartamentos._esDelimitacion = true;
         })
         .catch(() => {});
 
+    ccMapa.on('zoomend', ccActualizarNivelDelimitacion);
     setTimeout(() => ccMapa.invalidateSize(), 200);
     return ccMapa;
+}
+
+// ── Departamento -> Provincia -> Distrito según el zoom (automático). Cada
+// nivel se pide recortado por departamento (precisión completa, sin
+// simplificar, rápido) — nunca el país entero, ver mapas_shp.py. Se cachea
+// por departamento para no volver a pedirlo al hacer zoom in/out repetido. ──
+const CC_ZOOM_PROVINCIA = 9;
+const CC_ZOOM_DISTRITO = 12;
+let ccCapaDepartamentos = null;
+let ccCapaProvincias = null;
+let ccCapaDistritos = null;
+let ccProvinciasCache = {};  // depto -> geojson
+let ccDistritosCache = {};   // depto -> geojson
+
+function ccDeptosDeResultados() {
+    const deptos = new Set();
+    ccResultadosActuales.forEach(r => { const d = r.ubicacion && r.ubicacion.departamento; if (d) deptos.add(d); });
+    return [...deptos];
+}
+
+function ccActualizarNivelDelimitacion() {
+    if (!ccMapa) return;
+    const zoom = ccMapa.getZoom();
+    const nivel = zoom >= CC_ZOOM_DISTRITO ? 'distrito' : zoom >= CC_ZOOM_PROVINCIA ? 'provincia' : 'departamento';
+
+    if (ccCapaDepartamentos) {
+        if (nivel === 'departamento') ccCapaDepartamentos.addTo(ccMapa); else ccMapa.removeLayer(ccCapaDepartamentos);
+    }
+    if (ccCapaProvincias) ccMapa.removeLayer(ccCapaProvincias);
+    if (ccCapaDistritos) ccMapa.removeLayer(ccCapaDistritos);
+    if (nivel === 'departamento') return;
+
+    const deptos = ccDeptosDeResultados();
+    if (!deptos.length) return;  // sin resultados todavia no hay a que departamento recortar
+
+    const cache = nivel === 'provincia' ? ccProvinciasCache : ccDistritosCache;
+    const endpoint = nivel === 'provincia' ? 'provincias' : 'distritos';
+    const faltantes = deptos.filter(d => !cache[d]);
+
+    const pintar = () => {
+        const features = deptos.flatMap(d => (cache[d] && cache[d].features) || []);
+        const layer = L.geoJSON({ type: 'FeatureCollection', features }, {
+            style: { fillColor: 'transparent', fillOpacity: 0, color: '#777', weight: 1, opacity: .7 },
+            // Hover = resalta ese polígono con color (más simple y claro que un
+            // tooltip fijo que puede quedar mal posicionado/recortado).
+            onEachFeature: (f, l) => {
+                l.on('mouseover', () => l.setStyle({ color: '#fc6c44', weight: 2, fillColor: '#fc6c44', fillOpacity: .15 }));
+                l.on('mouseout', () => l.setStyle({ color: '#777', weight: 1, fillOpacity: 0 }));
+                l.bindPopup(f.properties.nombre || '');
+            },
+        });
+        layer._esDelimitacion = true;
+        if (nivel === 'provincia') { ccCapaProvincias = layer.addTo(ccMapa); }
+        else { ccCapaDistritos = layer.addTo(ccMapa); }
+    };
+
+    if (!faltantes.length) { pintar(); return; }
+    Promise.all(faltantes.map(d =>
+        fetch(`/api/delimitaciones/${endpoint}?depto=${encodeURIComponent(d)}`).then(r => r.json()).then(g => { cache[d] = g; })
+    )).then(() => { if (ccMapa.getZoom() === zoom) pintar(); }).catch(() => {});
 }
 
 function ccCargarCapas() {
@@ -98,11 +160,36 @@ function ccVerCapaEnMapa(nombre) {
     document.getElementById('cc-mapa').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-// ── Polígono de la capa de riesgo elegida, sobre el/los departamento(s) de
-// los resultados actuales (mismo endpoint/estilo que Seguro Comercial:
-// color_display/nivel_display ya vienen calculados del backend) ──
-let ccCapaPoligonoLayers = {};  // depto -> L.GeoJSON
+// ── Polígono de la capa de riesgo elegida, sobre la(s) provincia(s) de los
+// resultados actuales si se conoce (recorte más fino = más rápido), si no el
+// departamento entero. Mismo endpoint/estilo que Seguro Comercial:
+// color_display/nivel_display ya vienen calculados del backend. ──
+let ccCapaPoligonoLayers = {};  // "depto|provincia" -> L.GeoJSON
 let ccCapaPoligonoActiva = null;
+
+function ccZonasDeResultados() {
+    // depto+provincia cuando se conocen ambos (recorte fino); si falta la
+    // provincia, solo depto (recorte amplio, igual funciona).
+    const zonas = new Map();
+    ccResultadosActuales.forEach(r => {
+        const u = r.ubicacion || {};
+        if (!u.departamento) return;
+        const key = u.provincia ? `${u.departamento}|${u.provincia}` : u.departamento;
+        zonas.set(key, { depto: u.departamento, provincia: u.provincia || '' });
+    });
+    return [...zonas.values()];
+}
+
+function ccEstiloPoligonoRiesgo(feature) {
+    return { fillColor: feature.properties.color_display || '#999', fillOpacity: 0.45, color: '#555', weight: 0.3, opacity: 0.4 };
+}
+
+function ccHoverPoligonoRiesgo(feature, layer) {
+    const base = ccEstiloPoligonoRiesgo(feature);
+    layer.on('mouseover', () => layer.setStyle({ weight: 1.5, opacity: 0.9 }));
+    layer.on('mouseout', () => layer.setStyle(base));
+    layer.bindPopup(feature.properties.nivel_display || '');
+}
 
 function ccActualizarPoligonoCapa() {
     const capa = ccCapaSeleccionada();
@@ -111,26 +198,41 @@ function ccActualizarPoligonoCapa() {
     ccCapaPoligonoActiva = capa || null;
     if (!capa) return;
 
-    const deptos = new Set();
-    ccResultadosActuales.forEach(r => {
-        const d = r.ubicacion && r.ubicacion.departamento;
-        if (d) deptos.add(d);
-    });
-    deptos.forEach(depto => {
-        fetch(`/api/capas-riesgo/${capa}/geometria?depto=${encodeURIComponent(depto)}`)
+    ccZonasDeResultados().forEach(({ depto, provincia }) => {
+        const qs = `depto=${encodeURIComponent(depto)}` + (provincia ? `&provincia=${encodeURIComponent(provincia)}` : '');
+        fetch(`/api/capas-riesgo/${capa}/geometria?${qs}`)
             .then(r => r.json())
             .then(geojson => {
                 if (ccCapaPoligonoActiva !== capa) return;  // llegó tarde, ya cambió la capa
                 if (geojson.error || !geojson.features || !geojson.features.length) return;
                 const layer = L.geoJSON(geojson, {
-                    style: (feature) => ({
-                        fillColor: feature.properties.color_display || '#999',
-                        fillOpacity: 0.45, color: '#555', weight: 0.3, opacity: 0.4,
-                    }),
-                }).bindTooltip(l => l.feature.properties.nivel_display || '', { sticky: true }).addTo(ccMapa);
+                    style: ccEstiloPoligonoRiesgo,
+                    onEachFeature: ccHoverPoligonoRiesgo,
+                }).addTo(ccMapa);
                 layer._esCapaPoligono = true;
-                ccCapaPoligonoLayers[depto] = layer;
+                ccCapaPoligonoLayers[provincia ? `${depto}|${provincia}` : depto] = layer;
                 layer.bringToBack();
+            })
+            .catch(() => {});
+    });
+}
+
+// ── Faja Marginal (río) SIEMPRE visible en el mapa, sin importar qué capa
+// esté elegida arriba — la cercanía al río importa para cualquier evento. ──
+let ccCapaRioLayers = {};
+
+function ccActualizarRioSiempre() {
+    Object.values(ccCapaRioLayers).forEach(l => ccMapa.removeLayer(l));
+    ccCapaRioLayers = {};
+    ccZonasDeResultados().forEach(({ depto, provincia }) => {
+        const qs = `depto=${encodeURIComponent(depto)}` + (provincia ? `&provincia=${encodeURIComponent(provincia)}` : '');
+        fetch(`/api/capas-riesgo/rio/geometria?${qs}`)
+            .then(r => r.json())
+            .then(geojson => {
+                if (geojson.error || !geojson.features || !geojson.features.length) return;
+                const layer = L.geoJSON(geojson, { style: ccEstiloPoligonoRiesgo, onEachFeature: ccHoverPoligonoRiesgo }).addTo(ccMapa);
+                layer._esCapaPoligono = true;
+                ccCapaRioLayers[provincia ? `${depto}|${provincia}` : depto] = layer;
             })
             .catch(() => {});
     });
@@ -241,6 +343,8 @@ function ccMostrarResultados(resultados) {
         else ccMapa.fitBounds(puntos, { padding: [30, 30] });
     }
     ccActualizarPoligonoCapa();
+    ccActualizarRioSiempre();
+    ccActualizarNivelDelimitacion();
     setTimeout(() => ccMapa.invalidateSize(), 150);
 }
 

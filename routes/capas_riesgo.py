@@ -538,16 +538,20 @@ def api_geometria_capa(nombre):
     OJO: requiere `depto` — mandar la capa completa (todo el Perú) de una sola
     vez reventaba el servidor/navegador (Inundación: ~26MB de geojson, varios
     cientos de miles de vértices) — ver feedback del 1 oct 2026. Sin `depto`
-    no se devuelve geometría (el frontend no debe pintar nada a nivel nacional)."""
+    no se devuelve geometría (el frontend no debe pintar nada a nivel nacional).
+    `provincia` opcional recorta más fino todavía (más rápido) cuando se
+    conoce la ubicación exacta — ej. Evaluación de Afiliaciones, que ya tiene
+    la provincia del punto por geocodificación inversa."""
     info = CAPAS_DISPONIBLES.get(nombre)
     if info is None:
         return jsonify({'error': f'Capa "{nombre}" no existe'}), 404
 
     depto = (request.args.get('depto') or '').strip().upper()
+    provincia = (request.args.get('provincia') or '').strip().upper()
     if not depto:
         return jsonify({'error': 'Selecciona un departamento para ver la capa', 'type': 'FeatureCollection', 'features': []}), 200
 
-    cache_key = (nombre, depto)
+    cache_key = (nombre, depto, provincia)
     if cache_key in _cache_geometria_depto:
         return jsonify(_cache_geometria_depto[cache_key])
 
@@ -556,12 +560,20 @@ def api_geometria_capa(nombre):
         return jsonify({'error': f'Geometría de "{nombre}" no disponible todavía'}), 404
 
     try:
-        deptos_gdf = gpd.read_file(DEPARTAMENTOS_SHP)[['DPTONOM02', 'geometry']]
-        if deptos_gdf.crs is None or deptos_gdf.crs.to_epsg() != 4326:
-            deptos_gdf = deptos_gdf.to_crs(4326)
-        match = deptos_gdf[deptos_gdf['DPTONOM02'].str.upper() == depto]
-        if match.empty:
-            return jsonify({'error': f'Departamento "{depto}" no reconocido'}), 400
+        if provincia:
+            prov_gdf = gpd.read_file(BASE_DIR / 'DELIMITACIONES' / 'PROVINCIAS' / 'PROVINCIAS.shp')[['PROVINCIA', 'DEPARTAMEN', 'geometry']]
+            if prov_gdf.crs is None or prov_gdf.crs.to_epsg() != 4326:
+                prov_gdf = prov_gdf.to_crs(4326)
+            match = prov_gdf[(prov_gdf['PROVINCIA'].str.upper() == provincia) & (prov_gdf['DEPARTAMEN'].str.upper() == depto)]
+            if match.empty:
+                return jsonify({'error': f'Provincia "{provincia}" no reconocida en {depto}'}), 400
+        else:
+            deptos_gdf = gpd.read_file(DEPARTAMENTOS_SHP)[['DPTONOM02', 'geometry']]
+            if deptos_gdf.crs is None or deptos_gdf.crs.to_epsg() != 4326:
+                deptos_gdf = deptos_gdf.to_crs(4326)
+            match = deptos_gdf[deptos_gdf['DPTONOM02'].str.upper() == depto]
+            if match.empty:
+                return jsonify({'error': f'Departamento "{depto}" no reconocido'}), 400
 
         gdf = gpd.clip(gdf_nacional, match)
         campo_cat = info.get('campo_categoria')

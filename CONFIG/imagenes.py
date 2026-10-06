@@ -34,6 +34,20 @@ _PATRONES_COORD = [
 _REGEX_DMS_LAT = re.compile(r"(\d{1,2})\D{1,3}(\d{1,2})\D{1,3}(\d{1,2}(?:\.\d+)?)\D{0,2}([NS])")
 _REGEX_DMS_LON = re.compile(r"(\d{1,3})\D{1,3}(\d{1,2})\D{1,3}(\d{1,2}(?:\.\d+)?)\D{0,2}([EW])")
 
+# UTM (otro SISTEMA de coordenadas, no solo otro formato de las mismas lat/lon
+# — apps tipo GPS Map Camera a veces queman esto en vez de decimal/DMS, ej.
+# "18L 0234567mE 8976543mN"). Perú cae en zonas 17-19 sur. Se convierte a
+# WGS84 con pyproj (EPSG:327<zona> = UTM sur de esa zona), no se descarta.
+_REGEX_UTM = re.compile(
+    r'\b(1[789])\s*([A-Za-z])?\D{0,6}(\d{5,7})\s*m?E\D{1,6}(\d{6,8})\s*m?N\b', re.IGNORECASE)
+
+
+def _utm_a_decimal(zona, easting, northing):
+    from pyproj import Transformer
+    transformer = Transformer.from_crs(f'EPSG:327{int(zona):02d}', 'EPSG:4326', always_xy=True)
+    lon, lat = transformer.transform(float(easting), float(northing))
+    return round(lat, 6), round(lon, 6)
+
 
 def _dms_texto_a_decimal(grados, minutos, segundos, ref):
     decimal = float(grados) + float(minutos) / 60 + float(segundos) / 3600
@@ -123,6 +137,19 @@ def _leer_gps_de_ocr(img):
                 if -19.5 <= lat_c <= 0.5 and -82.0 <= lon_c <= -68.0:
                     lat, lon = lat_c, lon_c
             except (ValueError, TypeError):
+                pass
+
+    if lat is None:
+        # Respaldo: UTM (otro sistema de coordenadas, no solo otro formato) —
+        # se convierte, no se descarta como "ilegible".
+        m_utm = _REGEX_UTM.search(texto)
+        if m_utm:
+            try:
+                zona, _letra, easting, northing = m_utm.groups()
+                lat_c, lon_c = _utm_a_decimal(zona, easting, northing)
+                if -19.5 <= lat_c <= 0.5 and -82.0 <= lon_c <= -68.0:
+                    lat, lon = lat_c, lon_c
+            except (ValueError, TypeError, ImportError):
                 pass
 
     if lat is None:

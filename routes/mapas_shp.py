@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 
 import geopandas as gpd
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
 BASE_DIR = Path(__file__).parent.parent
 SHP_DIR = BASE_DIR / 'SHP'
@@ -14,6 +14,22 @@ DELIMITACIONES_DIR = BASE_DIR / 'DELIMITACIONES'
 
 logger = logging.getLogger(__name__)
 mapas_shp_bp = Blueprint('mapas_shp', __name__, url_prefix='')
+
+_gdf_delimitaciones_cache = {}  # 'provincias'|'distritos' -> GeoDataFrame completo, cacheado una vez
+
+
+def _cargar_gdf_delimitacion(nombre, shp_path):
+    """Lee el shapefile UNA sola vez (gpd.read_file de 11-25MB en cada
+    request era lento y sin sentido) y lo cachea en memoria completo, sin
+    simplificar — la precisión no se toca, solo se evita reprocesar."""
+    if nombre in _gdf_delimitaciones_cache:
+        return _gdf_delimitaciones_cache[nombre]
+    if not shp_path.exists():
+        _gdf_delimitaciones_cache[nombre] = None
+        return None
+    gdf = gpd.read_file(str(shp_path))
+    _gdf_delimitaciones_cache[nombre] = gdf
+    return gdf
 
 
 # ============================================================================
@@ -140,13 +156,22 @@ def obtener_departamentos():
 
 @mapas_shp_bp.route('/api/delimitaciones/provincias', methods=['GET'])
 def obtener_provincias():
-    """Devuelve GeoJSON de provincias del Perú"""
+    """Devuelve GeoJSON de provincias del Perú, SIN simplificar (precisión
+    completa) — con ?depto=X opcional para traer solo ese departamento (rápido,
+    pensado para dibujar al hacer zoom sin pedir el país entero cada vez).
+    Sin el parámetro, se comporta igual que antes (compatibilidad con
+    decisiones.js/mapa_calor_siniestros.js, que ya cachean el resultado
+    completo del lado del navegador)."""
     try:
         shp_path = DELIMITACIONES_DIR / 'PROVINCIAS' / 'PROVINCIAS.shp'
-        if not shp_path.exists():
+        gdf = _cargar_gdf_delimitacion('provincias', shp_path)
+        if gdf is None:
             return jsonify({'error': 'Shapefile no encontrado'}), 404
 
-        gdf = gpd.read_file(str(shp_path))
+        depto = (request.args.get('depto') or '').strip().upper()
+        if depto:
+            gdf = gdf[gdf['DEPARTAMEN'].str.upper() == depto]
+
         features = []
         for _, row in gdf.iterrows():
             feature = {
@@ -174,13 +199,25 @@ def obtener_provincias():
 
 @mapas_shp_bp.route('/api/delimitaciones/distritos', methods=['GET'])
 def obtener_distritos():
-    """Devuelve GeoJSON de distritos del Perú"""
+    """Devuelve GeoJSON de distritos del Perú, SIN simplificar — con
+    ?depto=X (y opcional &provincia=Y) para traer solo ese subconjunto.
+    Sin recortar, el archivo completo pesa ~25MB de por sí (no apto para
+    cargarlo en cada zoom); recortado por departamento son unas decenas de
+    distritos, rápido y con precisión completa (ver mismo criterio en
+    api_geometria_capa de capas_riesgo.py)."""
     try:
         shp_path = DELIMITACIONES_DIR / 'DISTRITOS' / 'DISTRITOS.shp'
-        if not shp_path.exists():
+        gdf = _cargar_gdf_delimitacion('distritos', shp_path)
+        if gdf is None:
             return jsonify({'error': 'Shapefile no encontrado'}), 404
 
-        gdf = gpd.read_file(str(shp_path))
+        depto = (request.args.get('depto') or '').strip().upper()
+        provincia = (request.args.get('provincia') or '').strip().upper()
+        if depto:
+            gdf = gdf[gdf['DEPARTAMEN'].str.upper() == depto]
+        if provincia:
+            gdf = gdf[gdf['PROVINCIA'].str.upper() == provincia]
+
         features = []
         for _, row in gdf.iterrows():
             feature = {
