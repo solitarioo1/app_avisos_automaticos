@@ -1,0 +1,23 @@
+@use '../../base/variables' as v;
+
+/* --- Footer con botones --- */
+.aviso-footer { padding: 0.75rem 1rem; border-top: 1px solid #e9ecef; display: flex; gap: 0.5rem; }
+
+.btn-naranja-turquesa {
+    background-color: v.$primary-color;
+    color: white !important;
+    border: none;
+    font-weight: 600;
+    font-size: 12px;
+    padding: 15px 14px;
+    border-radius: 4px;
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+.btn-naranja-turquesa:hover:not(:disabled) { background-color: #03b0a9; }
+.btn-naranja-turquesa:disabled { background-color: #ccc; color: #999 !important; cursor: not-allowed; }

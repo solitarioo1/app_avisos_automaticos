@@ -1,0 +1,102 @@
+@use '../../base/variables' as v;
+
+/* ── Panel CSV SMS ─────────────────────────────────── */
+.sms-csv-panel {
+  background: #f1fdf4;
+  border: 1px solid #81c784;
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+}
+
+.sms-csv-panel p {
+  margin-bottom: .4rem;
+}
+
+/* ── Panel config de bloques ─────────────────────────────────── */
+.bloques-config-box {
+  background: #f0f4ff;
+  border: 1px solid #c5cae9;
+  border-radius: 8px;
+  padding: .8rem 1rem;
+  margin-left: 1.5rem;
+  margin-top: .4rem;
+}
+
+.bloques-config-box label {
+  font-size: .8rem;
+  color: #555;
+  font-weight: 600;
+}
+
+.bloques-config-box input[type="number"] {
+  font-size: .85rem;
+}
+
+/* ── Caja programar envío ────────────────────────────────────── */
+.programar-box {
+  background: #fffde7;
+  border: 1px solid #f9a825;
+  border-radius: 8px;
+  padding: .8rem 1rem;
+  margin-top: .75rem;
+}
+
+/* ── Resumen de configuración ────────────────────────────────── */
+.resumen-config {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: .4rem;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.resumen-config::-webkit-scrollbar { display: none; }
+
+.resumen-tag {
+  background: #e8f0fe;
+  color: #1565c0;
+  font-size: .75rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+/* ── Chips de entidades seleccionadas ───────────────────────── */
+.entidad-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  min-height: 30px;
+}
+
+.entidad-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  background: #e8f0fe;
+  color: #1565c0;
+  font-size: .8rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.entidad-chip-todas {
+  background: #f0f0f0;
+  color: v.$gray;
+  font-weight: 500;
+}
+
+.entidad-chip-remove {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+  color: #1565c0;
+  cursor: pointer;
+  margin-left: 2px;
+}
+
+.entidad-chip-remove:hover { color: #c62828; }

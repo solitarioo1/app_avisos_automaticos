@@ -1,0 +1,21 @@
+@use '../../base/variables' as v;
+
+/* Botones de acción */
+.btn-accion {
+    padding: 0.3rem 0.55rem;
+    font-size: 0.9rem;
+    line-height: 1;
+    border-radius: 0.35rem;
+    border: none;
+    color: white;
+}
+.btn-accion-descargar { background-color: v.$primary-color; }
+.btn-accion-descargar:hover { background-color: #03aaa3; color: white; }
+.btn-accion-procesar { background-color: v.$secondary-color; }
+.btn-accion-procesar:hover { background-color: #3fbfb9; color: white; }
+/* Ya procesado (capa generada + clientes clasificados) — antes se
+   quedaba del mismo color siempre, parecía que faltaba generar. */
+.btn-accion-procesar.ya-procesado { background-color: v.$success; }
+.btn-accion-procesar.ya-procesado:hover { background-color: #1e7e34; color: white; }
+.btn-accion-decisiones { background-color: v.$accent-light; }
+.btn-accion-decisiones:hover { background-color: #e05535; color: white; }

@@ -1,0 +1,18 @@
+// Zona de arrastrar-y-soltar (Excel y Fotos) + preview de miniaturas al
+// seleccionar 1-3 fotos.
+@use '../../base/variables' as v;
+
+.cc-dropzone {
+    border: 2px dashed #cfd8dc; border-radius: 8px; padding: 1.3rem 1rem; text-align: center;
+    cursor: pointer; background: #fafbfc; transition: border-color .15s, background .15s; margin-bottom: .75rem;
+}
+.cc-dropzone:hover { border-color: v.$primary-color; background: #f3fffe; }
+.cc-dropzone.cc-dragover { border-color: v.$primary-color; background: #eafffe; }
+.cc-dropzone-icon { font-size: 26px; margin-bottom: .3rem; line-height: 1; }
+.cc-dropzone-text { font-size: 12.5px; color: #777; }
+.cc-dropzone-text span { color: v.$primary-color; font-weight: 700; text-decoration: underline; }
+.cc-dropzone-filename { font-size: 12px; color: #333; font-weight: 600; margin-top: .4rem; word-break: break-all; }
+
+.cc-foto-item { position: relative; display: inline-block; width: 60px; height: 60px; margin: 3px; border-radius: 6px; overflow: hidden; }
+.cc-foto-item img { width: 100%; height: 100%; object-fit: cover; }
+.cc-foto-badge { position: absolute; bottom: 0; left: 0; right: 0; font-size: 8px; text-align: center; padding: 1px; color: v.$white; }

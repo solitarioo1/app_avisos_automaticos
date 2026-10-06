@@ -1,0 +1,54 @@
+@use '../../base/variables' as v;
+
+/* ===== Toggle Manual / Foto / Excel ===== */
+.evr-modo-tabs { display: flex; gap: 0.4rem; margin-bottom: 1rem; }
+.evr-modo-tab {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    color: #888;
+    background: #f2f2f2;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.evr-modo-tab:hover { background: #e6e6e6; }
+.evr-modo-tab.activo { background: #2c3e50; color: v.$white; }
+
+.evr-foto-drop {
+    border: 2px dashed #ddd;
+    border-radius: 4px;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    color: #999;
+    font-size: 13px;
+    margin-bottom: 0.75rem;
+    background: #fafafa;
+    display: block;
+    cursor: pointer;
+}
+.evr-foto-drop.tiene-foto { border-color: #27ae60; color: #27ae60; }
+.evr-foto-status { font-size: 12px; margin-top: 0.4rem; }
+.evr-foto-status .ok { color: #27ae60; }
+.evr-foto-status .falta { color: v.$nivel-muy-alto; }
+
+/* ===== Excel (lote) ===== */
+.evr-lote-hint { font-size: 12px; color: #888; margin-bottom: 0.75rem; }
+.evr-lote-hint code { background: #f2f2f2; padding: 1px 5px; border-radius: 3px; }
+#evr-btn-lote {
+    width: 100%; font-size: 13px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
+    color: v.$white; border: none; background: #2c3e50; padding: 10px 14px; border-radius: 20px; cursor: pointer;
+}
+#evr-btn-lote:disabled { background: #95a5a6; cursor: wait; }
+.evr-tabla-lote { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 1rem; }
+.evr-tabla-lote th, .evr-tabla-lote td { padding: 6px 8px; border-bottom: 1px solid #eee; text-align: left; }
+.evr-tabla-lote th { color: #888; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.4px; }
+.evr-badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+.evr-badge.si { background: #eafaf1; color: #1e8449; }
+.evr-badge.no { background: #fdedec; color: #a93226; }
+.evr-badge.err { background: #f2f2f2; color: #888; }
+.evr-ver-detalle { font-size: 11px; color: #2c3e50; text-decoration: underline; cursor: pointer; background: none; border: none; padding: 0; }

@@ -1,0 +1,35 @@
+@use '../../base/variables' as v;
+
+/* ── Card ── */
+.login-card {
+    width: 100%;
+    max-width: 420px;
+    background: rgba(0,0,0,0.20);        /* ← más oscuro que antes */
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 20px;
+    padding: 2.5rem 2rem;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.35);
+    color: var(--white);
+}
+
+/* ── Logo ── */
+.login-logo {
+    width: 150px;
+    border-radius: 12px;
+    margin-bottom: .75rem;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.30);
+}
+
+.login-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: .2rem;
+}
+
+.login-subtitle {
+    font-size: .875rem;
+    opacity: .80;
+    margin-bottom: 2rem;
+}

@@ -1,0 +1,143 @@
+.seguimiento-container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.consulta-section {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem 1.75rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e9ecef;
+}
+
+.consulta-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  align-items: end;
+}
+
+.consulta-form label,
+.filtros-section label {
+  font-size: 12px;
+  color: #6c757d;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  letter-spacing: 0.5px;
+  display: block;
+}
+
+.consulta-form input,
+.consulta-form select,
+.filtros-section select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background: white;
+  font-size: 14px;
+}
+
+.filtros-section select:disabled {
+  background: #f1f3f5;
+  color: #adb5bd;
+  cursor: not-allowed;
+}
+
+.btn-consultar {
+  background: #04ccc4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-consultar:hover {
+  background: #03b0a9;
+}
+
+.tiles-suaves {
+  filter: grayscale(35%) contrast(0.8) brightness(1.15) saturate(0.7);
+}
+
+#mapa-seguimiento {
+  height: 88vh;
+  min-height: 820px;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.filtros-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.capas-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.capas-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  background: #f8f9fa;
+  padding: 0.4rem 0.85rem;
+  border-radius: 20px;
+  border: 1px solid #e9ecef;
+  transition: background 0.15s;
+}
+
+.capas-toggle label:hover {
+  background: #eef1f3;
+}
+
+.capas-toggle input[type=checkbox] {
+  accent-color: #04ccc4;
+}
+
+.capas-toggle .swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.resultado-section {
+  background: white;
+  border-radius: 4px;
+  padding: 1.25rem 1.5rem;
+  margin-top: 1.5rem;
+  border: 1px solid #e9ecef;
+  display: none;
+}
+
+.resultado-pendiente {
+  border-left: 5px solid #fbc02d;
+  background: #FFFBEA;
+}
+
+.resultado-si {
+  border-left: 5px solid #2e7d32;
+  background: #EAF7EC;
+}
+
+.resultado-no {
+  border-left: 5px solid #c62828;
+  background: #FDEAEA;
+}

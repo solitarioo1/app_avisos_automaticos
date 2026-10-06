@@ -1,0 +1,49 @@
+@use '../../base/variables' as v;
+
+/* ── Labels ── */
+.form-label {
+    font-size: .8rem;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    opacity: .85;
+}
+
+/* ── Inputs OSCUROS ── */
+.input-group-text {
+    background: rgba(0,0,0,0.28);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.80);
+}
+
+.form-control {
+    background: rgba(0,0,0,0.28);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: var(--white);
+    padding: .65rem 1rem;
+}
+
+.form-control::placeholder {
+    color: rgba(255,255,255,0.40);
+}
+
+.form-control:focus {
+    background: rgba(0,0,0,0.38);
+    border-color: var(--turquesa);
+    box-shadow: 0 0 0 3px rgba(4,204,196,0.22);
+    color: var(--white);
+    outline: none;
+}
+
+/* ── Toggle contraseña ── */
+.btn-toggle-pw {
+    background: rgba(0,0,0,0.28);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.75);
+    cursor: pointer;
+}
+
+.btn-toggle-pw:hover {
+    background: rgba(0,0,0,0.42);
+    color: var(--white);
+}

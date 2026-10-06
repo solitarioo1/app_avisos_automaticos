@@ -1,0 +1,13 @@
+{
+  "name": "la-positiva-agroseguros-scss",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Build de SCSS -> CSS (por pagina, no bundle global -- ver static/scss/README.md)",
+  "scripts": {
+    "scss:build": "sass static/scss/paginas/clasificar_cliente/_index.scss:static/css/compiled/clasificar_cliente.css static/scss/paginas/decisiones/_index.scss:static/css/compiled/decisiones.css static/scss/paginas/diagnostico/_index.scss:static/css/compiled/diagnostico.css static/scss/paginas/difusion/_index.scss:static/css/compiled/difusion.css static/scss/paginas/evaluacion_riesgo/_index.scss:static/css/compiled/evaluacion_riesgo.css static/scss/paginas/inspector_siniestro_detalle/_index.scss:static/css/compiled/inspector_siniestro_detalle.css static/scss/paginas/login/_index.scss:static/css/compiled/login.css static/scss/paginas/mapa_calor_siniestros/_index.scss:static/css/compiled/mapa_calor_siniestros.css static/scss/paginas/mapas/_index.scss:static/css/compiled/mapas.css static/scss/paginas/pronosticos/_index.scss:static/css/compiled/pronosticos.css static/scss/paginas/seguimiento_cultivo/_index.scss:static/css/compiled/seguimiento_cultivo.css static/scss/paginas/siniestro_agricultor/_index.scss:static/css/compiled/siniestro_agricultor.css static/scss/global.scss:static/css/compiled/main.css --no-source-map",
+    "scss:watch": "sass --watch static/scss/paginas/clasificar_cliente/_index.scss:static/css/compiled/clasificar_cliente.css static/scss/paginas/decisiones/_index.scss:static/css/compiled/decisiones.css static/scss/paginas/diagnostico/_index.scss:static/css/compiled/diagnostico.css static/scss/paginas/difusion/_index.scss:static/css/compiled/difusion.css static/scss/paginas/evaluacion_riesgo/_index.scss:static/css/compiled/evaluacion_riesgo.css static/scss/paginas/inspector_siniestro_detalle/_index.scss:static/css/compiled/inspector_siniestro_detalle.css static/scss/paginas/login/_index.scss:static/css/compiled/login.css static/scss/paginas/mapa_calor_siniestros/_index.scss:static/css/compiled/mapa_calor_siniestros.css static/scss/paginas/mapas/_index.scss:static/css/compiled/mapas.css static/scss/paginas/pronosticos/_index.scss:static/css/compiled/pronosticos.css static/scss/paginas/seguimiento_cultivo/_index.scss:static/css/compiled/seguimiento_cultivo.css static/scss/paginas/siniestro_agricultor/_index.scss:static/css/compiled/siniestro_agricultor.css static/scss/global.scss:static/css/compiled/main.css --no-source-map"
+  },
+  "devDependencies": {
+    "sass": "^1.83.1"
+  }
+}

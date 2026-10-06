@@ -1,0 +1,13 @@
+@use '../../base/variables' as v;
+
+.tiles-suaves {
+    filter: grayscale(35%) contrast(0.8) brightness(1.15) saturate(0.7);
+}
+
+#mapa-seguimiento {
+    height: 88vh;
+    min-height: 820px;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}

@@ -1,0 +1,26 @@
+@use '../../base/variables' as v;
+
+/* --- Tarjeta --- */
+.aviso-card {
+    background: white;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow 0.2s;
+}
+.aviso-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.13); }
+
+.aviso-card.color-rojo   { background: rgba(220,53,69,0.07);   border-left: 5px solid v.$danger; }
+.aviso-card.color-naranja{ background: rgba(255,140,0,0.07);   border-left: 5px solid #ff8c00; }
+.aviso-card.color-plomo  { background: rgba(108,117,125,0.05); border-left: 5px solid v.$alerta-plomo; }
+
+/* --- Header de tarjeta --- */
+.aviso-header { color: white; padding: 0.85rem 1rem; }
+.aviso-header.color-rojo    { background: linear-gradient(135deg, v.$danger 0%, #b02a37 100%); }
+.aviso-header.color-naranja { background: linear-gradient(135deg, #ff8c00 0%, #e67e00 100%); }
+.aviso-header.color-plomo   { background: linear-gradient(135deg, v.$alerta-plomo 0%, #5a6268 100%); }
+
+.aviso-titulo      { font-size: 13px; font-weight: 700; margin: 0; }
+.aviso-numero-small{ font-size: 11px; margin: 0.2rem 0 0; opacity: 0.85; }

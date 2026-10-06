@@ -1,0 +1,44 @@
+@use '../../base/variables' as v;
+
+.mcs-panel { display: flex; flex-direction: column; gap: 1rem; }
+.mcs-filtro-card {
+    background: v.$white; border-radius: 2px; padding: 1.25rem 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    border-left: 4px solid v.$card-accent; border-top: 1px solid #f0f0f0;
+}
+.mcs-field { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; }
+.mcs-field:last-of-type { margin-bottom: 0; }
+.mcs-field label {
+    font-size: 12px; font-weight: 700; color: #888;
+    text-transform: uppercase; letter-spacing: 0.6px;
+}
+.mcs-field select, .mcs-field input {
+    width: 100%; padding: 9px 12px; border: 1.5px solid v.$border-color; border-radius: 2px;
+    font-size: 13.5px; font-weight: 500; color: #222;
+    background: #fafafa; transition: border-color 0.2s;
+}
+.mcs-field select:focus, .mcs-field input:focus { outline: none; border-color: v.$card-accent; background: v.$white; }
+.mcs-anios { display: flex; gap: 0.75rem; }
+.mcs-anios .mcs-field { flex: 1; }
+
+#mcs-btn-filtrar {
+    width: 100%; background: #2c3e50; color: v.$white; border: none;
+    padding: 11px 14px; border-radius: 20px;
+    font-size: 13px; font-weight: 700; letter-spacing: 0.4px;
+    text-transform: uppercase; cursor: pointer; transition: background 0.15s;
+}
+#mcs-btn-filtrar:hover { background: #1a252f; }
+
+.mcs-estadisticas-card {
+    background: v.$white; border-radius: 2px; padding: 1.25rem 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    border-left: 4px solid v.$cyan; border-top: 1px solid #f0f0f0;
+}
+.mcs-estadisticas-card h5 {
+    font-size: 12px; font-weight: 700; color: #888;
+    text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 1rem;
+}
+.mcs-stat-item { display: flex; justify-content: space-between; align-items: center; padding: 0.7rem 0; border-bottom: 1px solid #f2f2f2; }
+.mcs-stat-item:last-child { border-bottom: none; }
+.mcs-stat-label { font-size: 13px; color: #555; font-weight: 600; }
+.mcs-stat-value { font-size: 15px; font-weight: 800; color: #1a1a1a; }

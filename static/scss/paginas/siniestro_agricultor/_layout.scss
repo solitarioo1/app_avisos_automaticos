@@ -1,0 +1,16 @@
+@use '../../base/variables' as v;
+
+:root { --turquesa: #04ccc4; --turquesa-d: #039e97; --naranja: #fc6c44; }
+html, body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; background: #f4f6f7; }
+.topbar {
+    background: linear-gradient(90deg, var(--turquesa), var(--turquesa-d));
+    color: v.$white; padding: 1.1rem 1rem; text-align: center;
+}
+.topbar img { height: 40px; margin-bottom: .4rem; }
+.topbar h1 { font-size: 1.15rem; margin: 0; font-weight: 600; }
+.topbar p { font-size: .82rem; margin: .2rem 0 0; opacity: .92; }
+.wrap { max-width: 480px; margin: 0 auto; padding: 1rem 1rem 3rem; }
+.paso { background: v.$white; border-radius: 14px; padding: 1.1rem; margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.paso-titulo { font-size: .95rem; font-weight: 700; color: var(--turquesa-d);
+                margin-bottom: .9rem; display: flex; align-items: center; gap: .4rem; }

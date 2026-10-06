@@ -1,0 +1,27 @@
+@use '../../base/variables' as v;
+
+/* ── Badge testing ── */
+.badge-test {
+    background: rgba(0,0,0,0.20);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 20px;
+    font-size: .72rem;
+    padding: .3rem .75rem;
+    letter-spacing: .04em;
+}
+
+/* ── Alerta error ── */
+.alert-login {
+    background: rgba(220,53,69,0.30);
+    border: 1px solid rgba(220,53,69,0.50);
+    color: var(--white);
+    border-radius: 10px;
+    font-size: .875rem;
+    padding: .65rem 1rem;
+}
+
+/* ── Divider ── */
+.login-divider {
+    border-top: 1px solid rgba(255,255,255,0.15);
+    margin: 1.5rem 0;
+}

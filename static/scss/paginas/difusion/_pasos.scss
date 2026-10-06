@@ -1,0 +1,78 @@
+@use '../../base/variables' as v;
+
+/* ── Pasos — estructura visual ───────────────────────────────── */
+.paso-panel {
+  border-left: 4px solid v.$border-color;
+  transition: border-color .2s;
+}
+
+.paso-panel:focus-within {
+  border-left-color: #1565c0;
+}
+
+.paso-header {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  margin-bottom: 1.2rem;
+}
+
+.paso-title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.paso-hint {
+  font-size: .82rem;
+  color: #888;
+  font-style: italic;
+  white-space: nowrap;
+}
+
+.paso-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px; height: 28px;
+  background: #1565c0;
+  color: v.$white;
+  border-radius: 50%;
+  font-size: .82rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ── Select aviso con dot de color ───────────────────────────── */
+.aviso-select {
+  font-weight: 500;
+}
+
+.aviso-info-bar {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .45rem .8rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  font-size: .85rem;
+  flex-wrap: wrap;
+}
+
+.aviso-dot-grande {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(0,0,0,.1);
+}
+
+/* dot inline dentro del select (no soportado nativamente, va en info-bar) */
+.nivel-dot {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  margin-right: .35rem;
+  vertical-align: middle;
+  flex-shrink: 0;
+}

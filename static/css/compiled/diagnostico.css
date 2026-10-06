@@ -1,0 +1,39 @@
+body {
+  font-family: monospace;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 20px;
+}
+
+h2 {
+  color: #569cd6;
+}
+
+.test {
+  background: #252526;
+  padding: 15px;
+  margin: 10px 0;
+  border-left: 3px solid #007acc;
+}
+
+.pass {
+  border-left-color: #6a9955;
+}
+
+.fail {
+  border-left-color: #f48771;
+}
+
+.warn {
+  border-left-color: #dcdcaa;
+}
+
+pre {
+  background: #1e1e1e;
+  overflow-x: auto;
+  padding: 10px;
+}
+
+.log-entry {
+  margin: 5px 0;
+}

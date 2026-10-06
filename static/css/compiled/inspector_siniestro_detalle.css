@@ -1,0 +1,95 @@
+#mapaSiniestro {
+  height: 360px;
+  border-radius: 10px;
+}
+
+#capaSelectorWrap {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.exposicion-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.25rem 0;
+  font-size: 0.85rem;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.nivel-chip {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 8px;
+  color: #ffffff;
+}
+
+.card-seccion {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.1rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  margin-bottom: 1rem;
+}
+
+.card-seccion h6 {
+  font-weight: 700;
+  color: #039e97;
+  margin-bottom: 0.8rem;
+}
+
+.fila-dato {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.9rem;
+}
+
+.fila-dato:last-child {
+  border-bottom: none;
+}
+
+.fila-dato span:first-child {
+  color: #777;
+}
+
+.fotos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 0.5rem;
+}
+
+.fotos-grid a {
+  display: block;
+  aspect-ratio: 1;
+  background: #eee;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  text-decoration: none;
+  font-size: 0.75rem;
+  text-align: center;
+  padding: 0.3rem;
+}
+
+.senal-ok {
+  color: #198754;
+}
+
+.senal-no {
+  color: #dc3545;
+}
+
+.veredicto-si {
+  background: #d1f5e0;
+  color: #0f5132;
+}
+
+.veredicto-no {
+  background: #f8d7da;
+  color: #842029;
+}

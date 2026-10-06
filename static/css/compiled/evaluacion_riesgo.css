@@ -1,0 +1,496 @@
+.evr-container {
+  max-width: 1300px;
+  margin: 0 auto;
+}
+
+.evr-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 992px) {
+  .evr-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.evr-card {
+  background: #ffffff;
+  border-radius: 2px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+  border-left: 4px solid #e07b5a;
+  border-top: 1px solid #f0f0f0;
+  margin-bottom: 1.5rem;
+}
+
+.evr-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #888;
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  display: block;
+}
+
+.evr-select, .evr-input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 2px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #222;
+  background: #fafafa;
+}
+
+.evr-select:focus, .evr-input:focus {
+  outline: none;
+  border-color: #e07b5a;
+  background: #ffffff;
+}
+
+.evr-row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.evr-field {
+  margin-bottom: 1rem;
+}
+
+#evr-mapa {
+  width: 100%;
+  height: 320px;
+  border-radius: 2px;
+  margin-bottom: 0.5rem;
+}
+
+.evr-mapa-hint {
+  font-size: 11.5px;
+  color: #999;
+  margin-bottom: 1rem;
+}
+
+#evr-btn-verificar {
+  width: 100%;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #ffffff;
+  border: none;
+  background: #2c3e50;
+  padding: 10px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+#evr-btn-verificar:hover {
+  background: #1a252f;
+}
+
+#evr-btn-verificar:disabled {
+  background: #95a5a6;
+  cursor: wait;
+}
+
+.evr-resultado-vacio {
+  text-align: center;
+  color: #999;
+  padding: 3rem 1rem;
+  font-size: 14px;
+}
+
+.evr-ubicacion-preview {
+  font-size: 12.5px;
+  color: #666666;
+  margin-top: 0.4rem;
+}
+
+/* ===== Toggle Manual / Foto / Excel ===== */
+.evr-modo-tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.evr-modo-tab {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: #888;
+  background: #f2f2f2;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.evr-modo-tab:hover {
+  background: #e6e6e6;
+}
+
+.evr-modo-tab.activo {
+  background: #2c3e50;
+  color: #ffffff;
+}
+
+.evr-foto-drop {
+  border: 2px dashed #ddd;
+  border-radius: 4px;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+  margin-bottom: 0.75rem;
+  background: #fafafa;
+  display: block;
+  cursor: pointer;
+}
+
+.evr-foto-drop.tiene-foto {
+  border-color: #27ae60;
+  color: #27ae60;
+}
+
+.evr-foto-status {
+  font-size: 12px;
+  margin-top: 0.4rem;
+}
+
+.evr-foto-status .ok {
+  color: #27ae60;
+}
+
+.evr-foto-status .falta {
+  color: #c0392b;
+}
+
+/* ===== Excel (lote) ===== */
+.evr-lote-hint {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 0.75rem;
+}
+
+.evr-lote-hint code {
+  background: #f2f2f2;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+#evr-btn-lote {
+  width: 100%;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #ffffff;
+  border: none;
+  background: #2c3e50;
+  padding: 10px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+#evr-btn-lote:disabled {
+  background: #95a5a6;
+  cursor: wait;
+}
+
+.evr-tabla-lote {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  margin-top: 1rem;
+}
+
+.evr-tabla-lote th, .evr-tabla-lote td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+
+.evr-tabla-lote th {
+  color: #888;
+  text-transform: uppercase;
+  font-size: 10.5px;
+  letter-spacing: 0.4px;
+}
+
+.evr-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.evr-badge.si {
+  background: #eafaf1;
+  color: #1e8449;
+}
+
+.evr-badge.no {
+  background: #fdedec;
+  color: #a93226;
+}
+
+.evr-badge.err {
+  background: #f2f2f2;
+  color: #888;
+}
+
+.evr-ver-detalle {
+  font-size: 11px;
+  color: #2c3e50;
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+/* ===== Legend de la capa en el mapa ===== */
+.evr-capa-legend {
+  font-size: 11px;
+  color: #666666;
+  margin-bottom: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+}
+
+.evr-capa-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.evr-capa-legend .sw {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+/* ===== Secciones del reporte (siempre vertical) ===== */
+.evr-reporte-seccion {
+  margin-bottom: 1.75rem;
+}
+
+.evr-reporte-titulo {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #2c3e50;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 2px solid #2c3e50;
+}
+
+.evr-input-resumen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.evr-input-item {
+  background: #f8f9fa;
+  border-radius: 4px;
+  padding: 0.6rem 0.8rem;
+}
+
+.evr-input-item .lbl {
+  font-size: 10.5px;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  display: block;
+}
+
+.evr-input-item .val {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #222;
+}
+
+.evr-meteo-grid {
+  display: grid;
+  grid-template-columns: 165px 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.evr-meteo-titulo-col {
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+}
+
+@media (max-width: 700px) {
+  .evr-meteo-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.evr-tabla-meteo {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+.evr-tabla-meteo th, .evr-tabla-meteo td {
+  padding: 3px 4px;
+  border-bottom: 1px solid #eee;
+  text-align: right;
+}
+
+.evr-tabla-meteo th:first-child, .evr-tabla-meteo td:first-child {
+  text-align: left;
+}
+
+.evr-tabla-meteo tr.mes-evento {
+  background: #fdf3ee;
+  font-weight: 700;
+}
+
+#evr-chart-meteo {
+  max-height: 220px;
+}
+
+#evr-mapa-gdr {
+  width: 100%;
+  height: 360px;
+  border-radius: 2px;
+  margin-bottom: 0.5rem;
+}
+
+.evr-gdr-datos {
+  font-size: 12.5px;
+  color: #444;
+}
+
+.evr-gdr-datos b {
+  color: #222;
+}
+
+/* ===== Reporte imprimible ===== */
+.evr-print-header {
+  display: none;
+}
+
+.evr-print-header-linea {
+  display: none;
+}
+
+.evr-print-logo {
+  height: 60px;
+  object-fit: contain;
+}
+
+#evr-btn-imprimir {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #2c3e50;
+  border: 1.5px solid #2c3e50;
+  background: #ffffff;
+  padding: 8px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  margin-top: 1rem;
+  width: 100%;
+}
+
+#evr-btn-imprimir:hover {
+  background: #f2f4f5;
+}
+
+#evr-btn-imprimir:disabled {
+  color: #999;
+  border-color: #ccc;
+  cursor: wait;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 10mm 12mm;
+}
+@media print {
+  body {
+    font-size: 11px;
+  }
+  .main-header, .main-navigation, #evr-col-form, #evr-btn-imprimir, .evr-intro-txt, .evr-titulo-pagina {
+    display: none !important;
+  }
+  .evr-grid {
+    display: block !important;
+  }
+  #evr-col-resultado {
+    width: 100%;
+  }
+  .evr-card {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin-bottom: 0 !important;
+  }
+  .evr-print-header {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.4rem;
+  }
+  .evr-print-header h3 {
+    margin: 0 0 0.15rem 0;
+    font-size: 16px;
+  }
+  .evr-print-header .sub {
+    font-size: 10.5px;
+    color: #666666;
+  }
+  .evr-print-header-linea {
+    display: block !important;
+    margin: 0 0 0.6rem 0;
+  }
+  .evr-print-logo {
+    height: 48px;
+  }
+  .evr-reporte-seccion {
+    break-inside: avoid;
+    margin-bottom: 0.6rem;
+  }
+  .evr-reporte-titulo {
+    font-size: 10.5px;
+    margin-bottom: 0.4rem;
+    padding-bottom: 0.2rem;
+  }
+  .evr-input-resumen {
+    gap: 0.4rem;
+  }
+  .evr-input-item {
+    padding: 0.3rem 0.5rem;
+  }
+  .evr-input-item .lbl {
+    font-size: 9px;
+  }
+  .evr-input-item .val {
+    font-size: 11px;
+  }
+  #evr-mapa-gdr {
+    height: 300px !important;
+  }
+  .evr-gdr-datos {
+    font-size: 10.5px;
+  }
+}

@@ -1,48 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<style>
-    .avisos-container {
-        max-width: 1200px;
-        margin: 0 auto;
-    }
 
-    /* ── Toast de acciones (reemplaza el alert() feo del navegador) ── */
-    .pron-toast {
-        position: fixed;
-        bottom: 30px;
-        right: 30px;
-        background: #fff;
-        border-radius: 10px;
-        box-shadow: 0 6px 24px rgba(0,0,0,0.18);
-        padding: 14px 18px;
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        z-index: 1200;
-        min-width: 300px;
-        max-width: 420px;
-        border-left: 4px solid #04ccc4;
-        animation: pronToastIn 0.25s ease;
-    }
-    @keyframes pronToastIn {
-        from { opacity: 0; transform: translateX(24px); }
-        to   { opacity: 1; transform: translateX(0); }
-    }
-    .pron-toast.toast-error { border-left-color: #dc3545; }
-    .pron-toast .toast-icon { font-size: 22px; flex-shrink: 0; line-height: 1; }
-    .pron-toast .toast-body { flex: 1; }
-    .pron-toast .toast-body strong { display: block; font-size: 14px; color: #222; margin-bottom: 2px; }
-    .pron-toast .toast-body span { display: block; font-size: 12.5px; color: #666; line-height: 1.4; }
-    .pron-toast .toast-close {
-        background: none; border: none; color: #aaa; cursor: pointer;
-        font-size: 18px; line-height: 1; padding: 0 2px; flex-shrink: 0;
-    }
-    .pron-toast .toast-close:hover { color: #333; }
-    @media (max-width: 576px) {
-        .pron-toast { right: 12px; left: 12px; bottom: 12px; min-width: unset; max-width: unset; }
-    }
-</style>
 <div id="pron-toast" class="pron-toast" style="display:none;">
     <span class="toast-icon" id="pron-toast-icon">✅</span>
     <div class="toast-body">
@@ -149,59 +108,8 @@
     </div>
 </div>
 
-<style>
-    .nivel-badge {
-        padding: 0.35rem 0.65rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        border-radius: 0.25rem;
-    }
-    .nivel-rojo { background-color: #dc3545; color: white; }
-    .nivel-naranja { background-color: #fd7e14; color: white; }
-    .nivel-amarillo { background-color: #ffc107; color: black; }
-    .nivel-verde { background-color: #198754; color: white; }
-    .nivel-gris { background-color: #6c757d; color: white; }
 
-    /* Últimos 4 pronósticos más recientes */
-    .aviso-fresco td {
-        background-color: #FEEBE6 !important;
-        --bs-table-bg: #FEEBE6;
-        --bs-table-accent-bg: #FEEBE6;
-    }
-    .aviso-fresco:hover td {
-        background-color: #fdd8cc !important;
-        --bs-table-bg: #fdd8cc;
-    }
-    
-    .spin { 
-        display: inline-block; 
-        animation: spin 1s linear infinite; 
-    }
-    @keyframes spin { 
-        from { transform: rotate(0deg); } 
-        to { transform: rotate(360deg); } 
-    }
-
-    /* Botones de acción */
-    .btn-accion {
-        padding: 0.3rem 0.55rem;
-        font-size: 0.9rem;
-        line-height: 1;
-        border-radius: 0.35rem;
-        border: none;
-        color: white;
-    }
-    .btn-accion-descargar { background-color: #04ccc4; }
-    .btn-accion-descargar:hover { background-color: #03aaa3; color: white; }
-    .btn-accion-procesar { background-color: #64d3ce; }
-    .btn-accion-procesar:hover { background-color: #3fbfb9; color: white; }
-    /* Ya procesado (capa generada + clientes clasificados) — antes se
-       quedaba del mismo color siempre, parecía que faltaba generar. */
-    .btn-accion-procesar.ya-procesado { background-color: #28a745; }
-    .btn-accion-procesar.ya-procesado:hover { background-color: #1e7e34; color: white; }
-    .btn-accion-decisiones { background-color: #fa6f4a; }
-    .btn-accion-decisiones:hover { background-color: #e05535; color: white; }
-</style>
 
 <script src="{{ url_for('static', filename='js/pronosticos.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/compiled/pronosticos.css') }}">
 {% endblock %}

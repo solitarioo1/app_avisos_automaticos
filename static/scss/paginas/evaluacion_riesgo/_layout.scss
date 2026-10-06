@@ -1,0 +1,33 @@
+@use '../../base/variables' as v;
+
+.evr-container { max-width: 1300px; margin: 0 auto; }
+
+.evr-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: start;
+}
+@media (max-width: 992px) {
+    .evr-grid { grid-template-columns: 1fr; }
+}
+
+.evr-card {
+    background: v.$white;
+    border-radius: 2px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    border-left: 4px solid v.$card-accent;
+    border-top: 1px solid #f0f0f0;
+    margin-bottom: 1.5rem;
+}
+
+.evr-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #888;
+    margin-bottom: 0.4rem;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    display: block;
+}

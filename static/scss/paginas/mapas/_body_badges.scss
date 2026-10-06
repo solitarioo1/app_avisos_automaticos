@@ -1,0 +1,19 @@
+@use '../../base/variables' as v;
+
+/* --- Body --- */
+.aviso-body  { padding: 0.9rem 1rem; flex: 1; }
+.info-row    { margin-bottom: 0.65rem; }
+.info-label  { font-size: 10px; color: v.$alerta-plomo; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+
+.nivel-badge  { display: inline-block; padding: 0.2rem 0.65rem; border-radius: 20px; font-weight: 600; font-size: 11px; color: white; }
+.nivel-rojo   { background: v.$danger; }
+.nivel-naranja{ background: #ff8c00; }
+
+.departamentos-list{ display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.depto-tag { background: #e9ecef; color: v.$gray-dark; padding: 0.2rem 0.45rem; border-radius: 4px; font-size: 10px; font-weight: 500; }
+.depto-tag.depto-clickable { cursor: pointer; transition: background 0.15s, color 0.15s; }
+.depto-tag.depto-clickable:hover { background: v.$primary-color; color: white; }
+
+.status-badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+.status-ready  { background: #d4edda; color: #155724; }
+.status-pending{ background: #fff3cd; color: #856404; }

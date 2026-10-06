@@ -1,0 +1,110 @@
+@use '../../base/variables' as v;
+
+/* ===== MODO DEL PANEL: Avisos <-> Capas de Riesgo (exclusivos) ===== */
+.modo-tabs {
+    display: flex;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+}
+.modo-tab {
+    flex: 1;
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: #888;
+    background: #f2f2f2;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.modo-tab:hover { background: #e6e6e6; }
+.modo-tab.modo-tab-activo {
+    background: #2c3e50;
+    color: v.$white;
+}
+
+.capas-riesgo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.3rem;
+}
+
+.capas-riesgo-actualizar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.capas-riesgo-fecha-txt {
+    font-size: 11px;
+    color: #999;
+    display: block;
+    margin-bottom: 0.75rem;
+}
+
+#btn-actualizar-cruce {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    color: v.$white;
+    border: none;
+    background: #2c3e50;
+    padding: 6px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+#btn-actualizar-cruce:hover { background: #1a252f; }
+#btn-actualizar-cruce:disabled { background: #95a5a6; cursor: wait; }
+
+#btn-exportar-csv-general {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    color: v.$white;
+    border: none;
+    background: v.$primary-color;
+    padding: 10px 24px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+#btn-exportar-csv-general:hover { background: #03a8a1; }
+#btn-exportar-csv-general:disabled { background: #95a5a6; cursor: not-allowed; }
+
+.capas-toggle {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.capas-toggle label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    background: #f8f9fa;
+    padding: 0.45rem 0.75rem;
+    border-radius: 20px;
+    border: 1px solid #e9ecef;
+    transition: background 0.15s;
+}
+.capas-toggle label:hover { background: #eef1f3; }
+.capas-toggle label.capa-no-disponible { opacity: 0.45; cursor: not-allowed; }
+.capas-toggle input[type="checkbox"] { accent-color: #2c3e50; }
+.capas-toggle .swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    display: inline-block;
+    flex-shrink: 0;
+}

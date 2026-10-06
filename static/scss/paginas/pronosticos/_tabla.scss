@@ -1,0 +1,33 @@
+@use '../../base/variables' as v;
+
+.nivel-badge {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 0.25rem;
+}
+.nivel-rojo { background-color: v.$danger; color: white; }
+.nivel-naranja { background-color: #fd7e14; color: white; }
+.nivel-amarillo { background-color: v.$warning; color: black; }
+.nivel-verde { background-color: #198754; color: white; }
+.nivel-gris { background-color: v.$alerta-plomo; color: white; }
+
+/* Últimos 4 pronósticos más recientes */
+.aviso-fresco td {
+    background-color: #FEEBE6 !important;
+    --bs-table-bg: #FEEBE6;
+    --bs-table-accent-bg: #FEEBE6;
+}
+.aviso-fresco:hover td {
+    background-color: #fdd8cc !important;
+    --bs-table-bg: #fdd8cc;
+}
+
+.spin {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}

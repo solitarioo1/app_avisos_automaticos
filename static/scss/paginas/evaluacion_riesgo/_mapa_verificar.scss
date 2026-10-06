@@ -1,0 +1,35 @@
+@use '../../base/variables' as v;
+
+#evr-mapa {
+    width: 100%;
+    height: 320px;
+    border-radius: 2px;
+    margin-bottom: 0.5rem;
+}
+.evr-mapa-hint { font-size: 11.5px; color: #999; margin-bottom: 1rem; }
+
+#evr-btn-verificar {
+    width: 100%;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: v.$white;
+    border: none;
+    background: #2c3e50;
+    padding: 10px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+#evr-btn-verificar:hover { background: #1a252f; }
+#evr-btn-verificar:disabled { background: #95a5a6; cursor: wait; }
+
+.evr-resultado-vacio {
+    text-align: center;
+    color: #999;
+    padding: 3rem 1rem;
+    font-size: 14px;
+}
+
+.evr-ubicacion-preview { font-size: 12.5px; color: v.$gray; margin-top: 0.4rem; }

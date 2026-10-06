@@ -1,0 +1,16 @@
+// Reemplaza static/css/main.css -- mismo orden exacto de @import que tenia
+// el original, para no alterar la cascada CSS (especificidad igual = gana
+// el que viene despues). "as *" porque varios nombres empiezan con numero
+// (1-colores, 2-variables...), Sass no acepta esos como namespace.
+@use 'global/1-colores' as *;
+@use 'global/2-variables' as *;
+@use 'global/3-mixins' as *;
+@use 'global/4-generales' as *;
+@use 'global/inicio' as *;
+@use 'global/avisos' as *;
+@use 'global/mapas' as *;
+@use 'global/dashboard' as *;
+@use 'global/decisiones' as *;
+@use 'global/whatsapp' as *;
+@use 'global/mensajeria' as *;
+@use 'global/main_extra' as *;

@@ -1,0 +1,18 @@
+@use '../../base/variables' as v;
+
+/* ===== Sección inferior: tablas de análisis (mismo patrón que tabla-card) ===== */
+.mcs-tablas-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 1.5rem; }
+@media (max-width: 1100px) { .mcs-tablas-row { grid-template-columns: 1fr; } }
+
+.mcs-tabla-card { background: white; border-radius: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; }
+.mcs-tabla-card-header {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    color: white; padding: 0.85rem 1.25rem; font-weight: 700; font-size: 13.5px;
+    text-transform: uppercase; letter-spacing: 0.4px;
+}
+.mcs-tabla-card table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.mcs-tabla-card thead { background: #f8f9fa; }
+.mcs-tabla-card th { text-align: left; padding: 8px 12px; color: v.$gray; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; border-bottom: 1px solid #e9ecef; }
+.mcs-tabla-card td { padding: 8px 12px; border-bottom: 1px solid #f2f2f2; color: v.$gray-dark; }
+.mcs-tabla-card tr:hover { background: #f0f4f8; }
+.mcs-tabla-card td.num, .mcs-tabla-card th.num { text-align: right; }

@@ -1,0 +1,7 @@
+// Migrado desde el <style> inline de templates/difusion.html (iba despues
+// del <link> a difusion.css en el {% block head %} original -- por eso
+// este archivo se @forward-ea al final, para preservar el orden de cascada).
+.difusion-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}

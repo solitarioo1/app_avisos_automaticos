@@ -1,0 +1,17 @@
+@use '../../base/variables' as v;
+
+/* ===== Legend de la capa en el mapa ===== */
+.evr-capa-legend { font-size: 11px; color: v.$gray; margin-bottom: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.5rem 0.9rem; }
+.evr-capa-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.evr-capa-legend .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+/* ===== Secciones del reporte (siempre vertical) ===== */
+.evr-reporte-seccion { margin-bottom: 1.75rem; }
+.evr-reporte-titulo {
+    font-size: 12.5px; font-weight: 700; color: #2c3e50; text-transform: uppercase;
+    letter-spacing: 0.6px; margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 2px solid #2c3e50;
+}
+.evr-input-resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; }
+.evr-input-item { background: #f8f9fa; border-radius: 4px; padding: 0.6rem 0.8rem; }
+.evr-input-item .lbl { font-size: 10.5px; color: #999; text-transform: uppercase; letter-spacing: 0.4px; display: block; }
+.evr-input-item .val { font-size: 13.5px; font-weight: 600; color: #222; }

@@ -1,0 +1,37 @@
+@use '../../base/variables' as v;
+
+/* ── Scroll tabla cultivos: 10 filas visibles ── */
+.tabla-cultivos {
+    table-layout: fixed;
+    width: 100%;
+    font-size: 13px;
+}
+.tabla-cultivos thead tr,
+.tabla-cultivos tbody tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+}
+.tabla-cultivos thead { display: table; width: 100%; }
+.tabla-cultivos tbody tr { height: 40px; }
+.tabla-cultivos tbody {
+    display: block;
+    height: 400px;  /* 10 filas × 40px */
+    overflow-y: scroll;
+    overflow-x: hidden;
+}
+.tabla-cultivos tbody::-webkit-scrollbar { width: 8px; }
+.tabla-cultivos tbody::-webkit-scrollbar-track { background:v.$border-color; border-radius:4px; }
+.tabla-cultivos tbody::-webkit-scrollbar-thumb { background:#7a8fa6; border-radius:4px; }
+.tabla-cultivos tbody::-webkit-scrollbar-thumb:hover { background:#4a6fa5; }
+/* anchos columnas cultivos */
+.tabla-cultivos th:nth-child(1),.tabla-cultivos td:nth-child(1){ width:4%;  text-align:center; }
+.tabla-cultivos th:nth-child(2),.tabla-cultivos td:nth-child(2){ width:16%; }
+.tabla-cultivos th:nth-child(3),.tabla-cultivos td:nth-child(3){ width:10%; text-align:center; }
+.tabla-cultivos th:nth-child(4),.tabla-cultivos td:nth-child(4){ width:24%; }
+.tabla-cultivos th:nth-child(5),.tabla-cultivos td:nth-child(5){ width:12%; text-align:right; }
+.tabla-cultivos th:nth-child(6),.tabla-cultivos td:nth-child(6){ width:15%; text-align:right; white-space:nowrap; }
+.tabla-cultivos th:nth-child(7),.tabla-cultivos td:nth-child(7){ width:19%; }
+.tabla-cultivos td,.tabla-cultivos th { padding:0.5rem 0.6rem; vertical-align:middle; border-right:1px solid #dee2e6 !important; }
+.tabla-cultivos td:last-child,.tabla-cultivos th:last-child { border-right:none !important; }
+.tabla-cultivos tbody tr:hover { background:#f0f4f8; }

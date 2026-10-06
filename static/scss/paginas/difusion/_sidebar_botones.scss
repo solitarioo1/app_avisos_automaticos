@@ -1,0 +1,93 @@
+@use '../../base/variables' as v;
+
+/* ── Sidebar — estadísticas ──────────────────────────────────── */
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .45rem .6rem;
+  border-radius: 6px;
+  margin-bottom: .35rem;
+  font-size: .85rem;
+}
+
+.stat-row.Rojo     { background: #ffebee; }
+.stat-row.Naranja  { background: #fff3e0; }
+.stat-row.Amarillo { background: #fffde7; }
+.stat-row.Verde    { background: #e8f5e9; }
+
+.stat-nivel-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  margin-right: .5rem;
+  flex-shrink: 0;
+}
+
+.stat-nivel-dot.Rojo     { background: var(--rojo); }
+.stat-nivel-dot.Naranja  { background: var(--naranja); }
+.stat-nivel-dot.Amarillo { background: #c6a000; }
+.stat-nivel-dot.Verde    { background: var(--verde); }
+
+.stat-badge {
+  font-weight: 700;
+  font-size: .82rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(0,0,0,.07);
+}
+
+/* ── Botones de acción ───────────────────────────────────────── */
+.btn-generar {
+  background: #1565c0;
+  color: v.$white;
+  border: none;
+  border-radius: 8px;
+  padding: .55rem 1.1rem;
+  font-weight: 600;
+  font-size: .88rem;
+  transition: background .2s, transform .15s;
+}
+
+.btn-generar:hover    { background: #0d47a1; transform: translateY(-1px); }
+.btn-generar:disabled { background: #90caf9; cursor: not-allowed; }
+
+.btn-preview {
+  background: v.$white;
+  color: #1565c0;
+  border: 2px solid #1565c0;
+  border-radius: 8px;
+  padding: .5rem 1rem;
+  font-weight: 600;
+  font-size: .88rem;
+  transition: background .2s, color .2s;
+}
+
+.btn-preview:hover    { background: #e8f0fe; }
+.btn-preview:disabled { border-color: #90caf9; color: #90caf9; cursor: not-allowed; }
+
+.btn-enviar {
+  background: var(--wa-verde);
+  color: v.$white;
+  border: none;
+  border-radius: 8px;
+  padding: .55rem 1.1rem;
+  font-weight: 600;
+  font-size: .88rem;
+  transition: background .2s, transform .15s;
+}
+
+.btn-enviar:hover    { background: #1ebe5d; transform: translateY(-1px); }
+.btn-enviar:disabled { background: #a5d6a7; cursor: not-allowed; }
+
+.btn-reanudar {
+  background: #e65100;
+  color: v.$white;
+  border: none;
+  border-radius: 8px;
+  padding: .45rem .9rem;
+  font-weight: 600;
+  font-size: .82rem;
+  transition: background .2s;
+}
+
+.btn-reanudar:hover { background: #bf360c; }

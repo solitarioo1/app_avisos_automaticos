@@ -1,0 +1,6 @@
+// El mapa Leaflet en sí + el visor de foto en grande (lightbox) que se abre
+// al hacer click en la miniatura de una fila de resultados.
+#cc-mapa { width: 100%; flex: 1; min-height: 600px; border-radius: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+
+.cc-foto-lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 9999; display: flex; align-items: center; justify-content: center; cursor: zoom-out; }
+.cc-foto-lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 4px; }

@@ -1,0 +1,19 @@
+@use '../../base/variables' as v;
+
+/* ── Fondo ── */
+html, body {
+    height: 100%;
+    margin: 0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.login-bg {
+    min-height: 100vh;
+    background:
+        linear-gradient(135deg, rgba(4,204,196,.82) 0%, rgba(252,108,68,.72) 100%),
+        url('/static/img/mapaPeru.avif') center/cover no-repeat;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+}

@@ -1,0 +1,14 @@
+@use '../../base/variables' as v;
+
+.evr-meteo-grid { display: grid; grid-template-columns: 165px 1fr; gap: 1.25rem; align-items: start; }
+.evr-meteo-titulo-col { font-size: 11px; color: #888; margin-bottom: 0.5rem; font-weight: 700; }
+@media (max-width: 700px) { .evr-meteo-grid { grid-template-columns: 1fr; } }
+.evr-tabla-meteo { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.evr-tabla-meteo th, .evr-tabla-meteo td { padding: 3px 4px; border-bottom: 1px solid #eee; text-align: right; }
+.evr-tabla-meteo th:first-child, .evr-tabla-meteo td:first-child { text-align: left; }
+.evr-tabla-meteo tr.mes-evento { background: #fdf3ee; font-weight: 700; }
+#evr-chart-meteo { max-height: 220px; }
+
+#evr-mapa-gdr { width: 100%; height: 360px; border-radius: 2px; margin-bottom: 0.5rem; }
+.evr-gdr-datos { font-size: 12.5px; color: #444; }
+.evr-gdr-datos b { color: #222; }

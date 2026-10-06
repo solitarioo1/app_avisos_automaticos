@@ -1,0 +1,39 @@
+@use '../../base/variables' as v;
+
+/* ===== Reporte imprimible ===== */
+.evr-print-header { display: none; }
+.evr-print-header-linea { display: none; }
+.evr-print-logo { height: 60px; object-fit: contain; }
+#evr-btn-imprimir {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
+    color: #2c3e50; border: 1.5px solid #2c3e50; background: v.$white; padding: 8px 14px;
+    border-radius: 20px; cursor: pointer; margin-top: 1rem; width: 100%;
+}
+#evr-btn-imprimir:hover { background: #f2f4f5; }
+#evr-btn-imprimir:disabled { color: #999; border-color: #ccc; cursor: wait; }
+
+@page { size: A4 portrait; margin: 10mm 12mm; }
+
+@media print {
+    body { font-size: 11px; }
+    .main-header, .main-navigation, #evr-col-form, #evr-btn-imprimir, .evr-intro-txt, .evr-titulo-pagina { display: none !important; }
+    .evr-grid { display: block !important; }
+    #evr-col-resultado { width: 100%; }
+    .evr-card { box-shadow: none !important; border: none !important; padding: 0 !important; margin-bottom: 0 !important; }
+    .evr-print-header { display: flex !important; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem; }
+    .evr-print-header h3 { margin: 0 0 0.15rem 0; font-size: 16px; }
+    .evr-print-header .sub { font-size: 10.5px; color: v.$gray; }
+    .evr-print-header-linea { display: block !important; margin: 0 0 0.6rem 0; }
+    .evr-print-logo { height: 48px; }
+
+    .evr-reporte-seccion { break-inside: avoid; margin-bottom: 0.6rem; }
+    .evr-reporte-titulo { font-size: 10.5px; margin-bottom: 0.4rem; padding-bottom: 0.2rem; }
+
+    .evr-input-resumen { gap: 0.4rem; }
+    .evr-input-item { padding: 0.3rem 0.5rem; }
+    .evr-input-item .lbl { font-size: 9px; }
+    .evr-input-item .val { font-size: 11px; }
+
+    #evr-mapa-gdr { height: 300px !important; }
+    .evr-gdr-datos { font-size: 10.5px; }
+}

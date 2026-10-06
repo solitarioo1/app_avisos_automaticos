@@ -9,7 +9,7 @@ import os
 import re
 from io import BytesIO
 
-from PIL import Image, ExifTags
+from PIL import Image, ExifTags, ImageOps
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +59,9 @@ _TESSERACT_CMD = os.getenv('TESSERACT_CMD') or (
     _TESSERACT_CMD_DEFAULT_WINDOWS if os.name == 'nt' and os.path.exists(_TESSERACT_CMD_DEFAULT_WINDOWS) else ''
 )
 _ocr_disponible = None  # None = sin probar todavia; True/False luego de la 1ra foto
+_ocr_lang = None  # se detecta en el primer uso -- 'eng+spa' si el traineddata de
+                   # español está instalado (Docker/prod lo trae), si no 'eng' solo
+                   # (ej. instalación local de Windows sin el paquete spa).
 
 
 class FotoInvalida(Exception):
@@ -97,15 +100,35 @@ def _leer_gps_de_ocr(img):
     """Respaldo cuando no hay EXIF: busca el texto tipo 'Lat -15.44° Long
     -74.64°' que apps como GPS Map Camera queman en la imagen. Formato de
     foto variable (distintas apps, distintas posiciones/fuentes) — por eso
-    se corre OCR sobre la imagen COMPLETA en vez de recortar una zona fija."""
-    global _ocr_disponible
+    se corre OCR sobre la imagen COMPLETA en vez de recortar una zona fija.
+
+    La imagen de celular real (12+ MP) se achica y pasa a escala de grises
+    ANTES de correr Tesseract, con --psm 11 (texto disperso: el watermark
+    es un bloque de texto suelto sobre una foto, no una página con
+    columnas/párrafos que el modo automático por defecto intenta inferir).
+    Sobre el original a resolución completa, modo automático, tardaba ~10s
+    por foto (inaceptable en un lote de 100) y además "alucinaba" texto
+    basura del fondo de la foto, compitiendo con el watermark real. Medido
+    con fotos sintéticas 4000x3000/3500x2600 con ruido de fondo: 10.46s
+    sin preprocesar vs ~1-1.5s preprocesada+psm11 cuando hay texto, y el
+    peor caso (foto sin ningún texto, puro ruido) baja de 9.6s a 2.9s."""
+    global _ocr_disponible, _ocr_lang
     if _ocr_disponible is False:
         return None, None
     try:
         import pytesseract
         if _TESSERACT_CMD:
             pytesseract.pytesseract.tesseract_cmd = _TESSERACT_CMD
-        texto = pytesseract.image_to_string(img)
+        if _ocr_lang is None:
+            try:
+                disponibles = set(pytesseract.get_languages(config=''))
+                _ocr_lang = 'eng+spa' if 'spa' in disponibles else 'eng'
+            except Exception:
+                _ocr_lang = 'eng'
+        copia = img.copy()
+        copia.thumbnail((1800, 1800))
+        copia = ImageOps.grayscale(copia)
+        texto = pytesseract.image_to_string(copia, lang=_ocr_lang, config='--psm 11')
         _ocr_disponible = True
     except Exception as e:
         _ocr_disponible = False

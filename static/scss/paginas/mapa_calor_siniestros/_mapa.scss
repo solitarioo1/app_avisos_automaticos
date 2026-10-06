@@ -1,0 +1,9 @@
+@use '../../base/variables' as v;
+
+/* ===== Contenedor principal: mapa (izq) + panel filtros (der) ===== */
+.mcs-principal { display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; align-items: stretch; margin-bottom: 1.5rem; }
+@media (max-width: 1024px) { .mcs-principal { grid-template-columns: 1fr; } }
+
+#mcs-mapa { width: 100%; height: 620px; min-height: 500px; border-radius: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+
+.mcs-leyenda-mapa { background: v.$white; padding: 8px 10px; border-radius: 2px; box-shadow: 0 1px 5px rgba(0,0,0,0.35); font-size: 12px; line-height: 1.6; }

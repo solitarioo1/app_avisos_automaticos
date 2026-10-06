@@ -1,0 +1,8 @@
+@use '../../base/variables' as v;
+
+.fotos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px,1fr)); gap: .5rem; }
+.fotos-grid a { display: block; aspect-ratio: 1; background: #eee; border-radius: 8px; display: flex;
+    align-items: center; justify-content: center; color: #999; text-decoration: none; font-size: .75rem; text-align: center; padding: .3rem; }
+.senal-ok { color: #198754; } .senal-no { color: v.$danger; }
+.veredicto-si { background: #d1f5e0; color: #0f5132; }
+.veredicto-no { background: #f8d7da; color: #842029; }

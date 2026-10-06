@@ -1,0 +1,42 @@
+// ============================================================================
+// MIXINS COMPARTIDOS -- patrones que se repiten en varias páginas (confirmado
+// por grep real sobre los 16 templates, 2026-10-06), nunca estuvieron
+// centralizados. Mismo espíritu que base/_mixins.scss de INTISMART.
+// ============================================================================
+@use 'variables' as v;
+
+// Card blanca con acento de color a la izquierda -- decisiones.html,
+// evaluacion_riesgo.html, mapa_calor_siniestros.html, clasificar_cliente.html
+@mixin card($accent: v.$card-accent) {
+    background: v.$white;
+    border-radius: 2px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+    border-left: 4px solid $accent;
+    border-top: 1px solid #f0f0f0;
+}
+
+// Label uppercase chico -- en 7 de 16 templates
+@mixin label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #888;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    display: block;
+}
+
+// Botón píldora (bg sólido, texto blanco, uppercase) -- en 6 de 16 templates
+@mixin btn-pildora($bg: v.$primary-color) {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: v.$white;
+    border: none;
+    background: $bg;
+    padding: 10px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+}

@@ -1,0 +1,172 @@
+@use '../../base/variables' as v;
+
+/* ===== TABLAS: Zonas y Entidades ===== */
+.tabla-card {
+    background: white;
+    border-radius: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+    margin-bottom: 1rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.tabla-header {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    color: white;
+    padding: 1rem 1.5rem;
+    font-weight: 600;
+}
+
+.tabla-header h5 {
+    color: white;
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.tabla-zonas,
+.tabla-entidades {
+    font-size: 13px;
+    table-layout: fixed;
+    width: 100%;
+}
+
+.tabla-zonas thead,
+.tabla-entidades thead {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: v.$gray-dark;
+}
+
+/* Cabeceras se sobrecruzaban con columnas angostas (Póliza Vigentes,
+   Hectáreas Aseguradas, etc.) — se deja envolver en 2 líneas en vez de
+   forzarlas en una sola y que se corten/superpongan. */
+.tabla-zonas th,
+.tabla-entidades th {
+    font-size: 10.5px;
+    line-height: 1.25;
+    white-space: normal;
+    padding: 6px 5px;
+    vertical-align: middle;
+}
+
+/* separadores verticales en ambas tablas */
+.tabla-zonas th,
+.tabla-entidades th,
+.tabla-zonas td,
+.tabla-entidades td {
+    border-right: 1px solid #dee2e6 !important;
+}
+.tabla-zonas th:last-child,
+.tabla-entidades th:last-child,
+.tabla-zonas td:last-child,
+.tabla-entidades td:last-child {
+    border-right: none !important;
+}
+
+/* filas zonas: misma altura que entidades */
+.tabla-zonas tbody tr,
+.tabla-entidades tbody tr {
+    border-bottom: 1px solid #e9ecef;
+    height: 40px;
+}
+
+.tabla-zonas tbody tr:hover,
+.tabla-entidades tbody tr:hover {
+    background: #f0f4f8;
+}
+
+/* anchos columnas tabla zonas */
+.tabla-zonas th:nth-child(1), .tabla-zonas td:nth-child(1) { width: 30%; }
+.tabla-zonas th:nth-child(2), .tabla-zonas td:nth-child(2) { width: 22%; text-align: right; }
+.tabla-zonas th:nth-child(3), .tabla-zonas td:nth-child(3) { width: 24%; text-align: right; }
+.tabla-zonas th:nth-child(4), .tabla-zonas td:nth-child(4) { width: 24%; text-align: right; }
+
+.tabla-zonas td:first-child {
+    font-weight: 600;
+}
+
+.zona-rojo {
+    background: rgba(255, 0, 0, 0.1) !important;
+    border-left: 4px solid #FF0000;
+}
+
+.zona-naranja {
+    background: rgba(255, 140, 0, 0.1) !important;
+    border-left: 4px solid #FF8C00;
+}
+
+.zona-amarillo {
+    background: rgba(255, 255, 0, 0.15) !important;
+    border-left: 4px solid #FFFF00;
+}
+
+.tabla-zonas td,
+.tabla-entidades td {
+    vertical-align: middle;
+    padding: 0.6rem 0.75rem;
+}
+
+/* (regla duplicada de abajo eliminada — volvía a forzar white-space:nowrap
+   y pisaba el fix de arriba de las cabeceras cruzadas/superpuestas) */
+
+/* ── Scroll de 4 filas en tabla entidades ── */
+.tabla-entidades {
+    table-layout: fixed;
+    width: 100%;
+}
+.tabla-entidades thead tr,
+.tabla-entidades tbody tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+}
+.tabla-entidades thead {
+    display: table;
+    width: 100%;
+}
+/* forzar altura uniforme por fila */
+.tabla-entidades tbody tr {
+    height: 40px;
+    cursor: pointer;
+}
+.tabla-entidades tbody {
+    display: block;
+    height: 160px;       /* exactamente 4 filas × 40px */
+    overflow-y: scroll;  /* scroll siempre visible */
+    overflow-x: hidden;
+}
+/* scrollbar visible y ancho */
+.tabla-entidades tbody::-webkit-scrollbar {
+    width: 8px;
+}
+.tabla-entidades tbody::-webkit-scrollbar-track {
+    background: v.$border-color;
+    border-radius: 4px;
+}
+.tabla-entidades tbody::-webkit-scrollbar-thumb {
+    background: #7a8fa6;
+    border-radius: 4px;
+}
+.tabla-entidades tbody::-webkit-scrollbar-thumb:hover {
+    background: #4a6fa5;
+}
+/* anchos de columnas — Monto Asegurado en una línea */
+.tabla-entidades th:nth-child(1), .tabla-entidades td:nth-child(1) { width: 28%; }
+.tabla-entidades th:nth-child(2), .tabla-entidades td:nth-child(2) { width: 15%; text-align: right; }
+.tabla-entidades th:nth-child(3), .tabla-entidades td:nth-child(3) { width: 15%; text-align: right; }
+.tabla-entidades th:nth-child(4), .tabla-entidades td:nth-child(4) { width: 28%; text-align: right; white-space: nowrap; }
+.tabla-entidades th:nth-child(5), .tabla-entidades td:nth-child(5) { width: 14%; text-align: center; }
+
+@media (max-width: 768px) {
+    .tabla-zonas,
+    .tabla-entidades {
+        font-size: 12px;
+    }
+
+    .tabla-zonas tbody tr,
+    .tabla-entidades tbody tr {
+        padding: 0.5rem;
+    }
+}

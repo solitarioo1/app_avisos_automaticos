@@ -1,0 +1,9 @@
+@use '../../base/variables' as v;
+
+.exposicion-row { display: flex; justify-content: space-between; padding: .25rem 0; font-size: .85rem; border-bottom: 1px solid v.$gray-light; }
+.nivel-chip { font-size: .72rem; font-weight: 700; padding: 1px 8px; border-radius: 8px; color: v.$white; }
+.card-seccion { background: v.$white; border-radius: 12px; padding: 1.1rem; box-shadow: 0 1px 4px rgba(0,0,0,.06); margin-bottom: 1rem; }
+.card-seccion h6 { font-weight: 700; color: #039e97; margin-bottom: .8rem; }
+.fila-dato { display: flex; justify-content: space-between; padding: .3rem 0; border-bottom: 1px solid #f0f0f0; font-size: .9rem; }
+.fila-dato:last-child { border-bottom: none; }
+.fila-dato span:first-child { color: #777; }

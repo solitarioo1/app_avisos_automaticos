@@ -1,0 +1,113 @@
+@use '../../base/variables' as v;
+
+/* ── Modal: preview de mensajes ──────────────────────────────── */
+#previewModal .modal-dialog {
+  max-width: 700px;
+}
+
+.preview-cards-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding: .5rem 0;
+}
+
+@media (max-width: 576px) {
+  .preview-cards-container { grid-template-columns: 1fr; }
+}
+
+.wa-card {
+  background: var(--wa-bg);
+  border-radius: var(--radius);
+  padding: .75rem;
+  font-size: .82rem;
+}
+
+.wa-card-header {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: .6rem;
+}
+
+.wa-avatar {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--wa-verde);
+  color: v.$white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.wa-card-info .wa-name {
+  font-weight: 700;
+  font-size: .8rem;
+  color: #1a1a1a;
+}
+
+.wa-card-info .wa-meta {
+  font-size: .72rem;
+  color: v.$gray;
+}
+
+.wa-bubble {
+  background: var(--wa-burbuja);
+  border-radius: 8px 8px 8px 0;
+  padding: .6rem .8rem;
+  position: relative;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #1a1a1a;
+  line-height: 1.4;
+}
+
+.wa-bubble::before {
+  content: '';
+  position: absolute;
+  left: -8px; bottom: 0;
+  border: 8px solid transparent;
+  border-right-color: var(--wa-burbuja);
+  border-bottom-color: var(--wa-burbuja);
+}
+
+.wa-card.canal-email .wa-avatar    { background: var(--email-azul); }
+.wa-card.canal-email .wa-bubble    { background: #e8f0fe; border-radius: 8px 8px 8px 0; }
+.wa-card.canal-email .wa-bubble::before { border-right-color: #e8f0fe; border-bottom-color: #e8f0fe; }
+
+.nivel-tag {
+  display: inline-block;
+  font-size: .68rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 10px;
+  color: v.$white;
+  margin-left: .3rem;
+  vertical-align: middle;
+}
+
+.nivel-tag.Rojo     { background: var(--rojo); }
+.nivel-tag.Naranja  { background: var(--naranja); }
+.nivel-tag.Amarillo { background: #c6a000; }
+.nivel-tag.Verde    { background: var(--verde); }
+
+.preview-resumen {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  padding: .6rem .8rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  font-size: .82rem;
+}
+
+.preview-resumen-item {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+
+.preview-resumen-item strong { font-size: .9rem; }

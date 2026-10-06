@@ -1,0 +1,44 @@
+// Migrado 1:1 desde la parte final de static/css/main.css (despues de los
+// @import) -- usa var(--xxx) custom properties CSS en tiempo de ejecucion,
+// se deja tal cual, no son variables SCSS.
+
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--gray-light);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-light);
+}
+
+::selection {
+    background: var(--primary-color);
+    color: var(--white);
+}
+
+:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+@media print {
+    .main-header,
+    .main-navigation,
+    .btn,
+    .nav-link {
+        display: none !important;
+    }
+
+    .main-content {
+        margin-top: 0;
+        padding: 0;
+    }
+}

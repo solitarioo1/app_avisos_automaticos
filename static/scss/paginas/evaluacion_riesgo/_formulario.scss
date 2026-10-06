@@ -1,0 +1,16 @@
+@use '../../base/variables' as v;
+
+.evr-select, .evr-input {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1.5px solid v.$border-color;
+    border-radius: 2px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #222;
+    background: #fafafa;
+}
+.evr-select:focus, .evr-input:focus { outline: none; border-color: v.$card-accent; background: v.$white; }
+
+.evr-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.evr-field { margin-bottom: 1rem; }

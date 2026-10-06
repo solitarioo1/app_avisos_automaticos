@@ -1,0 +1,10 @@
+// Orden exacto del archivo original static/css/difusion.css + el <style>
+// inline que venia despues en el <head> -- no reordenar.
+@forward 'variables';
+@forward 'pasos';
+@forward 'paneles';
+@forward 'panel_principal';
+@forward 'sidebar_botones';
+@forward 'modal_preview';
+@forward 'historial';
+@forward 'layout';

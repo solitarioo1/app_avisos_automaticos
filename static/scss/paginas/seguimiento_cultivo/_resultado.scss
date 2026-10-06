@@ -1,0 +1,25 @@
+@use '../../base/variables' as v;
+
+.resultado-section {
+    background: white;
+    border-radius: 4px;
+    padding: 1.25rem 1.5rem;
+    margin-top: 1.5rem;
+    border: 1px solid #e9ecef;
+    display: none;
+}
+
+.resultado-pendiente {
+    border-left: 5px solid #fbc02d;
+    background: #FFFBEA;
+}
+
+.resultado-si {
+    border-left: 5px solid #2e7d32;
+    background: #EAF7EC;
+}
+
+.resultado-no {
+    border-left: 5px solid #c62828;
+    background: #FDEAEA;
+}

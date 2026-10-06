@@ -1,0 +1,88 @@
+@use '../../base/variables' as v;
+
+/* ── Estado badges (historial) ───────────────────────────────── */
+.estado-badge {
+  display: inline-block;
+  font-size: .72rem;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.estado-badge.pendiente  { background: #fff3e0; color: #e65100; }
+.estado-badge.enviando   { background: #e3f2fd; color: #1565c0; }
+.estado-badge.enviado    { background: #e8f5e9; color: #1b5e20; }
+.estado-badge.error      { background: #ffebee; color: #c62828; }
+.estado-badge.leido      { background: #f3e5f5; color: #6a1b9a; }
+
+/* ── Tabla de estados ────────────────────────────────────────── */
+.estados-tabla { border-radius: 8px; overflow: hidden; }
+.estados-tabla thead th { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #555; }
+.estados-tabla tbody td { vertical-align: middle; padding: .45rem .75rem; }
+.estados-tabla tbody td:first-child { width: 110px; }
+
+/* ── Historial ───────────────────────────────────────────────── */
+.historial-table {
+  font-size: .83rem;
+}
+
+.historial-table th {
+  background: v.$gray-light;
+  font-weight: 700;
+  color: #555;
+  border-bottom: 2px solid #dee2e6;
+  white-space: nowrap;
+}
+
+.historial-table td { vertical-align: middle; }
+
+/* Panel derecho del historial: resumen por canal */
+.historial-panel-derecho {
+  background: v.$white;
+  border-radius: var(--radius);
+  box-shadow: var(--card-shadow);
+  padding: 1.2rem;
+  height: 100%;
+}
+
+.historial-canal-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .55rem .6rem;
+  border-radius: 8px;
+  margin-bottom: .5rem;
+  background: #f8f9fa;
+  font-size: .83rem;
+}
+
+.historial-canal-row .canal-name {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.historial-canal-row .tasa {
+  font-size: .78rem;
+  color: v.$gray;
+  margin-top: .1rem;
+}
+
+/* ── Spinner / overlay ───────────────────────────────────────── */
+.difusion-spinner {
+  display: none;
+  text-align: center;
+  padding: 1rem;
+  color: v.$gray;
+  font-size: .88rem;
+}
+
+.difusion-spinner.visible { display: block; }
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .difusion-panel { padding: 1rem; }
+  .preview-cards-container { grid-template-columns: 1fr; }
+}

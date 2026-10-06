@@ -1,0 +1,19 @@
+// Migrado desde static/css/difusion.css (antes de combinar con el <style>
+// inline del template). Custom properties CSS -- no se convierten a
+// variables SCSS, se resuelven en runtime.
+@use '../../base/variables' as v;
+
+:root {
+  --rojo:     #e53935;
+  --naranja:  #fb8c00;
+  --amarillo: #fdd835;
+  --verde:    #43a047;
+
+  --wa-verde:   #25d366;
+  --wa-bg:      #ece5dd;
+  --wa-burbuja: #dcf8c6;
+  --email-azul: #1565c0;
+
+  --card-shadow: 0 2px 8px rgba(0,0,0,.12);
+  --radius:      10px;
+}
