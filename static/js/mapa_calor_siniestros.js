@@ -19,8 +19,8 @@ const MCS_BURBUJA_BORDE = '#0d7377';
 
 document.addEventListener('DOMContentLoaded', () => {
     mcsMapa = L.map('mcs-mapa', { preferCanvas: true }).setView([-9.2, -75.0], 5.5);
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles &copy; Esri',
+    L.tileLayer('https://api.thunderforest.com/atlas/{z}/{x}/{y}.png?apikey=043ce2146e48404a850da16dae37388a', {
+        attribution: '&copy; <a href="https://www.thunderforest.com/">Thunderforest</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 18
     }).addTo(mcsMapa);
 

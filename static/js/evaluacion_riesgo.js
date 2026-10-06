@@ -47,8 +47,8 @@ window.addEventListener('beforeprint', () => {
 // ============================================================================
 function evrInicializarMapa() {
     evrMap = L.map('evr-mapa', { minZoom: 7 }).setView([EVR_DEFAULT_LAT, EVR_DEFAULT_LON], 9);
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles &copy; Esri',
+    L.tileLayer('https://api.thunderforest.com/atlas/{z}/{x}/{y}.png?apikey=043ce2146e48404a850da16dae37388a', {
+        attribution: '&copy; <a href="https://www.thunderforest.com/">Thunderforest</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 18
     }).addTo(evrMap);
 
@@ -462,7 +462,7 @@ function evrGdrDatosHtml(data) {
 function evrRenderGdrMap(data) {
     if (!evrGdrMap) {
         evrGdrMap = L.map('evr-mapa-gdr');
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri' }).addTo(evrGdrMap);
+        L.tileLayer('https://api.thunderforest.com/atlas/{z}/{x}/{y}.png?apikey=043ce2146e48404a850da16dae37388a', { attribution: '&copy; <a href="https://www.thunderforest.com/">Thunderforest</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(evrGdrMap);
     }
     evrGdrMap.eachLayer(l => { if (!(l instanceof L.TileLayer)) evrGdrMap.removeLayer(l); });
 

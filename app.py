@@ -320,7 +320,10 @@ def _precargar_capas_riesgo():
     el primer caso) en vez de pagarse una sola vez al arrancar el server."""
     try:
         from routes.evaluacion_riesgo import _cargar_capa_preview, EVENTOS
-        from routes.capas_riesgo import CAPAS_DISPONIBLES, _cargar_capa_preview_gdf, _cargar_capa_preview_gdf_nacional
+        from routes.capas_riesgo import (
+            CAPAS_DISPONIBLES, _cargar_capa_preview_gdf, _cargar_capa_preview_gdf_nacional,
+            _cargar_capa_completa_cached,
+        )
 
         nombres = {'rio'}
         for ev in EVENTOS.values():
@@ -332,8 +335,13 @@ def _precargar_capas_riesgo():
         for n in nombres:
             _cargar_capa_preview(n)       # cache propio de evaluacion_riesgo.py
         for n in CAPAS_DISPONIBLES:
-            _cargar_capa_preview_gdf(n)        # cache propio de capas_riesgo.py (Mapa Clientes/clasificar-excel)
+            _cargar_capa_preview_gdf(n)        # cache propio de capas_riesgo.py (Mapa Clientes/Excel)
             _cargar_capa_preview_gdf_nacional(n)  # cache para /geometria?depto= (Seguro Comercial)
+        # Inundación/Mov. Masa en su versión COMPLETA (no el preview simplificado)
+        # para Evaluación de Afiliaciones — pesado (hasta 1.1GB), por eso se paga
+        # acá una sola vez al arrancar y no en el primer request real.
+        _cargar_capa_completa_cached('inundacion')
+        _cargar_capa_completa_cached('mov_masa')
         logger.info('Capas de riesgo precargadas en memoria: %s', sorted(nombres))
     except Exception as e:
         logger.warning('No se pudieron precargar las capas de riesgo: %s', str(e))
@@ -349,7 +357,12 @@ if __name__ == '__main__':
     # logger.info(f"📊 Directorio de salida: {OUTPUT_DIR}")
     # logger.info(f"🌐 Dominio: {DOMAIN}")
 
-    threading.Thread(target=_precargar_capas_riesgo, daemon=True).start()
+    # En local esto satura la CPU (~8 capas x 3 cachés) y hace lento el arranque.
+    # Para desactivarlo en desarrollo: PRECARGAR_CAPAS=0 python app.py
+    if os.getenv('PRECARGAR_CAPAS', '1') != '0':
+        threading.Thread(target=_precargar_capas_riesgo, daemon=True).start()
+    else:
+        logger.info('Precarga de capas desactivada (PRECARGAR_CAPAS=0)')
 
     # Ejecutar servidor
     app.run(

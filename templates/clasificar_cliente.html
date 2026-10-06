@@ -1,212 +1,177 @@
 {% extends "base.html" %}
 
-{% block title %}Clasifica tu Cliente - La Positiva AgroSeguros{% endblock %}
+{% block title %}Evaluación de Afiliaciones - La Positiva AgroSeguros{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/lite.umd.js"></script>
 <style>
-    .cc-container { max-width: 1300px; margin: 0 auto; }
+    /* Mismo ancho/márgenes que Seguro Comercial (decisiones.html) */
+    .cc-container { max-width: 1200px; }
 
-    .cc-tabs { display: flex; gap: .5rem; margin-bottom: 1.25rem; }
-    .cc-tab { border: none; background: #eee; color: #555; padding: .5rem 1.1rem; border-radius: 20px;
-              font-size: 13px; font-weight: 700; cursor: pointer; }
+    /* Mismo grid mapa-izquierda/panel-derecha que Seguro Comercial */
+    .cc-contenedor-principal { display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; align-items: stretch; }
+    .cc-contenedor-principal > div:first-child { display: flex; flex-direction: column; }
+    @media (max-width: 1024px) { .cc-contenedor-principal { grid-template-columns: 1fr; } }
+
+    #cc-mapa { width: 100%; flex: 1; min-height: 600px; border-radius: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+
+    .cc-panel-derecho { display: flex; flex-direction: column; gap: 1rem; }
+    .cc-card {
+        background: #fff; border-radius: 2px; padding: 1.25rem 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07); border-left: 4px solid #e07b5a; border-top: 1px solid #f0f0f0;
+    }
+    .cc-label { font-size: 12px; font-weight: 700; color: #888; margin-bottom: .5rem; text-transform: uppercase; letter-spacing: .6px; display: block; }
+    .cc-select, .cc-input { width: 100%; padding: 8px 10px; border: 1.5px solid #e0e0e0; border-radius: 2px; font-size: 13.5px; margin-bottom: .75rem; background: #fafafa; }
+    .cc-select:focus, .cc-input:focus { outline: none; border-color: #e07b5a; background: #fff; }
+    .cc-input-oculto { display: none; }
+
+    .cc-dropzone {
+        border: 2px dashed #cfd8dc; border-radius: 8px; padding: 1.3rem 1rem; text-align: center;
+        cursor: pointer; background: #fafbfc; transition: border-color .15s, background .15s; margin-bottom: .75rem;
+    }
+    .cc-dropzone:hover { border-color: #04ccc4; background: #f3fffe; }
+    .cc-dropzone.cc-dragover { border-color: #04ccc4; background: #eafffe; }
+    .cc-dropzone-icon { font-size: 26px; margin-bottom: .3rem; line-height: 1; }
+    .cc-dropzone-text { font-size: 12.5px; color: #777; }
+    .cc-dropzone-text span { color: #04ccc4; font-weight: 700; text-decoration: underline; }
+    .cc-dropzone-filename { font-size: 12px; color: #333; font-weight: 600; margin-top: .4rem; word-break: break-all; }
+
+    .cc-tabs { display: flex; gap: .4rem; margin-bottom: .9rem; }
+    .cc-tab { border: none; background: #eee; color: #555; padding: .45rem 1rem; border-radius: 18px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
     .cc-tab.activo { background: #04ccc4; color: #fff; }
     .cc-pane { display: none; }
     .cc-pane.activo { display: block; }
 
-    #cc-mapa-foto { height: 320px; border-radius: 4px; margin-top: .5rem; }
-    .cc-foto-item { position: relative; display: inline-block; width: 90px; height: 90px; margin: 4px; border-radius: 6px; overflow: hidden; }
+    .cc-btn { width: 100%; font-size: 13px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: #fff;
+              border: none; background: #04ccc4; padding: 10px 14px; border-radius: 20px; cursor: pointer; }
+    .cc-btn:hover { background: #03a8a1; }
+    .cc-btn:disabled { background: #95a5a6; cursor: wait; }
+    #cc-status, #cc-foto-status { font-size: 12.5px; margin-top: .5rem; }
+    .cc-status-ok { color: #1e8449; }
+    .cc-status-error { color: #a93226; }
+
+    .cc-progreso-wrap { background: #eee; border-radius: 10px; height: 9px; overflow: hidden; margin: .5rem 0; }
+    .cc-progreso-bar { background: #04ccc4; height: 100%; width: 0%; transition: width .3s; }
+
+    .cc-foto-item { position: relative; display: inline-block; width: 60px; height: 60px; margin: 3px; border-radius: 6px; overflow: hidden; }
     .cc-foto-item img { width: 100%; height: 100%; object-fit: cover; }
-    .cc-foto-badge { position: absolute; bottom: 0; left: 0; right: 0; font-size: 9px; text-align: center; padding: 1px; color: #fff; }
-    .cc-exposicion-row { display: flex; justify-content: space-between; align-items: center; padding: .4rem 0; border-bottom: 1px solid #f0f0f0; font-size: 13.5px; }
-    .cc-nivel-badge { font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 10px; color: #fff; }
-    .cc-historial-table { font-size: 12.5px; }
+    .cc-foto-badge { position: absolute; bottom: 0; left: 0; right: 0; font-size: 8px; text-align: center; padding: 1px; color: #fff; }
 
-    .cc-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 2rem; align-items: start; }
-    @media (max-width: 900px) { .cc-grid { grid-template-columns: 1fr; } }
+    .cc-nivel-badge { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 10px; color: #fff; white-space: nowrap; cursor: pointer; transition: transform .1s; }
+    .cc-nivel-badge:hover { transform: scale(1.06); box-shadow: 0 1px 4px rgba(0,0,0,.25); }
 
-    .cc-card {
-        background: #fff;
-        border-radius: 2px;
-        padding: 1.5rem 1.75rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-        border-left: 4px solid #e07b5a;
-        border-top: 1px solid #f0f0f0;
-    }
+    /* Tabla de resultados -- mismo patrón que .tabla-cultivos de Seguro Comercial */
+    .cc-tabla-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: .6rem; }
+    .cc-resultados-table { table-layout: fixed; width: 100%; font-size: 13px; }
+    .cc-resultados-table thead tr, .cc-resultados-table tbody tr { display: table; width: 100%; table-layout: fixed; }
+    .cc-resultados-table thead { display: table; width: 100%; }
+    .cc-resultados-table tbody { display: block; max-height: 400px; overflow-y: auto; }
+    .cc-resultados-table th { font-size: 11px; text-transform: uppercase; color: #888; text-align: left; padding: .5rem .6rem; border-bottom: 2px solid #eee; }
+    .cc-resultados-table td { padding: .5rem .6rem; border-bottom: 1px solid #f2f2f2; vertical-align: middle; }
+    .cc-resultados-table th:nth-child(1), .cc-resultados-table td:nth-child(1) { width: 4%; text-align: center; }
+    .cc-resultados-table th:nth-child(2), .cc-resultados-table td:nth-child(2) { width: 9%; }
+    .cc-resultados-table th:nth-child(3), .cc-resultados-table td:nth-child(3) { width: 20%; }
+    .cc-resultados-table th:nth-child(4), .cc-resultados-table td:nth-child(4) { width: 27%; }
+    .cc-resultados-table th:nth-child(5), .cc-resultados-table td:nth-child(5) { width: 8%; text-align: center; }
+    .cc-resultados-table th:nth-child(6), .cc-resultados-table td:nth-child(6) { width: 8%; text-align: center; }
+    .cc-resultados-table th:nth-child(7), .cc-resultados-table td:nth-child(7) { width: 24%; }
+    .cc-niveles-cell { display: flex; flex-wrap: wrap; gap: 3px; }
+    .cc-ubicacion-admin { font-size: 11px; color: #999; margin-top: 2px; }
 
-    .cc-label {
-        font-size: 12px;
-        font-weight: 700;
-        color: #888;
-        margin-bottom: 0.4rem;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-        display: block;
-    }
+    .cc-foto-thumb { width: 34px; height: 34px; border-radius: 4px; object-fit: cover; cursor: pointer; border: 1px solid #e0e0e0; }
+    .cc-foto-lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 9999; display: flex; align-items: center; justify-content: center; cursor: zoom-out; }
+    .cc-foto-lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 4px; }
 
-    .cc-select, .cc-input {
-        width: 100%;
-        padding: 9px 12px;
-        border: 1.5px solid #e0e0e0;
-        border-radius: 2px;
-        font-size: 14px;
-        font-weight: 500;
-        color: #222;
-        background: #fafafa;
-        margin-bottom: 1.25rem;
-    }
-    .cc-select:focus, .cc-input:focus { outline: none; border-color: #e07b5a; background: #fff; }
+    .cc-manual-fix { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+    .cc-manual-fix input { width: 72px; padding: 3px 5px; font-size: 11px; border: 1px solid #e0e0e0; border-radius: 3px; }
+    .cc-manual-fix button { font-size: 10.5px; font-weight: 700; color: #fff; background: #fc6c44; border: none; border-radius: 12px; padding: 4px 10px; cursor: pointer; white-space: nowrap; }
+    .cc-manual-fix button:hover { background: #e55a33; }
+    .cc-manual-fix .cc-manual-pick { background: #04ccc4; }
+    .cc-manual-fix .cc-manual-pick:hover { background: #03a8a1; }
 
-    #cc-btn-clasificar {
-        width: 100%;
-        font-size: 13px;
-        font-weight: 700;
-        letter-spacing: 0.4px;
-        text-transform: uppercase;
-        color: #fff;
-        border: none;
-        background: #04ccc4;
-        padding: 11px 14px;
-        border-radius: 20px;
-        cursor: pointer;
-        transition: background 0.15s;
-    }
-    #cc-btn-clasificar:hover { background: #03a8a1; }
-    #cc-btn-clasificar:disabled { background: #95a5a6; cursor: wait; }
-    #cc-btn-validar { width: 100%; font-size: 13px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
-        color: #fff; border: none; background: #fc6c44; padding: 11px 14px; border-radius: 20px; cursor: pointer; }
-    #cc-btn-validar:hover { background: #e55a33; }
-    #cc-btn-validar:disabled { background: #95a5a6; cursor: wait; }
-
-    #cc-status { font-size: 13px; margin-top: 1rem; text-align: center; }
-    #cc-status.ok { color: #1e8449; }
-    #cc-status.error { color: #a93226; }
-
-    /* Card de instrucciones — columnas puntuales, no párrafos */
-    .cc-info-card {
-        background: #fff;
-        border-radius: 2px;
-        padding: 1.5rem 1.75rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-        border-left: 4px solid #2cdde4;
-        border-top: 1px solid #f0f0f0;
-    }
-    .cc-info-card h5 {
-        font-size: 12px; font-weight: 700; color: #888;
-        text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 1rem;
-    }
-    .cc-col-item { display: flex; align-items: baseline; gap: 0.6rem; padding: 0.55rem 0; border-bottom: 1px solid #f2f2f2; }
-    .cc-col-item:last-child { border-bottom: none; }
-    .cc-col-tag {
-        font-family: monospace; font-size: 12px; font-weight: 700; color: #04ccc4;
-        background: #eafffe; padding: 2px 8px; border-radius: 3px; white-space: nowrap;
-    }
-    .cc-col-tag.req { color: #a93226; background: #fdedec; }
-    .cc-col-desc { font-size: 13px; color: #555; }
-    .cc-req-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #a93226; letter-spacing: 0.4px; }
+    .cc-alerta-fallidos { background: #fdedec; border: 1px solid #f5c6cb; border-radius: 4px; padding: .6rem .9rem; font-size: 12.5px; color: #a93226; margin-top: .6rem; display: flex; justify-content: space-between; align-items: center; gap: .6rem; flex-wrap: wrap; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="cc-container">
-    <h2 class="mb-1">Clasifica tu Cliente</h2>
+<div class="container-fluid p-3 cc-container">
+    <h2 class="mb-1">Evaluación de Afiliaciones</h2>
     <p style="color:#888; font-size:13.5px; margin-bottom:1rem;">
-        Valida la exposición a riesgo de un cliente, por Excel masivo o con una foto georreferenciada de su parcela.
+        Exposición a riesgo de un prospecto — por Excel o por foto(s) georreferenciada(s).
     </p>
 
-    <div class="cc-tabs">
-        <button class="cc-tab activo" id="cc-tab-excel" onclick="ccCambiarTab('excel')">📊 Excel</button>
-        <button class="cc-tab" id="cc-tab-foto" onclick="ccCambiarTab('foto')">📷 Foto Georreferenciada</button>
-    </div>
+    <div class="cc-contenedor-principal">
+        <div>
+            <div id="cc-mapa"></div>
+        </div>
 
-    <div class="cc-pane activo" id="cc-pane-excel">
-        <div class="cc-grid">
+        <div class="cc-panel-derecho">
             <div class="cc-card">
                 <label class="cc-label">Capa de Riesgo</label>
                 <select id="cc-capa" class="cc-select">
-                    <option value="">-- Cargando capas... --</option>
+                    <option value="">Todas (recomendado)</option>
                 </select>
 
-                <label class="cc-label">Excel de Clientes</label>
-                <input type="file" id="cc-archivo" accept=".xlsx,.xls" class="cc-input" style="margin-bottom:0.4rem;">
+                <div class="cc-tabs">
+                    <button class="cc-tab activo" id="cc-tab-excel" onclick="ccCambiarTab('excel')">📊 Excel</button>
+                    <button class="cc-tab" id="cc-tab-foto" onclick="ccCambiarTab('foto')">📷 Fotos</button>
+                </div>
 
-                <button id="cc-btn-clasificar" onclick="ccClasificar()">⬆ Clasificar y Descargar</button>
-                <div id="cc-status"></div>
-            </div>
+                <div class="cc-pane activo" id="cc-pane-excel">
+                    <label class="cc-label">Excel de prospectos</label>
+                    <div class="cc-dropzone" id="cc-dropzone-excel">
+                        <div class="cc-dropzone-icon">📄</div>
+                        <div class="cc-dropzone-text">Arrastra tu Excel aquí, o <span>haz click para elegir</span></div>
+                        <div class="cc-dropzone-filename" id="cc-archivo-nombre"></div>
+                    </div>
+                    <input type="file" id="cc-archivo" accept=".xlsx,.xls" class="cc-input-oculto">
+                    <button id="cc-btn-clasificar" class="cc-btn" onclick="ccClasificarExcel()">Evaluar Excel</button>
+                    <div id="cc-status"></div>
+                </div>
 
-            <div class="cc-info-card">
-                <h5>Columnas del Excel</h5>
-                <div class="cc-col-item">
-                    <span class="cc-col-tag req">lat</span> / <span class="cc-col-tag req">latitud</span>
-                    <span class="cc-col-desc">Requerida <span class="cc-req-badge">obligatorio</span></span>
-                </div>
-                <div class="cc-col-item">
-                    <span class="cc-col-tag req">lon</span> / <span class="cc-col-tag req">longitud</span>
-                    <span class="cc-col-desc">Requerida <span class="cc-req-badge">obligatorio</span></span>
-                </div>
-                <div class="cc-col-item">
-                    <span class="cc-col-tag">cualquier otra</span>
-                    <span class="cc-col-desc">Nombre, DNI, teléfono, etc. — se mantienen tal cual, sin límite de cuántas</span>
-                </div>
-                <h5 style="margin-top:1.5rem;">Descarga (2 hojas)</h5>
-                <div class="cc-col-item">
-                    <span class="cc-col-tag">Clasificados</span>
-                    <span class="cc-col-desc">Con el nivel de riesgo agregado</span>
-                </div>
-                <div class="cc-col-item">
-                    <span class="cc-col-tag">No Clasificados</span>
-                    <span class="cc-col-desc">Sin coordenada, coordenada inválida, o fuera del Perú — con el motivo</span>
+                <div class="cc-pane" id="cc-pane-foto">
+                    <label class="cc-label">Foto(s) georreferenciada(s)</label>
+                    <div class="small text-muted mb-2" style="font-size:11.5px;">
+                        1-3 fotos: una sola parcela, respuesta instantánea.<br>
+                        4-100 fotos (o un .zip): cada foto es un prospecto independiente, se procesa en segundo plano.
+                    </div>
+                    <div class="cc-dropzone" id="cc-dropzone-fotos">
+                        <div class="cc-dropzone-icon">📷</div>
+                        <div class="cc-dropzone-text">Arrastra fotos (o un .zip) aquí, o <span>haz click para elegir</span></div>
+                        <div class="cc-dropzone-filename" id="cc-fotos-nombre"></div>
+                    </div>
+                    <input type="file" id="cc-fotos" accept="image/*,.zip" multiple class="cc-input-oculto">
+                    <div id="cc-fotos-preview"></div>
+                    <button id="cc-btn-validar" class="cc-btn mt-1" onclick="ccEvaluarFotos()">Evaluar fotos</button>
+                    <div class="cc-progreso-wrap" id="cc-progreso-wrap" style="display:none;">
+                        <div class="cc-progreso-bar" id="cc-progreso-bar"></div>
+                    </div>
+                    <div id="cc-foto-status"></div>
+                    <div id="cc-lote-fallidos"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="cc-pane" id="cc-pane-foto">
-        <div class="cc-grid">
-            <div class="cc-card">
-                <label class="cc-label">Fotos de la parcela (1 a 3, georreferenciadas)</label>
-                <input type="file" id="cc-fotos" accept="image/*" multiple class="cc-input" style="margin-bottom:0.4rem;">
-                <div id="cc-fotos-preview"></div>
-                <button id="cc-btn-validar" class="mt-2" onclick="ccValidarFoto()">📍 Validar exposición</button>
-                <div id="cc-foto-status"></div>
-            </div>
-
-            <div class="cc-info-card">
-                <h5>Cómo funciona</h5>
-                <div class="cc-col-item"><span class="cc-col-desc">Sube 1-3 fotos tomadas con la cámara (con GPS activado) de la parcela del cliente.</span></div>
-                <div class="cc-col-item"><span class="cc-col-desc">Se extrae la ubicación real de la foto y se cruza contra TODAS las capas de riesgo a la vez.</span></div>
-                <div class="cc-col-item"><span class="cc-col-desc">Se muestran los siniestros ya reportados cerca de ese punto.</span></div>
-                <div class="cc-col-item"><span class="cc-col-desc">Cada consulta queda guardada en el historial de abajo (trazabilidad).</span></div>
-            </div>
+    <div class="cc-card mt-3" id="cc-resultados-card" style="display:none;">
+        <div class="cc-tabla-header">
+            <h5 class="mb-0"><strong id="cc-resultados-total">0</strong> resultado(s)</h5>
+            <button class="cc-btn" style="width:auto; padding:7px 16px;" onclick="ccExportar()">⬇ Descargar Excel</button>
         </div>
+        <table class="table table-sm cc-resultados-table mb-0">
+            <thead><tr><th>☑</th><th>Origen</th><th>Ubicación</th><th>Exposición por capa</th><th>Siniestros</th><th>Foto</th><th>Acción</th></tr></thead>
+            <tbody id="cc-resultados-body"></tbody>
+        </table>
+    </div>
 
-        <div class="mt-3">
-            <div class="cc-grid">
-                <div class="cc-card">
-                    <label class="cc-label">Ubicación y siniestros cercanos</label>
-                    <div id="cc-mapa-foto"></div>
-                    <div class="small text-muted mt-2">
-                        <span style="color:#dc3545;">●</span> Siniestro verificado (indemnizado) &nbsp;
-                        <span style="color:#6c757d;">●</span> Rechazado &nbsp;
-                        <span style="color:#ffc107;">●</span> Pendiente
-                    </div>
-                </div>
-                <div class="cc-card">
-                    <label class="cc-label">Exposición por capa</label>
-                    <div id="cc-exposicion-lista"><span class="text-muted small">Sube una foto para ver la exposición del punto.</span></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="cc-card mt-3">
-            <label class="cc-label">Historial de consultas (trazabilidad)</label>
-            <div class="table-responsive">
-                <table class="table table-sm cc-historial-table mb-0">
-                    <thead><tr><th>Fecha</th><th>Usuario</th><th>Ubicación</th><th>Fotos</th><th>Resumen exposición</th></tr></thead>
-                    <tbody id="cc-historial-body"><tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr></tbody>
-                </table>
-            </div>
+    <div class="cc-card mt-3">
+        <h5 class="mb-2" style="font-size:13px; color:#888; text-transform:uppercase; letter-spacing:.6px;">Historial de consultas por foto (trazabilidad)</h5>
+        <div class="table-responsive">
+            <table class="table table-sm" style="font-size:12.5px;">
+                <thead><tr><th>Fecha</th><th>Usuario</th><th>Ubicación</th><th>Fotos</th><th>Resumen exposición</th></tr></thead>
+                <tbody id="cc-historial-body"><tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr></tbody>
+            </table>
         </div>
     </div>
 </div>

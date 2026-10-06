@@ -477,110 +477,35 @@ def _cargar_capa_preview_gdf(nombre):
     return gdf
 
 
-_COLS_LAT_EXCEL = ['lat', 'latitud', 'latitude']
-_COLS_LON_EXCEL = ['lon', 'lng', 'longitud', 'longitude']
+_capa_completa_gdf_cache = {}  # nombre -> GeoDataFrame completo (sin simplificar), cacheado
+_CAPAS_CON_VERSION_PESADA = {'inundacion', 'mov_masa'}  # unicas con archivo completo distinto del preview
 
 
-@capas_riesgo_bp.route('/api/capas-riesgo/<nombre>/clasificar-excel', methods=['POST'])
-def api_clasificar_excel(nombre):
-    """Sube un Excel de clientes EXTERNOS (no están en la BD, ej. prospectos
-    antes de asegurarlos) con coordenadas, y devuelve el mismo archivo con una
-    columna de Nivel de Riesgo agregada, clasificando cada fila contra la
-    capa elegida en el selector. No toca la BD ni clientes_riesgo_capa."""
+def _cargar_capa_completa_cached(nombre):
+    """Como _cargar_capa_preview_gdf, pero para Inundación/Mov. Masa sirve el
+    archivo COMPLETO (sin simplificar con mapshaper), no el preview liviano —
+    para dar una respuesta definitiva de exposición (Evaluación de Afiliaciones)
+    no conviene perder precisión de borde de polígono solo por velocidad de
+    mapa. El resto de capas no tiene esa distinción (su raw ya es liviano), se
+    reusa el mismo preview de siempre. Se cachea en memoria — el archivo pesado
+    (hasta 1.1GB) se lee una sola vez, nunca por request."""
+    if nombre not in _CAPAS_CON_VERSION_PESADA:
+        return _cargar_capa_preview_gdf(nombre)
+    if nombre in _capa_completa_gdf_cache:
+        return _capa_completa_gdf_cache[nombre]
     info = CAPAS_DISPONIBLES.get(nombre)
-    if info is None:
-        return jsonify({'error': f'Capa "{nombre}" no existe'}), 404
+    ruta = CLIP_DIR / info['archivo'] if info else None
+    gdf = gpd.read_file(ruta) if ruta and ruta.exists() else None
+    if gdf is not None and gdf.crs is None:
+        gdf = gdf.set_crs('EPSG:4326')
+    _capa_completa_gdf_cache[nombre] = gdf
+    return gdf
 
-    archivo = request.files.get('excel')
-    if not archivo:
-        return jsonify({'error': 'No se recibió ningún archivo'}), 400
 
-    try:
-        df = pd.read_excel(archivo)
-    except Exception as e:
-        logger.error("Error leyendo Excel a clasificar: %s", str(e))
-        return jsonify({'error': 'No se pudo leer el Excel (¿formato .xlsx válido?)'}), 400
-
-    columnas_lower = {str(c).strip().lower(): c for c in df.columns}
-
-    def _detectar(candidatos):
-        for c in candidatos:
-            if c in columnas_lower:
-                return columnas_lower[c]
-        return None
-
-    col_lat = _detectar(_COLS_LAT_EXCEL)
-    col_lon = _detectar(_COLS_LON_EXCEL)
-    if not col_lat or not col_lon:
-        return jsonify({'error': 'El Excel debe tener columnas de coordenadas: lat/latitud y lon/longitud.'}), 400
-
-    capa_gdf = _cargar_capa_preview_gdf(nombre)
-    campo_cat = info.get('campo_categoria')
-
-    # Perú en bruto (con margen) — para separar coordenadas inválidas
-    # (ej. lat/lon invertidos, decimal mal puesto) de las que sí sirven.
-    LAT_MIN, LAT_MAX = -19.5, 0.5
-    LON_MIN, LON_MAX = -82.0, -68.0
-
-    filas_ok, filas_error = [], []
-    for _, fila in df.iterrows():
-        motivo = None
-        lat = lon = None
-        valor_lat, valor_lon = fila.get(col_lat), fila.get(col_lon)
-        if pd.isna(valor_lat) or pd.isna(valor_lon) or str(valor_lat).strip() == '' or str(valor_lon).strip() == '':
-            motivo = 'Sin coordenadas'
-        else:
-            try:
-                lat = float(valor_lat)
-                lon = float(valor_lon)
-            except (TypeError, ValueError):
-                motivo = 'Coordenada no numérica'
-            else:
-                if not (LAT_MIN <= lat <= LAT_MAX and LON_MIN <= lon <= LON_MAX):
-                    motivo = 'Coordenada fuera del Perú (revisar lat/lon)'
-
-        if motivo:
-            fila_error = fila.to_dict()
-            fila_error['Motivo'] = motivo
-            filas_error.append(fila_error)
-            continue
-
-        fila_ok = fila.to_dict()
-        if capa_gdf is None or capa_gdf.empty:
-            fila_ok['Dentro de la Capa'] = 'No'
-            fila_ok[f'Nivel de Riesgo ({info["label"]})'] = 'Capa no disponible'
-        else:
-            match = capa_gdf[capa_gdf.contains(Point(lon, lat))]
-            if match.empty and nombre == 'rio':
-                # Archivo de río solo trae 3 bandas explícitas hasta 1km —
-                # todo lo que no cae ahí es Bajo por definición (ver mismo
-                # criterio en routes/evaluacion_riesgo.py::_capas_en_punto).
-                fila_ok['Dentro de la Capa'] = 'Sí'
-                fila_ok[f'Nivel de Riesgo ({info["label"]})'] = 'Bajo'
-            elif match.empty:
-                fila_ok['Dentro de la Capa'] = 'No'
-                fila_ok[f'Nivel de Riesgo ({info["label"]})'] = 'Fuera de zona'
-            else:
-                valor_crudo = match.iloc[0][campo_cat] if campo_cat else None
-                nivel_std = _nivel_estandar(nombre, valor_crudo) if campo_cat else None
-                fila_ok['Dentro de la Capa'] = 'Sí'
-                fila_ok[f'Nivel de Riesgo ({info["label"]})'] = nivel_std or 'Expuesto'
-        filas_ok.append(fila_ok)
-
-    df_ok = pd.DataFrame(filas_ok)
-    df_error = pd.DataFrame(filas_error)
-
-    buf = io.BytesIO()
-    with pd.ExcelWriter(buf, engine='openpyxl') as writer:
-        (df_ok if not df_ok.empty else pd.DataFrame(columns=list(df.columns))).to_excel(
-            writer, sheet_name='Clasificados', index=False)
-        (df_error if not df_error.empty else pd.DataFrame(columns=list(df.columns) + ['Motivo'])).to_excel(
-            writer, sheet_name='No Clasificados', index=False)
-    buf.seek(0)
-
-    resp = Response(buf.read(), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    resp.headers['Content-Disposition'] = f'attachment; filename="clientes_clasificados_{nombre}.xlsx"'
-    return resp
+# NOTA: la clasificación de Excel de prospectos (antes acá, /clasificar-excel)
+# se movió a routes/clasificar_cliente.py — pasó a evaluar contra TODAS las
+# capas (no solo 1) + siniestros cercanos, para ser consistente con el flujo
+# de fotos. Ver clasificar_cliente.py::api_clasificar_excel.
 
 
 _cache_preview = {}  # nombre -> GeoDataFrame SIN filtrar (se cachea una vez, liviana)
