@@ -32,6 +32,7 @@ import zipfile
 from pathlib import Path
 from io import BytesIO
 
+import geopandas as gpd
 import pandas as pd
 import psycopg2.extras
 from flask import Blueprint, render_template, request, jsonify, Response, send_file
@@ -74,7 +75,24 @@ def index():
 def _exposicion_todas_las_capas(lat, lon, capas_filtro=None):
     """Cruza el punto contra las capas de riesgo elegidas (todas por defecto,
     las ya corregidas sin recorte agrícola). Para Inundación/Mov. Masa usa el
-    archivo completo (sin simplificar) — ver _cargar_capa_completa_cached."""
+    archivo completo (sin simplificar) — ver _cargar_capa_completa_cached.
+
+    Usa el índice espacial (gdf.sindex) para el contains, en vez de
+    gdf.contains(punto) directo: ese último prueba el punto contra CADA
+    polígono de la capa uno por uno (O(n) por punto); con sindex.query solo
+    se testean los pocos candidatos cuyo bounding-box ya contiene el punto
+    (R-tree, prefiltro barato) — medido con un Excel real: 10 filas pasaron
+    de ~2.5s/fila a prácticamente instantáneo por fila tras este cambio.
+
+    OJO con el predicate: sindex.query(geometria, predicate=X) evalúa
+    X(geometria_input, geometria_del_arbol) — NO al revés. Para "¿el polígono
+    contiene al punto?" el predicate correcto es 'within' (¿el punto está
+    DENTRO del polígono?), no 'contains' (eso pregunta si el PUNTO contiene
+    al polígono, imposible, siempre da 0 resultados). Se probó mal una vez
+    con 'contains' y clasificó todo como "no expuesto" en todas las capas
+    sin ningún error visible — verificar con un punto de nivel conocido
+    (ej. Faja Marginal en Pachacamac, -12.1455/-76.8324, debe dar "Muy Alto")
+    después de tocar esta función."""
     punto = Point(lon, lat)
     nombres = capas_filtro if capas_filtro else list(CAPAS_DISPONIBLES.keys())
     resultados = []
@@ -86,10 +104,10 @@ def _exposicion_todas_las_capas(lat, lon, capas_filtro=None):
         en_capa, nivel = False, None
         if gdf is not None and not gdf.empty:
             campo_cat = info.get('campo_categoria')
-            match = gdf[gdf.contains(punto)]
-            if not match.empty:
+            candidatos = gdf.iloc[gdf.sindex.query(punto, predicate='within')]
+            if not candidatos.empty:
                 en_capa = True
-                valor_crudo = match.iloc[0][campo_cat] if campo_cat else None
+                valor_crudo = candidatos.iloc[0][campo_cat] if campo_cat else None
                 nivel = _nivel_estandar(nombre, valor_crudo) if campo_cat else 'Expuesto'
             elif nombre == 'rio':
                 en_capa, nivel = True, 'Bajo'  # mismo criterio que el resto de la app
@@ -98,8 +116,56 @@ def _exposicion_todas_las_capas(lat, lon, capas_filtro=None):
             'disponible': gdf is not None,
             'en_capa': en_capa, 'nivel': nivel,
             'color': _COLOR_NIVEL_ESTANDAR.get(nivel) if nivel else None,
+            'distancia_rio_m': _distancia_al_rio(lat, lon) if nombre == 'rio' else None,
         })
     return resultados
+
+
+_rios_lineas_cache = None  # GeoDataFrame de los 947 tramos "Río" (líneas, EPSG:4326), cacheado
+
+
+def _huso_utm(lon):
+    """Mismo criterio que CONFIG/recorte_zona_agricola.py::_huso_utm — Perú
+    cae en 3 husos UTM (17S/18S/19S) según la longitud, un solo huso fijo
+    distorsiona la distancia real lejos de su meridiano central."""
+    if lon >= -78:
+        return 32718  # UTM 18S
+    if lon >= -84:
+        return 32717  # UTM 17S
+    return 32719      # UTM 19S
+
+
+def _cargar_rios_lineas():
+    """Shapefile ORIGINAL de ríos (líneas, no el buffer por bandas que usa la
+    clasificación Muy Alto/Alto/Medio/Bajo) — chico (947 tramos tipo 'Río'),
+    se carga una sola vez. Sirve para dar la distancia EXACTA en metros,
+    complemento del nivel por banda (que no dice "cuánto" es Muy Alto)."""
+    global _rios_lineas_cache
+    if _rios_lineas_cache is not None:
+        return _rios_lineas_cache
+    ruta = BASE_DIR / 'CAPAS' / 'CAPA_RIOS_DEPARTAMENTO' / 'Rios_quebradas_ANA_geogpsperu_SuyoPomalia.shp'
+    if not ruta.exists():
+        _rios_lineas_cache = None
+        return None
+    gdf = gpd.read_file(ruta)
+    gdf = gdf[gdf['TIPO_CA'] == 'Río'][['geometry']]
+    if gdf.crs is None:
+        gdf = gdf.set_crs('EPSG:4326')
+    _rios_lineas_cache = gdf
+    return gdf
+
+
+def _distancia_al_rio(lat, lon):
+    """Distancia en metros al tramo de río más cercano (no a la banda, al
+    cauce real) — reproyecta al huso UTM correcto del punto para que la
+    distancia sea métrica de verdad, no grados."""
+    gdf = _cargar_rios_lineas()
+    if gdf is None or gdf.empty:
+        return None
+    huso = _huso_utm(lon)
+    punto_utm = gpd.GeoSeries([Point(lon, lat)], crs='EPSG:4326').to_crs(huso).iloc[0]
+    gdf_utm = gdf.to_crs(huso)
+    return round(float(gdf_utm.distance(punto_utm).min()))
 
 
 def _ubicacion_admin(lat, lon):
@@ -118,7 +184,15 @@ def _siniestros_cercanos_bulk(puntos, radio_km=RADIO_CERCANOS_KM):
     para 1 caso, caro para un Excel de cientos de filas o un lote de 100 fotos.
     Acá se carga la tabla completa UNA vez y se calculan las distancias en
     memoria. `puntos`: lista de (lat, lon) o (None, None). Devuelve una lista
-    paralela de listas de siniestros cercanos."""
+    paralela de listas de siniestros cercanos.
+
+    Dos fuentes combinadas (distinguidas por 'fuente'):
+    - siniestros_agricultor: reportes nuevos vía esta app (pocos todavía).
+    - siniestros_historico: las 20,866 filas 2013-2026 de Mapa de Calor de
+      Siniestros — solo 8,319 tienen GPS, esas son las que entran acá. Las
+      12,547 sin GPS (con departamento/provincia/distrito) NO se pueden poner
+      en un radio de km; se cuentan aparte por distrito en
+      _siniestros_distrito()."""
     if not puntos:
         return []
     conn = get_connection()
@@ -130,7 +204,21 @@ def _siniestros_cercanos_bulk(puntos, radio_km=RADIO_CERCANOS_KM):
         WHERE latitud IS NOT NULL AND longitud IS NOT NULL
     """)
     todos = cur.fetchall()
+    for s in todos:
+        s['fuente'] = 'app'
+
+    cur.execute("""
+        SELECT id, cultivo, evento, fecha_evento, resultado, monto_indemnizable,
+               latitud, longitud
+        FROM siniestros_historico
+        WHERE latitud IS NOT NULL AND longitud IS NOT NULL
+    """)
+    historico = cur.fetchall()
     cur.close(); conn.close()
+    for s in historico:
+        s['fuente'] = 'historico'
+    todos += historico
+
     for s in todos:
         s['latitud'] = float(s['latitud'])
         s['longitud'] = float(s['longitud'])
@@ -149,6 +237,58 @@ def _siniestros_cercanos_bulk(puntos, radio_km=RADIO_CERCANOS_KM):
             cercanos.sort(key=lambda c: c['distancia_km'])
         resultado.append(cercanos)
     return resultado
+
+
+_historico_sin_gps_cache = None  # (depto,prov,distrito) -> conteo, cargado 1 vez
+
+
+def _cargar_historico_sin_gps():
+    """De las 20,866 filas de siniestros_historico, 12,547 no tienen GPS pero
+    sí departamento/provincia/distrito (texto, formato MAYÚSCULAS sin tilde —
+    igual que el shapefile de _ubicar_punto, verificado: 91% matchea exacto;
+    el resto son códigos tipo '030201' en vez de nombre, data sucia de origen,
+    se queda fuera sin forzar el match)."""
+    global _historico_sin_gps_cache
+    if _historico_sin_gps_cache is not None:
+        return _historico_sin_gps_cache
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT departamento, provincia, distrito, resultado, COUNT(*)
+        FROM siniestros_historico
+        WHERE latitud IS NULL AND departamento IS NOT NULL
+              AND provincia IS NOT NULL AND distrito IS NOT NULL
+        GROUP BY 1, 2, 3, 4
+    """)
+    filas = cur.fetchall()
+    cur.close(); conn.close()
+
+    cache = {}
+    for depto, prov, dist, resultado, n in filas:
+        clave = (depto, prov, dist)
+        d = cache.setdefault(clave, {'total': 0, 'indemnizado': 0, 'no_indemnizado': 0, 'otro': 0})
+        d['total'] += n
+        r = (resultado or '').strip().upper()
+        if r == 'INDEMNIZADO':
+            d['indemnizado'] += n
+        elif r == 'NO_INDEMNIZADO':
+            d['no_indemnizado'] += n
+        else:
+            d['otro'] += n  # desistimiento / rechazado / sin_dato / pendiente
+    _historico_sin_gps_cache = cache
+    return cache
+
+
+def _siniestros_distrito(departamento, provincia, distrito):
+    """Complemento de _siniestros_cercanos_bulk para cuando el siniestro
+    histórico no tiene coordenada: cuántos hay registrados en el MISMO
+    distrito del punto evaluado (sin distancia exacta, solo el conteo)."""
+    if not (departamento and provincia and distrito):
+        return None
+    datos = _cargar_historico_sin_gps().get((departamento, provincia, distrito))
+    if not datos:
+        return None
+    return {'departamento': departamento, 'provincia': provincia, 'distrito': distrito, **datos}
 
 
 def _capas_filtro_desde_request(fuente):
@@ -202,6 +342,7 @@ def api_validar_foto():
     errores = []
     total_validas = 0
     ruta_foto = None
+    origen_ubicacion = 'manual' if lat is not None else None
     for f in fotos:
         contenido = f.read()
         nombre_archivo = f.filename or 'foto.jpg'
@@ -209,7 +350,7 @@ def api_validar_foto():
             errores.append(f'{nombre_archivo}: pesa más de 15MB')
             continue
         try:
-            saneada, foto_lat, foto_lon = validar_y_sanear(contenido, nombre_archivo)
+            saneada, foto_lat, foto_lon, foto_origen = validar_y_sanear(contenido, nombre_archivo)
         except FotoInvalida as e:
             errores.append(str(e))
             continue
@@ -217,7 +358,7 @@ def api_validar_foto():
         if ruta_foto is None:
             ruta_foto = _guardar_foto('historial_tmp', nombre_archivo, saneada)
         if lat is None and foto_lat is not None:
-            lat, lon = foto_lat, foto_lon
+            lat, lon, origen_ubicacion = foto_lat, foto_lon, foto_origen
 
     if errores:
         return jsonify({'error': ' | '.join(errores)}), 400
@@ -231,6 +372,7 @@ def api_validar_foto():
     exposicion = _exposicion_todas_las_capas(lat, lon, capas_filtro)
     cercanos = _siniestros_cercanos_bulk([(lat, lon)])[0]
     ubicacion = _ubicacion_admin(lat, lon)
+    siniestros_distrito = _siniestros_distrito(ubicacion['departamento'], ubicacion['provincia'], ubicacion['distrito'])
 
     conn = get_connection()
     cur = conn.cursor()
@@ -262,9 +404,11 @@ def api_validar_foto():
         'historial_id': historial_id,
         'creado_en': creado_en.isoformat(),
         'latitud': lat, 'longitud': lon,
+        'origen_ubicacion': origen_ubicacion,
         'total_fotos_validas': total_validas,
         'exposicion': exposicion,
         'siniestros_cercanos': cercanos,
+        'siniestros_distrito': siniestros_distrito,
         'ubicacion': ubicacion,
         'foto_url': f'/clasificar-cliente/api/foto/historial/{historial_id}' if ruta_foto else None,
     })
@@ -366,11 +510,13 @@ def api_clasificar_excel():
                     motivo = 'Coordenada fuera del Perú (revisar lat/lon)'
                     lat = lon = None
         puntos.append((lat, lon))
+        ubicacion = _ubicacion_admin(lat, lon)
         resultados.append({
             'origen': 'excel', 'extra': extra,
             'latitud': lat, 'longitud': lon,
             'exposicion': [], 'siniestros_cercanos': [],
-            'ubicacion': _ubicacion_admin(lat, lon),
+            'siniestros_distrito': _siniestros_distrito(ubicacion['departamento'], ubicacion['provincia'], ubicacion['distrito']),
+            'ubicacion': ubicacion,
             'error': motivo,
         })
 
@@ -401,14 +547,14 @@ def _procesar_lote(lote_id, archivos, capas_filtro):
         try:
             if len(contenido) > MAX_PESO_FOTO:
                 raise FotoInvalida('pesa más de 15MB')
-            saneada, lat, lon = validar_y_sanear(contenido, nombre_archivo)
+            saneada, lat, lon, origen = validar_y_sanear(contenido, nombre_archivo)
             ruta_foto = _guardar_foto(f'lote_{lote_id}', nombre_archivo, saneada)
             if lat is None:
                 cur.execute("""
                     UPDATE clasificar_cliente_lote_item
                     SET estado='error', error_msg=%s, ruta_foto=%s, procesado_en=NOW()
                     WHERE lote_id=%s AND nombre_archivo=%s AND estado='pendiente'
-                """, ('No se pudo leer la ubicación (ni GPS ni texto en la imagen) — márcala a mano',
+                """, ('No se pudo leer la ubicación (ni GPS, ni texto en la imagen, ni IA) — márcala a mano',
                       ruta_foto, lote_id, nombre_archivo))
             else:
                 exposicion = _exposicion_todas_las_capas(lat, lon, capas_filtro)
@@ -416,10 +562,10 @@ def _procesar_lote(lote_id, archivos, capas_filtro):
                 cur.execute("""
                     UPDATE clasificar_cliente_lote_item
                     SET estado='ok', latitud=%s, longitud=%s, exposicion=%s,
-                        siniestros_cercanos=%s, ruta_foto=%s, procesado_en=NOW()
+                        siniestros_cercanos=%s, ruta_foto=%s, origen_ubicacion=%s, procesado_en=NOW()
                     WHERE lote_id=%s AND nombre_archivo=%s AND estado='pendiente'
                 """, (lat, lon, psycopg2.extras.Json(exposicion), psycopg2.extras.Json(cercanos),
-                      ruta_foto, lote_id, nombre_archivo))
+                      ruta_foto, origen, lote_id, nombre_archivo))
         except Exception as e:
             cur.execute("""
                 UPDATE clasificar_cliente_lote_item
@@ -545,13 +691,16 @@ def api_clasificar_lote():
 def _item_a_resultado(it):
     lat = float(it['latitud']) if it['latitud'] is not None else None
     lon = float(it['longitud']) if it['longitud'] is not None else None
+    ubicacion = _ubicacion_admin(lat, lon)
     return {
         'id': it['id'], 'origen': 'lote', 'extra': {'archivo': it['nombre_archivo']},
         'estado': it['estado'],
         'latitud': lat, 'longitud': lon,
+        'origen_ubicacion': it.get('origen_ubicacion'),
         'exposicion': it['exposicion'] or [],
         'siniestros_cercanos': it['siniestros_cercanos'] or [],
-        'ubicacion': _ubicacion_admin(lat, lon),
+        'siniestros_distrito': _siniestros_distrito(ubicacion['departamento'], ubicacion['provincia'], ubicacion['distrito']),
+        'ubicacion': ubicacion,
         'error': it['error_msg'],
         'foto_url': f'/clasificar-cliente/api/foto/lote-item/{it["id"]}' if it.get('ruta_foto') else None,
     }
@@ -569,7 +718,7 @@ def api_lote_estado(lote_id):
         return jsonify({'error': 'Lote no existe'}), 404
 
     cur.execute("""
-        SELECT id, nombre_archivo, estado, latitud, longitud, exposicion, siniestros_cercanos, error_msg, ruta_foto
+        SELECT id, nombre_archivo, estado, latitud, longitud, exposicion, siniestros_cercanos, error_msg, ruta_foto, origen_ubicacion
         FROM clasificar_cliente_lote_item WHERE lote_id=%s ORDER BY id
     """, (lote_id,))
     items = cur.fetchall()
@@ -610,9 +759,9 @@ def api_lote_item_manual(lote_id, item_id):
     cur.execute("""
         UPDATE clasificar_cliente_lote_item
         SET estado='ok', latitud=%s, longitud=%s, exposicion=%s, siniestros_cercanos=%s,
-            error_msg=NULL, procesado_en=NOW()
+            origen_ubicacion='manual', error_msg=NULL, procesado_en=NOW()
         WHERE id=%s AND lote_id=%s
-        RETURNING id, nombre_archivo, estado, latitud, longitud, exposicion, siniestros_cercanos, error_msg, ruta_foto
+        RETURNING id, nombre_archivo, estado, latitud, longitud, exposicion, siniestros_cercanos, error_msg, ruta_foto, origen_ubicacion
     """, (lat, lon, psycopg2.extras.Json(exposicion), psycopg2.extras.Json(cercanos), item_id, lote_id))
     actualizado = cur.fetchone()
     if not actualizado:
@@ -621,7 +770,7 @@ def api_lote_item_manual(lote_id, item_id):
     conn.commit()
     cur.close(); conn.close()
 
-    cols = ['id', 'nombre_archivo', 'estado', 'latitud', 'longitud', 'exposicion', 'siniestros_cercanos', 'error_msg', 'ruta_foto']
+    cols = ['id', 'nombre_archivo', 'estado', 'latitud', 'longitud', 'exposicion', 'siniestros_cercanos', 'error_msg', 'ruta_foto', 'origen_ubicacion']
     it = dict(zip(cols, actualizado))
     return jsonify({'resultado': _item_a_resultado(it)})
 
@@ -660,6 +809,9 @@ def api_exportar_resultados():
         fila = dict(r.get('extra') or {})
         fila['Latitud'] = r.get('latitud')
         fila['Longitud'] = r.get('longitud')
+        fila['Ubicación obtenida por'] = {
+            'exif': 'GPS de la foto', 'ocr': 'Texto en la foto', 'ia': 'IA (respaldo)', 'manual': 'Manual',
+        }.get(r.get('origen_ubicacion'), '')
         ubicacion = r.get('ubicacion') or {}
         fila['Departamento'] = ubicacion.get('departamento')
         fila['Provincia'] = ubicacion.get('provincia')
@@ -668,7 +820,11 @@ def api_exportar_resultados():
             fila['Error'] = r['error']
         for exp in (r.get('exposicion') or []):
             fila[f"Nivel ({exp.get('label')})"] = exp.get('nivel') or ('Fuera de zona' if exp.get('disponible') else 'Capa no disponible')
+            if exp.get('distancia_rio_m') is not None:
+                fila['Distancia al río (m)'] = exp['distancia_rio_m']
         fila['Siniestros cercanos (5km)'] = len(r.get('siniestros_cercanos') or [])
+        dist = r.get('siniestros_distrito')
+        fila['Siniestros históricos en el distrito'] = dist['total'] if dist else 0
         filas.append(fila)
 
     df = pd.DataFrame(filas)

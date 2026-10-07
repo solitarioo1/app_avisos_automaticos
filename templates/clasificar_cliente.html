@@ -22,10 +22,16 @@
 
         <div class="cc-panel-derecho">
             <div class="cc-card">
-                <label class="cc-label">Capa de Riesgo</label>
+                <label class="cc-label">Capa de Riesgo (para calcular)</label>
                 <select id="cc-capa" class="cc-select">
                     <option value="">Todas (recomendado)</option>
                 </select>
+
+                <label class="cc-label" style="margin-top:.6rem;">Visualizar capa en el mapa</label>
+                <select id="cc-capa-mapa" class="cc-select">
+                    <option value="">Ninguna</option>
+                </select>
+                <div id="cc-capa-mapa-cargando" class="cc-capa-mapa-cargando" style="display:none;">Cargando capa en el mapa...</div>
 
                 <div class="cc-tabs">
                     <button class="cc-tab activo" id="cc-tab-excel" onclick="ccCambiarTab('excel')">📊 Excel</button>

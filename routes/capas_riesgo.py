@@ -531,17 +531,25 @@ def _cargar_capa_preview_gdf_nacional(nombre):
 
 @capas_riesgo_bp.route('/api/capas-riesgo/<nombre>/geometria', methods=['GET'])
 def api_geometria_capa(nombre):
-    """Polígono de la zona de peligro en sí (disuelto por nivel, simplificado),
-    coloreado verde->rojo según severidad. Esto es lo que se ve como 'mancha'
-    en el mapa — separado de clientes-geojson, que son los puntos de clientes.
+    """Polígono de la zona de peligro en sí, coloreado verde->rojo según
+    severidad. Esto es lo que se ve como 'mancha' en el mapa — separado de
+    clientes-geojson, que son los puntos de clientes.
 
     OJO: requiere `depto` — mandar la capa completa (todo el Perú) de una sola
     vez reventaba el servidor/navegador (Inundación: ~26MB de geojson, varios
     cientos de miles de vértices) — ver feedback del 1 oct 2026. Sin `depto`
     no se devuelve geometría (el frontend no debe pintar nada a nivel nacional).
-    `provincia` opcional recorta más fino todavía (más rápido) cuando se
-    conoce la ubicación exacta — ej. Evaluación de Afiliaciones, que ya tiene
-    la provincia del punto por geocodificación inversa."""
+
+    `provincia` opcional recorta más fino todavía — y para Inundación/Mov.
+    Masa, además, cambia la FUENTE: con provincia se usa el archivo COMPLETO
+    sin simplificar (_cargar_capa_completa_cached, mismo que usa el cálculo
+    de exposición) en vez del preview liviano, para que la forma del polígono
+    en el mapa sea la real, no la versión con menos vértices. Solo con
+    provincia (no con depto solo) porque el área es chica — medido: 0.17MB-
+    8MB según la provincia, sin errores de topología pese a que el archivo
+    raw no viene pre-limpiado por mapshaper como el preview. A nivel
+    departamento (sin provincia) seguiría siendo pesado/lento, se mantiene el
+    preview simplificado ahí."""
     info = CAPAS_DISPONIBLES.get(nombre)
     if info is None:
         return jsonify({'error': f'Capa "{nombre}" no existe'}), 404
@@ -555,7 +563,7 @@ def api_geometria_capa(nombre):
     if cache_key in _cache_geometria_depto:
         return jsonify(_cache_geometria_depto[cache_key])
 
-    gdf_nacional = _cargar_capa_preview_gdf_nacional(nombre)
+    gdf_nacional = _cargar_capa_completa_cached(nombre) if provincia else _cargar_capa_preview_gdf_nacional(nombre)
     if gdf_nacional is None or gdf_nacional.empty:
         return jsonify({'error': f'Geometría de "{nombre}" no disponible todavía'}), 404
 

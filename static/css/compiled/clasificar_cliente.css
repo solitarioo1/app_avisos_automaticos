@@ -259,6 +259,13 @@
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 
+.cc-capa-mapa-cargando {
+  font-size: 11px;
+  color: #04ccc4;
+  margin-top: 0.3rem;
+  font-style: italic;
+}
+
 .cc-tabla-header {
   display: flex;
   justify-content: space-between;
@@ -346,6 +353,31 @@
   font-size: 11px;
   color: #999;
   margin-top: 2px;
+}
+
+.cc-badge-origen {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 8px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.cc-badge-ocr {
+  background: #eef1f3;
+  color: #666;
+}
+
+.cc-badge-ia {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.cc-badge-manual {
+  background: #e8f0fe;
+  color: #1565c0;
 }
 
 .cc-foto-thumb {

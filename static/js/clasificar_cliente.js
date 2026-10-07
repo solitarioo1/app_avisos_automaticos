@@ -138,11 +138,23 @@ function ccCargarCapas() {
     fetch('/api/capas-riesgo/disponibles')
         .then(r => r.json())
         .then(capas => {
-            const select = document.getElementById('cc-capa');
             const disponibles = capas.filter(c => c.disponible);
             const opciones = disponibles.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
-            select.innerHTML = '<option value="">Todas (recomendado)</option>' + opciones;
-            select.addEventListener('change', ccActualizarPoligonoCapa);
+
+            // Dos selectores INDEPENDIENTES, a propósito: "Capa de Riesgo" es
+            // el filtro que de verdad se manda al servidor al evaluar (si no
+            // está en "Todas", el cálculo de exposición se limita a esa sola
+            // capa) -- "Visualizar capa" es solo para dibujar el polígono en
+            // el mapa, no afecta ningún cálculo. Antes eran el mismo <select>
+            // y causaba un bug real: si quedaba en "Río" por haber mirado esa
+            // capa en el mapa, la SIGUIENTE evaluación salía limitada a Río
+            // sin que nadie lo hubiera pedido.
+            const selectCapa = document.getElementById('cc-capa');
+            selectCapa.innerHTML = '<option value="">Todas (recomendado)</option>' + opciones;
+
+            const selectMapa = document.getElementById('cc-capa-mapa');
+            selectMapa.innerHTML = '<option value="">Ninguna</option>' + opciones;
+            selectMapa.addEventListener('change', ccActualizarPoligonoCapa);
         })
         .catch(() => {});
 }
@@ -151,10 +163,15 @@ function ccCapaSeleccionada() {
     return document.getElementById('cc-capa').value || '';
 }
 
-// Click en un badge de exposición de una fila -> selecciona esa capa arriba
-// y dibuja su polígono de inmediato (atajo, evita ir al selector manual).
+function ccCapaMapaSeleccionada() {
+    return document.getElementById('cc-capa-mapa').value || '';
+}
+
+// Click en un badge de exposición de una fila -> selecciona esa capa en el
+// selector de VISUALIZACIÓN (no en el de cálculo) y dibuja su polígono de
+// inmediato (atajo, evita ir al selector manual).
 function ccVerCapaEnMapa(nombre) {
-    const select = document.getElementById('cc-capa');
+    const select = document.getElementById('cc-capa-mapa');
     select.value = nombre;
     ccActualizarPoligonoCapa();
     document.getElementById('cc-mapa').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -192,13 +209,21 @@ function ccHoverPoligonoRiesgo(feature, layer) {
 }
 
 function ccActualizarPoligonoCapa() {
-    const capa = ccCapaSeleccionada();
+    const capa = ccCapaMapaSeleccionada();
     Object.values(ccCapaPoligonoLayers).forEach(l => ccMapa.removeLayer(l));
     ccCapaPoligonoLayers = {};
     ccCapaPoligonoActiva = capa || null;
-    if (!capa) return;
+    const indicador = document.getElementById('cc-capa-mapa-cargando');
+    if (!capa) {
+        if (indicador) indicador.style.display = 'none';
+        return;
+    }
 
-    ccZonasDeResultados().forEach(({ depto, provincia }) => {
+    const zonas = ccZonasDeResultados();
+    let pendientes = zonas.length;
+    if (indicador) indicador.style.display = pendientes ? 'block' : 'none';
+
+    zonas.forEach(({ depto, provincia }) => {
         const qs = `depto=${encodeURIComponent(depto)}` + (provincia ? `&provincia=${encodeURIComponent(provincia)}` : '');
         fetch(`/api/capas-riesgo/${capa}/geometria?${qs}`)
             .then(r => r.json())
@@ -213,30 +238,19 @@ function ccActualizarPoligonoCapa() {
                 ccCapaPoligonoLayers[provincia ? `${depto}|${provincia}` : depto] = layer;
                 layer.bringToBack();
             })
-            .catch(() => {});
+            .catch(() => {})
+            .finally(() => {
+                pendientes--;
+                if (pendientes <= 0 && indicador) indicador.style.display = 'none';
+            });
     });
 }
 
-// ── Faja Marginal (río) SIEMPRE visible en el mapa, sin importar qué capa
-// esté elegida arriba — la cercanía al río importa para cualquier evento. ──
-let ccCapaRioLayers = {};
-
-function ccActualizarRioSiempre() {
-    Object.values(ccCapaRioLayers).forEach(l => ccMapa.removeLayer(l));
-    ccCapaRioLayers = {};
-    ccZonasDeResultados().forEach(({ depto, provincia }) => {
-        const qs = `depto=${encodeURIComponent(depto)}` + (provincia ? `&provincia=${encodeURIComponent(provincia)}` : '');
-        fetch(`/api/capas-riesgo/rio/geometria?${qs}`)
-            .then(r => r.json())
-            .then(geojson => {
-                if (geojson.error || !geojson.features || !geojson.features.length) return;
-                const layer = L.geoJSON(geojson, { style: ccEstiloPoligonoRiesgo, onEachFeature: ccHoverPoligonoRiesgo }).addTo(ccMapa);
-                layer._esCapaPoligono = true;
-                ccCapaRioLayers[provincia ? `${depto}|${provincia}` : depto] = layer;
-            })
-            .catch(() => {});
-    });
-}
+// Río (Faja Marginal) es una capa más del selector "Visualizar capa en el
+// mapa" (ccCapaMapaSeleccionada) -- se muestra SOLO cuando está elegida,
+// igual que cualquier otra capa, y se opaca/reemplaza al cambiar a otra.
+// Antes se dibujaba siempre de fondo sin importar la capa elegida; se sacó
+// ese caso especial a pedido explícito.
 
 // ── Pestañas ──
 function ccCambiarTab(tab) {
@@ -272,6 +286,19 @@ function ccEtiquetaOrigen(r) {
     return 'Foto georreferenciada';
 }
 
+// De dónde salió la UBICACIÓN de la foto (no confundir con ccEtiquetaOrigen,
+// que es de dónde vino la FILA). 'exif' es el caso normal/esperado -- no
+// amerita badge. Los demás sí, para que quede claro cuándo hizo falta un
+// respaldo (y sobre todo 'ia', que tiene costo/latencia de verdad).
+function ccBadgeOrigenUbicacion(origen) {
+    const badges = {
+        ocr: '<span class="cc-badge-origen cc-badge-ocr" title="Leído del texto/watermark de la foto">OCR</span>',
+        ia: '<span class="cc-badge-origen cc-badge-ia" title="EXIF y OCR fallaron los dos — la leyó una IA como último respaldo">🤖 IA</span>',
+        manual: '<span class="cc-badge-origen cc-badge-manual" title="Coordenada marcada a mano">✍ Manual</span>',
+    };
+    return badges[origen] || '';
+}
+
 let ccMarkersActuales = [];  // paralelo a ccResultadosActuales, para el check/uncheck por fila
 
 function ccMostrarResultados(resultados) {
@@ -297,22 +324,36 @@ function ccMostrarResultados(resultados) {
             const color = peor ? ccColorNivel(peor) : '#04ccc4';
             marker = L.circleMarker([r.latitud, r.longitud], { radius: 7, color, fillColor: color, fillOpacity: .85 }).addTo(ccMapa);
             marker.bindPopup(`<strong>${ccEtiquetaOrigen(r)}</strong><br>` +
-                (r.exposicion || []).filter(c => c.en_capa).map(c => `${c.label}: ${c.nivel || 'Expuesto'}`).join('<br>') +
-                (r.siniestros_cercanos && r.siniestros_cercanos.length ? `<br><em>${r.siniestros_cercanos.length} siniestro(s) cerca</em>` : ''));
+                (r.exposicion || []).filter(c => c.en_capa).map(c => {
+                    const dist = c.distancia_rio_m != null
+                        ? ` (${c.distancia_rio_m < 1000 ? c.distancia_rio_m + 'm' : (c.distancia_rio_m / 1000).toFixed(1) + 'km'})`
+                        : '';
+                    return `${c.label}: ${c.nivel || 'Expuesto'}${dist}`;
+                }).join('<br>') +
+                (r.siniestros_cercanos && r.siniestros_cercanos.length ? `<br><em>${r.siniestros_cercanos.length} siniestro(s) cerca (≤5km)</em>` : '') +
+                (r.siniestros_distrito ? `<br><em>${r.siniestros_distrito.total} siniestro(s) histórico(s) en ${r.siniestros_distrito.distrito} (sin GPS exacto)</em>` : ''));
             puntos.push([r.latitud, r.longitud]);
         }
         ccMarkersActuales.push(marker);
 
         const admin = r.ubicacion || {};
         const adminTxt = [admin.departamento, admin.provincia, admin.distrito].filter(Boolean).join(' / ');
+        const distritoTxt = r.siniestros_distrito
+            ? `${r.siniestros_distrito.total} siniestro(s) histórico(s) en el distrito (${r.siniestros_distrito.indemnizado} indemnizados, sin GPS exacto)`
+            : '';
         const ubicacion = r.error
             ? `<span class="text-danger">${r.error}</span>`
             : (r.latitud != null
-                ? `${r.latitud.toFixed(4)}, ${r.longitud.toFixed(4)}` + (adminTxt ? `<div class="cc-ubicacion-admin">${adminTxt}</div>` : '')
+                ? `${r.latitud.toFixed(4)}, ${r.longitud.toFixed(4)} ${ccBadgeOrigenUbicacion(r.origen_ubicacion)}`
+                    + (adminTxt ? `<div class="cc-ubicacion-admin">${adminTxt}</div>` : '')
+                    + (distritoTxt ? `<div class="cc-ubicacion-admin">${distritoTxt}</div>` : '')
                 : (r.estado === 'pendiente' ? '<span class="text-muted">procesando...</span>' : '—'));
-        const niveles = (r.exposicion || []).filter(c => c.en_capa).map(c =>
-            `<span class="cc-nivel-badge" style="background:${c.color || '#999'};" onclick="ccVerCapaEnMapa('${c.nombre}')" title="Ver ${c.label} en el mapa">${c.label}: ${c.nivel || 'Expuesto'}</span>`
-        ).join('') || (r.error ? '' : '<span class="text-muted small">Sin exposición</span>');
+        const niveles = (r.exposicion || []).filter(c => c.en_capa).map(c => {
+            const dist = c.distancia_rio_m != null
+                ? ` (${c.distancia_rio_m < 1000 ? c.distancia_rio_m + 'm' : (c.distancia_rio_m / 1000).toFixed(1) + 'km'})`
+                : '';
+            return `<span class="cc-nivel-badge" style="background:${c.color || '#999'};" onclick="ccVerCapaEnMapa('${c.nombre}')" title="Ver ${c.label} en el mapa">${c.label}: ${c.nivel || 'Expuesto'}${dist}</span>`;
+        }).join('') || (r.error ? '' : '<span class="text-muted small">Sin exposición</span>');
 
         const foto = r.foto_url
             ? `<img class="cc-foto-thumb" src="${r.foto_url}" onclick="ccVerFoto('${r.foto_url}')">`
@@ -343,7 +384,6 @@ function ccMostrarResultados(resultados) {
         else ccMapa.fitBounds(puntos, { padding: [30, 30] });
     }
     ccActualizarPoligonoCapa();
-    ccActualizarRioSiempre();
     ccActualizarNivelDelimitacion();
     setTimeout(() => ccMapa.invalidateSize(), 150);
 }

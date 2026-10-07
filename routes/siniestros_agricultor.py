@@ -97,7 +97,7 @@ def guardar():
             errores_fotos.append(f'{nombre_archivo}: pesa más de 15MB')
             continue
         try:
-            contenido_limpio, lat, lon = _validar_y_sanear(contenido, nombre_archivo)
+            contenido_limpio, lat, lon, _origen = _validar_y_sanear(contenido, nombre_archivo)
         except FotoInvalida as e:
             errores_fotos.append(str(e))
             continue

@@ -22,6 +22,11 @@
 .cc-niveles-cell { display: flex; flex-wrap: wrap; gap: 3px; }
 .cc-ubicacion-admin { font-size: 11px; color: #999; margin-top: 2px; }
 
+.cc-badge-origen { display: inline-block; font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 8px; vertical-align: middle; white-space: nowrap; }
+.cc-badge-ocr { background: #eef1f3; color: #666; }
+.cc-badge-ia { background: #fff3e0; color: #e65100; }
+.cc-badge-manual { background: #e8f0fe; color: #1565c0; }
+
 .cc-foto-thumb { width: 34px; height: 34px; border-radius: 4px; object-fit: cover; cursor: pointer; border: 1px solid v.$border-color; }
 
 .cc-manual-fix { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }

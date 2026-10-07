@@ -112,13 +112,21 @@ def _haversine_km(lat1, lon1, lat2, lon2):
 
 
 def _ubicar_punto(lat, lon):
-    """Reverse-geocode: punto -> departamento/provincia/distrito."""
+    """Reverse-geocode: punto -> departamento/provincia/distrito. Usa el
+    índice espacial (sindex) en vez de .contains(punto) directo -- esta
+    función se llama por cada fila de un Excel/lote, así que evitar el
+    escaneo completo de los 1874 distritos en cada llamada importa.
+
+    predicate='within' (no 'contains'): sindex.query(geom, predicate=X)
+    evalúa X(geom_input, geom_del_árbol), no al revés -- 'contains' acá
+    preguntaría si el PUNTO contiene al distrito (siempre False), por eso
+    es 'within' (¿el punto está dentro del distrito?)."""
     distritos = _cargar_distritos()
     punto = Point(lon, lat)
-    match = distritos[distritos.contains(punto)]
-    if match.empty:
+    candidatos = distritos.iloc[distritos.sindex.query(punto, predicate='within')]
+    if candidatos.empty:
         return None, None, None
-    row = match.iloc[0]
+    row = candidatos.iloc[0]
     return row['DEPARTAMEN'], row['PROVINCIA'], row['DISTRITO']
 
 
@@ -250,7 +258,7 @@ def _capas_en_punto(evento, punto):
         en_capa, nivel_capa = False, None
         if capa_gdf is not None and not capa_gdf.empty:
             campo_cat = capa_info.get('campo_categoria')
-            match_capa = capa_gdf[capa_gdf.contains(punto)]
+            match_capa = capa_gdf.iloc[capa_gdf.sindex.query(punto, predicate='within')]
             if not match_capa.empty:
                 en_capa = True
                 valor_crudo = match_capa.iloc[0][campo_cat] if campo_cat else None
