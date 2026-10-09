@@ -56,6 +56,10 @@ function ccConfigurarDropzone(dropzoneId, inputId, nombreId) {
 function ccInicializarMapa() {
     if (ccMapa) return ccMapa;
     ccMapa = L.map('cc-mapa').setView([-9.19, -75.02], 5.5);  // Perú completo por defecto
+    // Panel propio por encima de los polígonos (capas, provincias, distritos
+    // viven en overlayPane z=400): así los puntos siempre quedan encima y
+    // reciben el click en vez de la provincia/distrito de abajo.
+    ccMapa.createPane('ccPuntos').style.zIndex = 650;
     L.tileLayer('https://api.thunderforest.com/atlas/{z}/{x}/{y}.png?apikey=043ce2146e48404a850da16dae37388a', { attribution: '&copy; <a href="https://www.thunderforest.com/">Thunderforest</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(ccMapa);
 
     // Contorno de departamentos (mismo endpoint y estilo que Seguro Comercial)
@@ -348,7 +352,7 @@ function ccMostrarResultados(resultados) {
         let marker = null;
         if (r.latitud != null && r.longitud != null) {
             const color = '#1e6fe0';  // puntos de fotos/clientes siempre azules, el nivel de riesgo va en el popup/tabla
-            marker = L.circleMarker([r.latitud, r.longitud], { radius: 7, color, fillColor: color, fillOpacity: .85 }).addTo(ccMapa);
+            marker = L.circleMarker([r.latitud, r.longitud], { pane: 'ccPuntos', radius: 7, color, fillColor: color, fillOpacity: .85 }).addTo(ccMapa);
             marker.bindPopup(`<strong>${ccEtiquetaOrigen(r)}</strong><br>` +
                 (r.exposicion || []).filter(c => c.en_capa).map(c => {
                     const dist = c.distancia_rio_m != null
@@ -618,7 +622,7 @@ function ccValidarFotoInstantaneo(reintentoManual) {
             }]);
             (d.siniestros_cercanos || []).forEach(c => {
                 const color = CC_COLOR_ESTADO[c.estado] || '#fc6c44';
-                L.circleMarker([c.latitud, c.longitud], { radius: 6, color, fillColor: color, fillOpacity: .8 })
+                L.circleMarker([c.latitud, c.longitud], { pane: 'ccPuntos', radius: 6, color, fillColor: color, fillOpacity: .8 })
                     .addTo(ccMapa).bindPopup(ccHtmlSiniestro(c));
             });
             status.className = 'cc-status-ok';
