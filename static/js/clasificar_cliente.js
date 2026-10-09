@@ -306,21 +306,23 @@ function ccEscapar(txt) {
 }
 
 // Lista del popup: cada siniestro a ≤5 km con evento, mes/año, asegurado y financiera.
+function ccHtmlSiniestro(s) {
+    let fecha = 'fecha s/d';
+    if (s.fecha_evento) {
+        const [anio, mes] = s.fecha_evento.split('-');
+        fecha = `${CC_MESES[parseInt(mes, 10) - 1] || mes} ${anio}`;
+    }
+    const evento = ccEscapar(s.evento || 'Evento s/d');
+    const cultivo = s.cultivo || s.cultivo_afectado;
+    const quien = [s.asegurado, s.financiera].filter(Boolean).map(ccEscapar).join(' · ');
+    return `<strong>${evento}</strong> — ${fecha} (${s.distancia_km} km)` +
+        (cultivo ? `<br><span class="cc-sin-det">${ccEscapar(String(cultivo).split('//')[0])}</span>` : '') +
+        (quien ? `<br><span class="cc-sin-det">${quien}</span>` : '');
+}
+
 function ccHtmlSiniestrosCercanos(cercanos) {
     if (!cercanos || !cercanos.length) return '';
-    const items = cercanos.map(s => {
-        let fecha = 'fecha s/d';
-        if (s.fecha_evento) {
-            const [anio, mes] = s.fecha_evento.split('-');
-            fecha = `${CC_MESES[parseInt(mes, 10) - 1] || mes} ${anio}`;
-        }
-        const evento = ccEscapar(s.evento || 'Evento s/d');
-        const cultivo = s.cultivo || s.cultivo_afectado;
-        const quien = [s.asegurado, s.financiera].filter(Boolean).map(ccEscapar).join(' · ');
-        return `<li><strong>${evento}</strong> — ${fecha} (${s.distancia_km} km)` +
-            (cultivo ? `<br><span class="cc-sin-det">${ccEscapar(String(cultivo).split('//')[0])}</span>` : '') +
-            (quien ? `<br><span class="cc-sin-det">${quien}</span>` : '') + '</li>';
-    }).join('');
+    const items = cercanos.map(s => `<li>${ccHtmlSiniestro(s)}</li>`).join('');
     return `<div class="cc-popup-sin"><em>${cercanos.length} siniestro(s) a ≤5 km:</em><ul>${items}</ul></div>`;
 }
 
@@ -611,12 +613,13 @@ function ccValidarFotoInstantaneo(reintentoManual) {
                 origen: 'foto', extra: {},
                 latitud: d.latitud, longitud: d.longitud,
                 exposicion: d.exposicion, siniestros_cercanos: d.siniestros_cercanos,
+                siniestros_distrito: d.siniestros_distrito,
                 ubicacion: d.ubicacion, foto_url: d.foto_url,
             }]);
             (d.siniestros_cercanos || []).forEach(c => {
                 const color = CC_COLOR_ESTADO[c.estado] || '#fc6c44';
                 L.circleMarker([c.latitud, c.longitud], { radius: 6, color, fillColor: color, fillOpacity: .8 })
-                    .addTo(ccMapa).bindPopup(`Siniestro #${c.id} — ${c.evento}<br>${c.estado} · ${c.distancia_km} km`);
+                    .addTo(ccMapa).bindPopup(ccHtmlSiniestro(c));
             });
             status.className = 'cc-status-ok';
             status.textContent = '✓ Validado y guardado en el historial.';
