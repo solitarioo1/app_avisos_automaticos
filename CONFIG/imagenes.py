@@ -107,50 +107,37 @@ def _leer_gps_de_exif(img):
     return round(lat, 6), round(lon, 6)
 
 
-def _leer_gps_de_ocr(img):
-    """Respaldo cuando no hay EXIF: busca el texto tipo 'Lat -15.44° Long
-    -74.64°' que apps como GPS Map Camera queman en la imagen. Formato de
-    foto variable (distintas apps, distintas posiciones/fuentes) — por eso
-    se corre OCR sobre la imagen COMPLETA en vez de recortar una zona fija.
+def _umbral_otsu(img_gris):
+    """Punto de corte óptimo para binarizar ESTA imagen en particular (método
+    de Otsu: maximiza la separación entre las dos 'nubes' de brillo del
+    histograma), en vez de un valor fijo. Hace falta porque un umbral fijo
+    no generaliza: probado con 2 fotos reales, threshold=200 fijo lee
+    perfecto un watermark blanco sobre fondo oscuro (cielo/rocas) pero deja
+    el texto totalmente negro/invisible en otra con fondo más claro (tierra
+    de chacra al sol) — y viceversa, un umbral más bajo sirve para la
+    segunda pero no la primera. Sin numpy serían ~256 pasadas en Python
+    puro por imagen; con numpy es instantáneo."""
+    import numpy as np
+    arr = np.asarray(img_gris, dtype=np.int64)
+    hist, _ = np.histogram(arr, bins=256, range=(0, 256))
+    total = arr.size
+    suma_total = float(np.dot(np.arange(256), hist))
+    peso_fondo = np.cumsum(hist).astype(np.float64)
+    suma_fondo = np.cumsum(np.arange(256) * hist).astype(np.float64)
+    peso_frente = total - peso_fondo
+    with np.errstate(divide='ignore', invalid='ignore'):
+        media_fondo = np.where(peso_fondo > 0, suma_fondo / peso_fondo, 0)
+        media_frente = np.where(peso_frente > 0, (suma_total - suma_fondo) / peso_frente, 0)
+        var_entre = peso_fondo * peso_frente * (media_fondo - media_frente) ** 2
+    var_entre[(peso_fondo == 0) | (peso_frente == 0)] = -1  # umbrales inválidos (todo de un lado)
+    return int(np.argmax(var_entre))
 
-    La imagen de celular real (12+ MP) se achica y se binariza (blanco/negro
-    puro, no solo escala de grises) ANTES de correr Tesseract, con --psm 6
-    (bloque de texto uniforme). El umbral es lo que de verdad importa: el
-    watermark suele ser texto blanco plano sin contorno, que sobre un fondo
-    claro de la propia foto (cielo, pared clara) queda casi invisible para el
-    OCR en escala de grises — medido con una foto real de siniestro
-    (watermark "18 mar. 2023... / 12.1455S 76.8324W" sobre un cielo claro):
-    en escala de grises se perdía la fecha completa y se leía mal la
-    coordenada ("mee 76.832"); con blanco/negro puro (threshold 200) se lee
-    perfecto, las 5 líneas completas. De paso el umbral también acelera
-    MUCHO el peor caso (foto sin texto, solo ruido/textura real): 9.6s con
-    escala de grises sola baja a ~0.7s con blanco/negro puro, porque colapsa
-    el ruido de tonos medios que hacía a Tesseract "inventar" texto por
-    todos lados."""
-    global _ocr_disponible, _ocr_lang
-    if _ocr_disponible is False:
-        return None, None
-    try:
-        import pytesseract
-        if _TESSERACT_CMD:
-            pytesseract.pytesseract.tesseract_cmd = _TESSERACT_CMD
-        if _ocr_lang is None:
-            try:
-                disponibles = set(pytesseract.get_languages(config=''))
-                _ocr_lang = 'eng+spa' if 'spa' in disponibles else 'eng'
-            except Exception:
-                _ocr_lang = 'eng'
-        copia = img.copy()
-        copia.thumbnail((1800, 1800))
-        copia = ImageOps.grayscale(copia)
-        copia = copia.point(lambda p: 255 if p > 200 else 0)
-        texto = pytesseract.image_to_string(copia, lang=_ocr_lang, config='--psm 6')
-        _ocr_disponible = True
-    except Exception as e:
-        _ocr_disponible = False
-        logger.warning('OCR no disponible (Tesseract no instalado/configurado): %s', str(e))
-        return None, None
 
+def _extraer_coordenada_de_texto(texto):
+    """Prueba los 5 formatos conocidos de watermark GPS sobre un texto YA
+    extraído por OCR, en orden. Separado de _leer_gps_de_ocr para poder
+    probarlo contra el mismo texto con distintos preprocesados de imagen
+    (ver _leer_gps_de_ocr) sin repetir esta cascada entera cada vez."""
     lat = lon = None
     for patron in _PATRONES_COORD:
         m = patron.search(texto)
@@ -208,6 +195,66 @@ def _leer_gps_de_ocr(img):
     if lat is None:
         return None, None
     return round(lat, 6), round(lon, 6)
+
+
+def _leer_gps_de_ocr(img):
+    """Respaldo cuando no hay EXIF: busca el texto tipo 'Lat -15.44° Long
+    -74.64°' que apps como GPS Map Camera queman en la imagen. Formato de
+    foto variable (distintas apps, distintas posiciones/fuentes) — por eso
+    se corre OCR sobre la imagen COMPLETA en vez de recortar una zona fija.
+
+    La imagen de celular real (12+ MP) se achica y se binariza (blanco/negro
+    puro, no solo escala de grises) ANTES de correr Tesseract, con --psm 6
+    (bloque de texto uniforme). El umbral es lo que de verdad importa, pero
+    NINGÚN valor fijo generaliza a todas las apps/fondos — medido con 2
+    fotos reales de siniestros: threshold=200 lee perfecto un watermark
+    blanco sobre fondo oscuro (cielo/rocas) pero deja el texto invisible
+    sobre un fondo más claro (tierra de chacra al sol); con Otsu (umbral
+    automático por imagen) pasa lo inverso en algún caso puntual. Por eso se
+    prueban los DOS en cascada -- 200 fijo primero (más barato, ya probado
+    en la mayoría de fotos), Otsu como segundo intento -- y se usa el primero
+    que logre extraer una coordenada real, no uno solo "universal"."""
+    global _ocr_disponible, _ocr_lang
+    if _ocr_disponible is False:
+        return None, None
+    try:
+        import pytesseract
+        if _TESSERACT_CMD:
+            pytesseract.pytesseract.tesseract_cmd = _TESSERACT_CMD
+        if _ocr_lang is None:
+            try:
+                disponibles = set(pytesseract.get_languages(config=''))
+                _ocr_lang = 'eng+spa' if 'spa' in disponibles else 'eng'
+            except Exception:
+                _ocr_lang = 'eng'
+        copia = img.copy()
+        copia.thumbnail((1800, 1800))
+        gris = ImageOps.grayscale(copia)
+    except Exception as e:
+        _ocr_disponible = False
+        logger.warning('OCR no disponible (Tesseract no instalado/configurado): %s', str(e))
+        return None, None
+
+    umbrales = [200]
+    try:
+        umbrales.append(_umbral_otsu(gris))
+    except Exception:
+        pass  # si numpy fallara por algún motivo, seguir solo con el fijo
+
+    for umbral in umbrales:
+        try:
+            binaria = gris.point(lambda p, u=umbral: 255 if p > u else 0)
+            texto = pytesseract.image_to_string(binaria, lang=_ocr_lang, config='--psm 6')
+            _ocr_disponible = True
+        except Exception as e:
+            _ocr_disponible = False
+            logger.warning('OCR no disponible (Tesseract no instalado/configurado): %s', str(e))
+            return None, None
+        lat, lon = _extraer_coordenada_de_texto(texto)
+        if lat is not None:
+            return lat, lon
+
+    return None, None
 
 
 def _leer_gps_de_ia(archivo_bytes, filename):

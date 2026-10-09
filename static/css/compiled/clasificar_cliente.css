@@ -318,7 +318,8 @@
 }
 
 .cc-resultados-table th:nth-child(2), .cc-resultados-table td:nth-child(2) {
-  width: 9%;
+  width: 12%;
+  overflow-wrap: anywhere;
 }
 
 .cc-resultados-table th:nth-child(3), .cc-resultados-table td:nth-child(3) {
@@ -340,13 +341,34 @@
 }
 
 .cc-resultados-table th:nth-child(7), .cc-resultados-table td:nth-child(7) {
-  width: 24%;
+  width: 21%;
 }
 
 .cc-niveles-cell {
   display: flex;
   flex-wrap: wrap;
   gap: 3px;
+}
+
+.cc-popup-sin {
+  margin-top: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  font-size: 12px;
+}
+
+.cc-popup-sin ul {
+  margin: 4px 0 0;
+  padding-left: 16px;
+}
+
+.cc-popup-sin li {
+  margin-bottom: 4px;
+}
+
+.cc-sin-det {
+  color: #666;
+  font-size: 11px;
 }
 
 .cc-ubicacion-admin {

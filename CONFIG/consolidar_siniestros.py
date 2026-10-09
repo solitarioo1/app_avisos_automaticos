@@ -101,6 +101,13 @@ def _norm_resultado(valor):
     return 'OTRO'
 
 
+def _financiera_de_archivo(fname):
+    """Los 7 excels históricos no traen columna de financiera pero todos son
+    de Agrobanco (así se llaman los archivos); solo listar_avisos la trae
+    como columna FINANCIERA."""
+    return 'AGROBANCO' if 'AGROBANCO' in fname.upper() else None
+
+
 def _to_float(valor):
     try:
         v = float(valor)
@@ -144,6 +151,8 @@ def _cargar_agrobanco_con_resultado(fname, hoja, col_resultado_principal, col_re
             'resultado_raw': str(resultado_raw).strip() if pd.notna(resultado_raw) else None,
             'resultado': _norm_resultado(resultado_raw),
             'area_asegurada': _to_float(r.get('AREA ASEGURADA')),
+            'asegurado': _norm_texto(r.get('ASEGURADO'), mayusculas=False),
+            'financiera': _financiera_de_archivo(fname),
             'latitud': None,
             'longitud': None,
         })
@@ -174,6 +183,8 @@ def _cargar_agrobanco_ajustador(fname):
             'resultado_raw': str(resultado_raw).strip() if pd.notna(resultado_raw) else None,
             'resultado': _norm_resultado(resultado_raw) if pd.notna(resultado_raw) else 'SIN_DATO',
             'area_asegurada': _to_float(r.get('Área asegurada (Has)')),
+            'asegurado': _norm_texto(r.get('Asegurado'), mayusculas=False) or _norm_texto(r.get('ASEGURADO'), mayusculas=False),
+            'financiera': _financiera_de_archivo(fname),
             'latitud': None,
             'longitud': None,
         })
@@ -202,6 +213,8 @@ def _cargar_listar_avisos(fname):
             'resultado_raw': pago_txt or None,
             'resultado': 'INDEMNIZADO' if tiene_pago else 'NO_INDEMNIZADO',
             'area_asegurada': _to_float(r.get('Area asegurada (Has)')),
+            'asegurado': _norm_texto(r.get('Asegurado'), mayusculas=False),
+            'financiera': _norm_texto(r.get('FINANCIERA')),
             'latitud': _to_float(r.get('Latitud')),
             'longitud': _to_float(r.get('Longitud')),
         })
@@ -248,6 +261,8 @@ def consolidar():
         )
     """)
     cur.execute("ALTER TABLE siniestros_historico ADD COLUMN IF NOT EXISTS area_asegurada DOUBLE PRECISION")
+    cur.execute("ALTER TABLE siniestros_historico ADD COLUMN IF NOT EXISTS asegurado VARCHAR(200)")
+    cur.execute("ALTER TABLE siniestros_historico ADD COLUMN IF NOT EXISTS financiera VARCHAR(80)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_siniestros_depto ON siniestros_historico(departamento)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_siniestros_resultado ON siniestros_historico(resultado)")
     conn.commit()
@@ -277,6 +292,7 @@ def consolidar():
             _limpio_num(r['monto_indemnizable']), _limpio(r['resultado_raw']), _limpio(r['resultado']),
             _limpio_num(r['area_asegurada']),
             _limpio_num(r['latitud']), _limpio_num(r['longitud']),
+            _limpio(r['asegurado']), _limpio(r['financiera']),
         )
         for r in df.to_dict('records')
     ]
@@ -284,7 +300,8 @@ def consolidar():
         cur,
         """INSERT INTO siniestros_historico
            (fuente, fecha_evento, departamento, provincia, distrito, cultivo, evento,
-            monto_indemnizable, resultado_raw, resultado, area_asegurada, latitud, longitud)
+            monto_indemnizable, resultado_raw, resultado, area_asegurada, latitud, longitud,
+            asegurado, financiera)
            VALUES %s""",
         filas_insert
     )

@@ -206,13 +206,25 @@ def _siniestros_cercanos_bulk(puntos, radio_km=RADIO_CERCANOS_KM):
     todos = cur.fetchall()
     for s in todos:
         s['fuente'] = 'app'
+        s['asegurado'] = s.get('nombre_completo')
+        s['financiera'] = None
 
-    cur.execute("""
-        SELECT id, cultivo, evento, fecha_evento, resultado, monto_indemnizable,
-               latitud, longitud
-        FROM siniestros_historico
-        WHERE latitud IS NOT NULL AND longitud IS NOT NULL
-    """)
+    try:
+        cur.execute("""
+            SELECT id, cultivo, evento, fecha_evento, resultado, monto_indemnizable,
+                   latitud, longitud, asegurado, financiera
+            FROM siniestros_historico
+            WHERE latitud IS NOT NULL AND longitud IS NOT NULL
+        """)
+    except psycopg2.errors.UndefinedColumn:
+        # BD sin las columnas nuevas todavía (falta re-correr consolidar_siniestros.py)
+        conn.rollback()
+        cur.execute("""
+            SELECT id, cultivo, evento, fecha_evento, resultado, monto_indemnizable,
+                   latitud, longitud, NULL AS asegurado, NULL AS financiera
+            FROM siniestros_historico
+            WHERE latitud IS NOT NULL AND longitud IS NOT NULL
+        """)
     historico = cur.fetchall()
     cur.close(); conn.close()
     for s in historico:
@@ -243,31 +255,37 @@ _historico_sin_gps_cache = None  # (depto,prov,distrito) -> conteo, cargado 1 ve
 
 
 def _cargar_historico_sin_gps():
-    """De las 20,866 filas de siniestros_historico, 12,547 no tienen GPS pero
-    sí departamento/provincia/distrito (texto, formato MAYÚSCULAS sin tilde —
+    """Conteo por distrito de TODO siniestros_historico (con y sin GPS) que
+    tenga departamento/provincia/distrito (texto, formato MAYÚSCULAS sin tilde —
     igual que el shapefile de _ubicar_punto, verificado: 91% matchea exacto;
     el resto son códigos tipo '030201' en vez de nombre, data sucia de origen,
-    se queda fuera sin forzar el match)."""
+    se queda fuera sin forzar el match). Las 12,547 filas sin GPS solo se
+    pueden ubicar por acá; las con GPS también se cuentan para que el total
+    del distrito sea completo y el de ≤5 km quede como un subconjunto de él
+    (se separan en con_gps / sin_gps)."""
     global _historico_sin_gps_cache
     if _historico_sin_gps_cache is not None:
         return _historico_sin_gps_cache
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
-        SELECT departamento, provincia, distrito, resultado, COUNT(*)
+        SELECT departamento, provincia, distrito, resultado,
+               (latitud IS NOT NULL AND longitud IS NOT NULL) AS con_gps, COUNT(*)
         FROM siniestros_historico
-        WHERE latitud IS NULL AND departamento IS NOT NULL
+        WHERE departamento IS NOT NULL
               AND provincia IS NOT NULL AND distrito IS NOT NULL
-        GROUP BY 1, 2, 3, 4
+        GROUP BY 1, 2, 3, 4, 5
     """)
     filas = cur.fetchall()
     cur.close(); conn.close()
 
     cache = {}
-    for depto, prov, dist, resultado, n in filas:
+    for depto, prov, dist, resultado, con_gps, n in filas:
         clave = (depto, prov, dist)
-        d = cache.setdefault(clave, {'total': 0, 'indemnizado': 0, 'no_indemnizado': 0, 'otro': 0})
+        d = cache.setdefault(clave, {'total': 0, 'con_gps': 0, 'sin_gps': 0,
+                                     'indemnizado': 0, 'no_indemnizado': 0, 'otro': 0})
         d['total'] += n
+        d['con_gps' if con_gps else 'sin_gps'] += n
         r = (resultado or '').strip().upper()
         if r == 'INDEMNIZADO':
             d['indemnizado'] += n
@@ -280,9 +298,9 @@ def _cargar_historico_sin_gps():
 
 
 def _siniestros_distrito(departamento, provincia, distrito):
-    """Complemento de _siniestros_cercanos_bulk para cuando el siniestro
-    histórico no tiene coordenada: cuántos hay registrados en el MISMO
-    distrito del punto evaluado (sin distancia exacta, solo el conteo)."""
+    """Complemento de _siniestros_cercanos_bulk: cuántos siniestros históricos
+    hay en el MISMO distrito del punto evaluado, tengan o no coordenada (sin
+    distancia exacta, solo el conteo). Cubre a los asegurados sin GPS."""
     if not (departamento and provincia and distrito):
         return None
     datos = _cargar_historico_sin_gps().get((departamento, provincia, distrito))

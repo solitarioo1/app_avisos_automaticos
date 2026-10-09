@@ -299,6 +299,31 @@ function ccBadgeOrigenUbicacion(origen) {
     return badges[origen] || '';
 }
 
+const CC_MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+function ccEscapar(txt) {
+    return String(txt ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+// Lista del popup: cada siniestro a ≤5 km con evento, mes/año, asegurado y financiera.
+function ccHtmlSiniestrosCercanos(cercanos) {
+    if (!cercanos || !cercanos.length) return '';
+    const items = cercanos.map(s => {
+        let fecha = 'fecha s/d';
+        if (s.fecha_evento) {
+            const [anio, mes] = s.fecha_evento.split('-');
+            fecha = `${CC_MESES[parseInt(mes, 10) - 1] || mes} ${anio}`;
+        }
+        const evento = ccEscapar(s.evento || 'Evento s/d');
+        const cultivo = s.cultivo || s.cultivo_afectado;
+        const quien = [s.asegurado, s.financiera].filter(Boolean).map(ccEscapar).join(' · ');
+        return `<li><strong>${evento}</strong> — ${fecha} (${s.distancia_km} km)` +
+            (cultivo ? `<br><span class="cc-sin-det">${ccEscapar(String(cultivo).split('//')[0])}</span>` : '') +
+            (quien ? `<br><span class="cc-sin-det">${quien}</span>` : '') + '</li>';
+    }).join('');
+    return `<div class="cc-popup-sin"><em>${cercanos.length} siniestro(s) a ≤5 km:</em><ul>${items}</ul></div>`;
+}
+
 let ccMarkersActuales = [];  // paralelo a ccResultadosActuales, para el check/uncheck por fila
 
 function ccMostrarResultados(resultados) {
@@ -320,8 +345,7 @@ function ccMostrarResultados(resultados) {
     tbody.innerHTML = resultados.map((r, i) => {
         let marker = null;
         if (r.latitud != null && r.longitud != null) {
-            const peor = ccPeorNivel(r.exposicion);
-            const color = peor ? ccColorNivel(peor) : '#04ccc4';
+            const color = '#1e6fe0';  // puntos de fotos/clientes siempre azules, el nivel de riesgo va en el popup/tabla
             marker = L.circleMarker([r.latitud, r.longitud], { radius: 7, color, fillColor: color, fillOpacity: .85 }).addTo(ccMapa);
             marker.bindPopup(`<strong>${ccEtiquetaOrigen(r)}</strong><br>` +
                 (r.exposicion || []).filter(c => c.en_capa).map(c => {
@@ -330,8 +354,8 @@ function ccMostrarResultados(resultados) {
                         : '';
                     return `${c.label}: ${c.nivel || 'Expuesto'}${dist}`;
                 }).join('<br>') +
-                (r.siniestros_cercanos && r.siniestros_cercanos.length ? `<br><em>${r.siniestros_cercanos.length} siniestro(s) cerca (≤5km)</em>` : '') +
-                (r.siniestros_distrito ? `<br><em>${r.siniestros_distrito.total} siniestro(s) histórico(s) en ${r.siniestros_distrito.distrito} (sin GPS exacto)</em>` : ''));
+                ccHtmlSiniestrosCercanos(r.siniestros_cercanos) +
+                (r.siniestros_distrito ? `<br><em>${r.siniestros_distrito.total} siniestro(s) histórico(s) en el distrito ${r.siniestros_distrito.distrito} (${r.siniestros_distrito.con_gps} con GPS, ${r.siniestros_distrito.sin_gps} sin GPS)</em>` : ''));
             puntos.push([r.latitud, r.longitud]);
         }
         ccMarkersActuales.push(marker);
@@ -339,7 +363,7 @@ function ccMostrarResultados(resultados) {
         const admin = r.ubicacion || {};
         const adminTxt = [admin.departamento, admin.provincia, admin.distrito].filter(Boolean).join(' / ');
         const distritoTxt = r.siniestros_distrito
-            ? `${r.siniestros_distrito.total} siniestro(s) histórico(s) en el distrito (${r.siniestros_distrito.indemnizado} indemnizados, sin GPS exacto)`
+            ? `${r.siniestros_distrito.total} siniestro(s) histórico(s) en el distrito (${r.siniestros_distrito.con_gps} con GPS, ${r.siniestros_distrito.sin_gps} sin GPS; ${r.siniestros_distrito.indemnizado} indemnizados)`
             : '';
         const ubicacion = r.error
             ? `<span class="text-danger">${r.error}</span>`
@@ -370,7 +394,7 @@ function ccMostrarResultados(resultados) {
 
         return `<tr>
             <td><input type="checkbox" checked onchange="ccToggleMarker(${i}, this.checked)" ${marker ? '' : 'disabled'}></td>
-            <td>${ccEtiquetaOrigen(r)}</td>
+            <td class="cc-td-origen">${r.origen === 'excel' || r.origen === 'lote' ? ccEscapar(ccEtiquetaOrigen(r)) : 'Foto<br>georreferenciada'}</td>
             <td>${ubicacion}</td>
             <td><div class="cc-niveles-cell">${niveles}</div></td>
             <td class="text-center">${(r.siniestros_cercanos || []).length || '—'}</td>
